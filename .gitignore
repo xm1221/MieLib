@@ -1,29 +1,50 @@
-build/
-*.ipr
-run/
-*.iws
-out/
-*.iml
-.gradle/
-output/
-bin/
-
-.classpath
-.project
-.idea/
-classes/
-.metadata
-.settings
-*.launch
-.DS_Store
-
-.architectury-transformer
+# datagen cache
+.cache/
 
 # hexdoc
-_site/
-_checkout/
+doc/**/_export/generated/
+/_site/
+/_checkout/
 __gradle_version__.py
-.hexdoc*/
+.hexdoc/
+
+# eclipse
+bin
+*.launch
+.settings
+.metadata
+.classpath
+.project
+
+# idea
+out
+*.ipr
+*.iws
+*.iml
+.idea
+
+# gradle
+build
+.gradle
+
+# other
+eclipse
+run
+.DS_Store
+
+# Idk what prompted gradle to create this folder
+Fabric/Fabric
+
+
+# MacOS moment
+.DS_Store
+
+# Files from Forge MDK
+forge*changelog.txt
+
+Session.vim
+plot/
+
 
 # Python
 
@@ -43,8 +64,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
