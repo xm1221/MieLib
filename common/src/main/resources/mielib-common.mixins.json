@@ -6,7 +6,7 @@
   "client": [
   ],
   "mixins": [
-    "MixinDatagenMain"
+    "CastingVMMixin"
   ],
   "plugin": "cn.xm1221.MieLib.mixin.MielibMixinConfigPlugin",
   "injectors": {
