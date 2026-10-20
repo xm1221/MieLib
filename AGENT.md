@@ -67,13 +67,11 @@
 4. 跑全部 **After**（`isAfter == true`），**即使 Before 已 cancel 也要跑**（便于清理 / 日志）。After 里 `cancel(result)` = 采用该结果并停止后续 After；**禁止**再调原方法。
 5. 最终返回非空 `result`，否则抛错。
 
-禁止：末尾或 fallback 再次 `original.call`；空 `cancel()` 不带结果。
-
-同 id **允许覆盖**（后注册替换先前），覆盖时应打警告日志，避免完全静默。
+禁止：末尾或 fallback 再次 `original.call`；空 `cancel()` 不带结果；同 id 静默覆盖注册。
 
 ### 4.2 API 要点
 
-- `register(id: ResourceLocation, worker)`：同 id → **覆盖**旧注册，并 `LOGGER.warn`（更灵活，便于热替换 / 调试）。
+- `register(id: ResourceLocation, worker)`：同 id → 打日志并 **抛** `IllegalArgumentException`，保留旧注册。
 - `CastingVMCall.cancel(result)` / `setResult(result)`；`result` / `cancelled` 为受限可见。
 - Worker 只有一个 `execute(..., vm: CastingVM)`；用 `isAfter` 区分阶段，不要再拆两个 abstract。
 - Hook / mixin 必须把 **`CastingVM` 实例** 传给 Worker。
