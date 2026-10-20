@@ -5,7 +5,7 @@ import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import cn.xm1221.MieLib.config.MielibServerConfig
 import cn.xm1221.MieLib.networking.MielibNetworking
-import cn.xm1221.MieLib.registry.MielibActions
+
 
 object Mielib {
     const val MODID = "mielib"
@@ -19,7 +19,7 @@ object Mielib {
     fun init() {
         MielibServerConfig.init()
         initRegistries(
-            MielibActions,
+         
         )
         MielibNetworking.init()
     }
