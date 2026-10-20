@@ -1,6 +1,7 @@
 package cn.xm1221.MieLib.registry
 
 import at.petrak.hexcasting.api.casting.eval.CastResult
+import at.petrak.hexcasting.api.casting.eval.vm.CastingVM
 import at.petrak.hexcasting.api.casting.eval.vm.SpellContinuation
 import at.petrak.hexcasting.api.casting.iota.Iota
 import cn.xm1221.MieLib.worker.CastingVMCall
@@ -33,12 +34,13 @@ object CastingVMHook {
         world: ServerLevel,
         cont: SpellContinuation,
         original: Operation<CastResult>,
+        vm: CastingVM
     ): CastResult {
         val chain = workers.values.toList().sortedBy { it.priority }
         var call = CastingVMCall()
         for (worker in chain) {
             if (!worker.isAfter) {
-                call = worker.beforeExecute(iota, world, cont, call)
+                call = worker.execute(iota, world, cont, call,vm)
                 if (call.cancelled) {
                     return call.result ?: original.call(iota, world, cont)
                 }
@@ -48,12 +50,12 @@ object CastingVMHook {
         call.result = original.call(iota, world, cont)
         for (worker in chain) {
             if (worker.isAfter) {
-                call = worker.afterExecute(iota, world, cont, call)
+                call = worker.execute(iota, world, cont, call,vm)
                 if (call.cancelled) {
-                    return call.result ?: result
+                    return call.result ?: original.call(iota, world, cont)
                 }
             }
         }
-        return result
+        return original.call(iota, world, cont)
     }
 }

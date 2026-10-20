@@ -14,6 +14,6 @@ import org.spongepowered.asm.mixin.Mixin;
 public class CastingVMMixin {
     @WrapMethod(method = "executeInner", remap = false)
     private CastResult mielib$executeInner(Iota iota, ServerLevel world, SpellContinuation continuation, Operation<CastResult> original) {
-        return CastingVMHook.execute(iota, world, continuation, original);
+        return CastingVMHook.execute(iota, world, continuation, original,(CastingVM) (Object)this);
     }
 }
