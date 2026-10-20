@@ -1,0 +1,15 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+# https://copier.readthedocs.io/en/stable/updating/#never-change-the-answers-file-manually
+_commit: v2.2.4
+_src_path: gh:FallingColors/hexdummy
+advanced: false
+description: An lib for hex-addons
+display_name: MieLib
+github_repo: MieLib
+github_user: xm1221
+java_package: cn.xm1221.MieLib
+mappings_name: Mojmap
+minecraft_version_in_mod_version: true
+mit_license: true
+mod_version: 0.0.1
+modid: mielib

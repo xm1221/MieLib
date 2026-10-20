@@ -1,0 +1,8 @@
+{
+  hexdoc: {
+    mielib: {
+      title: "MieLib Book",
+      description: "An lib for hex-addons",
+    },
+  }
+}
