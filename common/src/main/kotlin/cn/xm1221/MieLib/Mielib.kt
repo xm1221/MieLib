@@ -19,7 +19,7 @@ object Mielib {
     fun init() {
         MielibServerConfig.init()
         initRegistries(
-         
+
         )
         MielibNetworking.init()
     }
