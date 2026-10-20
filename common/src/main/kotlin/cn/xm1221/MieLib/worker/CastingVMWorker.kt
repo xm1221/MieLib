@@ -7,10 +7,10 @@ import net.minecraft.server.level.ServerLevel
 
 abstract class CastingVMWorker ( val isAfter: Boolean = false, val priority: Int = 0) {
    
-    open fun beforeExecute(iota: Iota, world: ServerLevel, cont: SpellContinuation, call: CastingVMCall)
+    abstract fun beforeExecute(iota: Iota, world: ServerLevel, cont: SpellContinuation, call: CastingVMCall):CastingVMCall
 
-    open fun afterExecute(iota: Iota, world: ServerLevel, cont: SpellContinuation, result: CastResult): CastResult = result
-
+    abstract fun afterExecute(iota: Iota, world: ServerLevel, cont: SpellContinuation, call: CastingVMCall): CastingVMCall
+}
 
 class CastingVMCall {
     var cancelled: Boolean = false
@@ -25,4 +25,4 @@ class CastingVMCall {
     }
 }
 
-}
+

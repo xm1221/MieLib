@@ -7,6 +7,7 @@ import cn.xm1221.MieLib.worker.CastingVMCall
 import cn.xm1221.MieLib.worker.CastingVMWorker
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation
 import net.minecraft.server.level.ServerLevel
+import net.minecraft.resources.ResourceLocation
 
 /**
  * [CastingVMWorker] 的注册表。
@@ -18,13 +19,12 @@ import net.minecraft.server.level.ServerLevel
  * 3. 按注册顺序调用 [CastingVMWorker.isAfter] 为 true 的 [CastingVMWorker.afterExecute]。
  */
 object CastingVMHook {
-    private val workers = mutableListOf<CastingVMWorker>()
+    private val workers = mutableMapOf<ResourceLocation,CastingVMWorker>()
 
     @JvmStatic
-    fun register(worker: CastingVMWorker) {
-        synchronized(workers) {
-            workers += worker
-        }
+    fun register(id: ResourceLocation, worker: CastingVMWorker) {
+        workers[id] = worker
+        
     }
 
     @JvmStatic
@@ -34,23 +34,24 @@ object CastingVMHook {
         cont: SpellContinuation,
         original: Operation<CastResult>,
     ): CastResult {
-        val chain = synchronized(workers) { workers.toList() }
-        val call = CastingVMCall()
+        val chain = workers.values.toList().sortedBy { it.priority }
+        var call = CastingVMCall()
         for (worker in chain) {
             if (!worker.isAfter) {
-                worker.beforeExecute(iota, world, cont, call)
+                call = worker.beforeExecute(iota, world, cont, call)
+                if (call.cancelled) {
+                    return call.result ?: original.call(iota, world, cont)
+                }
             }
         }
 
-        var result = if (call.cancelled) {
-            call.result ?: original.call(iota, world, cont)
-        } else {
-            original.call(iota, world, cont)
-        }
-
+        call.result = original.call(iota, world, cont)
         for (worker in chain) {
             if (worker.isAfter) {
-                result = worker.afterExecute(iota, world, cont, result)
+                call = worker.afterExecute(iota, world, cont, call)
+                if (call.cancelled) {
+                    return call.result ?: result
+                }
             }
         }
         return result
