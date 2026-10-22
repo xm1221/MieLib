@@ -1,6 +1,6 @@
 package cn.xm1221.MieLib.worker
 
-abstract  class DrawPatternWorker(val priority : Int)  {
+abstract class DrawPatternWorker(override val priority: Int) : PriorityWorker {
 
     abstract fun ifEffect(result: DrawResult):Boolean
    abstract fun effect( drawResult: DrawResult): DrawResult

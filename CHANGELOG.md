@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `CastingVMHook` / `CastingVMWorker` / `CastingVMCall` API for extending `CastingVM.executeInner` from addons (MieHex:Revolution etc.).
 - `AGENT.md`, the overarching agent guide for working in this repository (including the hook contract).
 - Client `DrawPatternHook` / `DrawPatternWorker` registry; a single `GuiSpellcasting` `WrapOperation` on `RenderLib.drawPatternFromPoints` lets addons rewrite `drawLast`/`tail`/`head`/`flowIrregular` (workers run in ascending priority).
+- Client `IotaDisplayHook` / `IotaDisplayWorker` registry for overriding iota display text.
+- `PriorityWorker` interface and `HookWorkerRegistry<W>` shared registry backing `CastingVMHook`, `DrawPatternHook`, and `IotaDisplayHook` (`ordered()` + `fold`).
 
 ### Fixed
 
@@ -29,3 +31,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Workers now receive the `CastingVM` instance (`vm`), allowing hooks to read/modify the VM image and environment.
 - `CastingVMHook` KDoc updated to describe the actual pipeline.
 - Duplicate `CastingVMHook.register` ids **overwrite** the previous worker (with a warn log) instead of throwing, so addons can replace a hook flexibly.
+- `CastingVMWorker` / `DrawPatternWorker` / `IotaDisplayWorker` implement `PriorityWorker`; constructors unchanged for source compatibility.
+- `DrawPatternHook` / `IotaDisplayHook` now use the same `ConcurrentHashMap` + overwrite-warn + id-tiebreak behaviour as `CastingVMHook` (was silent overwrite / unordered ties).
+- `CastingVMHook.execute` semantics unchanged; only ordering lookup moved to `HookWorkerRegistry.ordered()`.

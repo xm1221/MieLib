@@ -4,13 +4,11 @@ import at.petrak.hexcasting.api.casting.eval.CastResult
 import at.petrak.hexcasting.api.casting.eval.vm.CastingVM
 import at.petrak.hexcasting.api.casting.eval.vm.SpellContinuation
 import at.petrak.hexcasting.api.casting.iota.Iota
-import cn.xm1221.MieLib.Mielib
 import cn.xm1221.MieLib.worker.CastingVMCall
 import cn.xm1221.MieLib.worker.CastingVMWorker
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerLevel
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * [CastingVMWorker] 的注册表。
@@ -31,24 +29,13 @@ import java.util.concurrent.ConcurrentHashMap
  * 注册键为 [ResourceLocation] id。同 id **允许覆盖**：后注册的 worker 替换先前的，
  * 并打一条 [Mielib.LOGGER] 警告，便于排查意外覆盖。
  */
-object CastingVMHook {
-    private val workers = ConcurrentHashMap<ResourceLocation, CastingVMWorker>()
+object CastingVMHook : HookWorkerRegistry<CastingVMWorker>("CastingVMHook") {
 
     /**
      * 注册一个 worker。同 [id] 已存在时覆盖旧注册，并打警告日志。
      */
     @JvmStatic
-    fun register(id: ResourceLocation, worker: CastingVMWorker) {
-        val previous = workers.put(id, worker)
-        if (previous != null) {
-            Mielib.LOGGER.warn(
-                "CastingVMHook: overwriting worker id {} (was {}, now {})",
-                id,
-                previous::class.java.name,
-                worker::class.java.name,
-            )
-        }
-    }
+    fun register(id: ResourceLocation, worker: CastingVMWorker) = put(id, worker)
 
     /** 供 mixin 调用；语义见类 KDoc。 */
     @JvmStatic
@@ -59,9 +46,7 @@ object CastingVMHook {
         original: Operation<CastResult>,
         vm: CastingVM,
     ): CastResult {
-        val chain = workers.entries
-            .sortedWith(compareBy({ it.value.priority }, { it.key.toString() }))
-            .map { it.value }
+        val chain = ordered()
 
         var call = CastingVMCall()
 

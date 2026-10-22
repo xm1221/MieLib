@@ -7,7 +7,7 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.Tag
 import net.minecraft.network.chat.Component
 
-abstract class IotaDisplayWorker(val type: IotaType<Iota>, val priority:Int) {
+abstract class IotaDisplayWorker(val type: IotaType<Iota>, override val priority: Int) : PriorityWorker {
     abstract  fun ifEffect(iota:Iota?): Boolean
     open fun ifEffect(tag: Tag): Boolean {
         return ifEffect(tag.toIota(type))

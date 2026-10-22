@@ -17,8 +17,8 @@ import net.minecraft.server.level.ServerLevel
  */
 abstract class CastingVMWorker(
     val isAfter: Boolean = false,
-    val priority: Int = 0,
-) {
+    override val priority: Int = 0,
+) : PriorityWorker {
     abstract fun execute(
         iota: Iota,
         world: ServerLevel,
