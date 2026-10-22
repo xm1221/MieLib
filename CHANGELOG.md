@@ -4,13 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.0.1] - 2026-10-21
+## [0.0.1] - 2026-10-22
 
 ### Added
 
 - Initial version.
 - `CastingVMHook` / `CastingVMWorker` / `CastingVMCall` API for extending `CastingVM.executeInner` from addons (MieHex:Revolution etc.).
 - `AGENT.md`, the overarching agent guide for working in this repository (including the hook contract).
+- Client `DrawPatternHook` / `DrawPatternWorker` registry so addons can rewrite `drawLast` / `tail` / `head` / `flowIrregular` for `RenderLib.drawPatternFromPoints` via a single `GuiSpellcasting` WrapOperation (shared hook for MieHex:Revolution-style / pigment-style stroke theming).
 
 ### Fixed
 
