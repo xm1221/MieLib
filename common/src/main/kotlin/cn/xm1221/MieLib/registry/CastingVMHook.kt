@@ -28,28 +28,25 @@ import java.util.concurrent.ConcurrentHashMap
  *    After 中的 `cancel` 表示采用当前 `result` 并停止后续 After，同样不会再次调用原方法。
  * 5. 返回 `result`；缺失则抛出 [IllegalStateException]。
  *
- * 注册键为 [ResourceLocation] id。同 id 不允许静默覆盖：重复注册会先
- * [Mielib.LOGGER] 警告，然后抛出 [IllegalArgumentException]（保留原有注册）。
+ * 注册键为 [ResourceLocation] id。同 id **允许覆盖**：后注册的 worker 替换先前的，
+ * 并打一条 [Mielib.LOGGER] 警告，便于排查意外覆盖。
  */
 object CastingVMHook {
     private val workers = ConcurrentHashMap<ResourceLocation, CastingVMWorker>()
 
     /**
-     * 注册一个 worker。
-     *
-     * @throws IllegalArgumentException 当 [id] 已被注册时（原注册保留，不覆盖）。
+     * 注册一个 worker。同 [id] 已存在时覆盖旧注册，并打警告日志。
      */
     @JvmStatic
     fun register(id: ResourceLocation, worker: CastingVMWorker) {
-        val previous = workers.putIfAbsent(id, worker)
+        val previous = workers.put(id, worker)
         if (previous != null) {
             Mielib.LOGGER.warn(
-                "CastingVMHook: duplicate worker id {} ({}); keeping existing registration {}",
+                "CastingVMHook: overwriting worker id {} (was {}, now {})",
                 id,
-                worker::class.java.name,
                 previous::class.java.name,
+                worker::class.java.name,
             )
-            throw IllegalArgumentException("CastingVMHook: worker id already registered: $id")
         }
     }
 
