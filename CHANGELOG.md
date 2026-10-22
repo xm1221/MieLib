@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Initial version.
 - `CastingVMHook` / `CastingVMWorker` / `CastingVMCall` API for extending `CastingVM.executeInner` from addons (MieHex:Revolution etc.).
 - `AGENT.md`, the overarching agent guide for working in this repository (including the hook contract).
+- Client `DrawPatternHook` / `DrawPatternWorker` registry; a single `GuiSpellcasting` `WrapOperation` on `RenderLib.drawPatternFromPoints` lets addons rewrite `drawLast`/`tail`/`head`/`flowIrregular` (workers run in ascending priority).
 
 ### Fixed
 

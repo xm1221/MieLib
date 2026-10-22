@@ -1,10 +1,7 @@
 package cn.xm1221.MieLib.registry
 
 import cn.xm1221.MieLib.worker.DrawPatternWorker
-import net.minecraft.client.Minecraft
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.world.phys.Vec2
-import org.joml.Matrix4f
 
 object DrawPatternHook {
     private val workers = mutableMapOf<ResourceLocation, DrawPatternWorker>()
