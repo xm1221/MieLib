@@ -19,7 +19,7 @@ import java.util.function.Supplier;
 /** 一次 VM 运行（一轮 queueExecuteAndWrapIotas，结束于 PostCast）的观察记录。 */
 public final class CastEvent {
     public final int id;
-    /** HexCLI 命令自己发起的（环境是 {@link HexCliCastEnv}）为 root，其它都是 spawned。 */
+    /** HexCLI 命令自己发起的（环境是 HexCLI 会话本次 run 创建的那个）为 root，其它都是 spawned。 */
     public final boolean root;
     public final String envClass;
     public final String caster;
@@ -61,7 +61,7 @@ public final class CastEvent {
             Vec3 v = env.mishapSprayPos();
             return String.format("%.1f, %.1f, %.1f", v.x, v.y, v.z);
         });
-        return new CastEvent(id, env instanceof HexCliCastEnv, env.getClass().getName(), caster, pos, tick);
+        return new CastEvent(id, HexCliSession.isRootEnv(env), env.getClass().getName(), caster, pos, tick);
     }
 
     void finish(CastingImage image) {

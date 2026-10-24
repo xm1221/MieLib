@@ -2,7 +2,26 @@ package cn.xm1221.MieLib.hexcli;
 
 import at.petrak.hexcasting.api.casting.eval.vm.CastingImage;
 import at.petrak.hexcasting.api.casting.iota.Iota;
+import at.petrak.hexcasting.api.casting.eval.CastingEnvironment;
+import cn.xm1221.MieLib.hexcli.HexCliProfiles.ProfileException;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.arguments.CompoundTagArgument;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.ResourceArgument;
+import net.minecraft.commands.arguments.selector.EntitySelector;
+import net.minecraft.commands.arguments.selector.EntitySelectorParser;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.Vec2;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -41,8 +60,17 @@ public final class HexCli implements ModInitializer {
     @Override
     public void onInitialize() {
         CastObserver.init();
-        CommandRegistrationCallback.EVENT.register((dispatcher, ctx, sel) -> register(dispatcher));
-        ServerLifecycleEvents.SERVER_STARTED.register(CastObserver::bindServer);
+        CommandRegistrationCallback.EVENT.register((dispatcher, ctx, sel) -> register(dispatcher, ctx));
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            CastObserver.bindServer(server);
+            HexCliProfiles.writeExamples(server);
+            HexCliSession session = HexCliSession.get(server);
+            try {
+                for (String l : session.applyProfile("default")) LOGGER.info(l);
+            } catch (ProfileException e) {
+                LOGGER.error("[HexCLI] could not apply default profile: {}", e.getMessage());
+            }
+        });
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> {
             CastObserver.bindServer(null);
             HexCliSession.drop();
@@ -53,8 +81,32 @@ public final class HexCli implements ModInitializer {
         LOGGER.info("HexCLI loaded. Try: hexcli run 1 2 add   (or: > 1 2 add)");
     }
 
-    private static void register(CommandDispatcher<CommandSourceStack> d) {
+    private static void register(CommandDispatcher<CommandSourceStack> d, CommandBuildContext build) {
         d.register(Commands.literal("hexcli").requires(s -> s.hasPermission(2))
+            .then(Commands.literal("profile")
+                .then(Commands.literal("list").executes(HexCli::profileList))
+                .then(Commands.literal("show").executes(HexCli::profileShow))
+                .then(Commands.literal("use").then(Commands.argument("name", StringArgumentType.word())
+                    .suggests((c, b) -> SharedSuggestionProvider.suggest(HexCliProfiles.list(c.getSource().getServer()), b))
+                    .executes(c -> profileUse(c, StringArgumentType.getString(c, "name"))))))
+            .then(Commands.literal("caster")
+                .then(Commands.literal("player").executes(c -> casterSet(c, "player", null)))
+                .then(Commands.literal("none").executes(c -> casterSet(c, "none", null)))
+                .then(Commands.literal("select").then(Commands.argument("target", EntityArgument.entity())
+                    .executes(c -> casterSet(c, "select", EntityArgument.getEntity(c, "target")))))
+                .then(Commands.literal("summon").then(Commands.argument("entity", ResourceArgument.resource(build, Registries.ENTITY_TYPE))
+                    .executes(c -> casterSummon(c, null))
+                    .then(Commands.argument("nbt", CompoundTagArgument.compoundTag())
+                        .executes(c -> casterSummon(c, CompoundTagArgument.getCompoundTag(c, "nbt")))))))
+            .then(Commands.literal("world").then(Commands.literal("summon")
+                .then(Commands.argument("entity", ResourceArgument.resource(build, Registries.ENTITY_TYPE))
+                    .then(Commands.argument("tag", StringArgumentType.word())
+                        .executes(c -> worldSummon(c, null))
+                        .then(Commands.argument("nbt", CompoundTagArgument.compoundTag())
+                            .executes(c -> worldSummon(c, CompoundTagArgument.getCompoundTag(c, "nbt"))))))))
+            .then(Commands.literal("media").then(Commands.argument("amount", StringArgumentType.word())
+                .suggests((c, b) -> SharedSuggestionProvider.suggest(List.of("infinite", "10000", "100000"), b))
+                .executes(c -> media(c, StringArgumentType.getString(c, "amount")))))
             .then(Commands.literal("run").then(Commands.argument("code", StringArgumentType.greedyString())
                 .executes(c -> run(c, StringArgumentType.getString(c, "code")))))
             .then(Commands.literal("stack").executes(HexCli::stack))
@@ -97,14 +149,22 @@ public final class HexCli implements ModInitializer {
             say(src, List.of("[HexCLI] hexParse produced no iotas for: " + code));
             return 0;
         }
+        CastingEnvironment env;
         try {
-            CastEvent ev = session.run(iotas);
+            env = session.createEnv();
+        } catch (IllegalArgumentException e) {
+            say(src, List.of("[HexCLI] cannot cast: " + e.getMessage()));
+            return 0;
+        }
+        try {
+            CastEvent ev = session.run(iotas, env);
             List<String> out = new ArrayList<>();
             out.add("[HexCLI] > " + code + "  (" + iotas.size() + " iota" + (iotas.size() == 1 ? "" : "s") + ")");
             if (ev != null) out.addAll(ev.render());
             else out.add("[HexCLI] (no root cast event observed)");
             for (String p : session.printed) out.add("  printed: " + p);
             for (String m : session.player.drainMessages()) out.add("  message: " + m);
+            if (session.mediaMode() == HexCliProfile.Mode.NUMBER) out.add("  media left: " + session.mediaText());
             say(src, out);
             return ev != null && ev.mishaps.isEmpty() ? 1 : 0;
         } catch (Throwable t) {
@@ -130,8 +190,152 @@ public final class HexCli implements ModInitializer {
 
     private static int reset(CommandContext<CommandSourceStack> ctx) {
         HexCliSession.get(ctx.getSource().getServer()).reset();
-        say(ctx.getSource(), List.of("[HexCLI] session reset (stack, ravenmind, parens cleared)"));
+        HexCliSession s = HexCliSession.get(ctx.getSource().getServer());
+        say(ctx.getSource(), List.of("[HexCLI] session reset to profile '" + s.profileName() + "' initial image (stack "
+            + s.image().getStack().size() + ", ravenmind " + (CastEvent.ravenmindOf(s.image()) == null ? "none" : "set") + ")"));
         return 1;
+    }
+
+    // ---- profile / caster / world / media ----
+
+    private static int profileList(CommandContext<CommandSourceStack> ctx) {
+        MinecraftServer server = ctx.getSource().getServer();
+        String active = HexCliSession.get(server).profileName();
+        List<String> out = new ArrayList<>();
+        List<String> names = HexCliProfiles.list(server);
+        out.add("[HexCLI] profiles in " + HexCliProfiles.dir(server) + " (" + names.size() + ")");
+        for (String n : names) {
+            String d = HexCliProfiles.descriptionOf(server, n);
+            out.add((n.equals(active) ? "  * " : "    ") + n + (d == null ? "" : " - " + d));
+        }
+        say(ctx.getSource(), out);
+        return names.size();
+    }
+
+    private static int profileUse(CommandContext<CommandSourceStack> ctx, String name) {
+        try {
+            say(ctx.getSource(), HexCliSession.get(ctx.getSource().getServer()).applyProfile(name));
+            return 1;
+        } catch (ProfileException e) {
+            say(ctx.getSource(), List.of("[HexCLI] profile error: " + e.getMessage()));
+            return 0;
+        } catch (RuntimeException e) {
+            LOGGER.error("profile apply crashed", e);
+            say(ctx.getSource(), List.of("[HexCLI] profile error: " + e));
+            return 0;
+        }
+    }
+
+    private static int profileShow(CommandContext<CommandSourceStack> ctx) {
+        HexCliSession s = HexCliSession.get(ctx.getSource().getServer());
+        List<String> out = new ArrayList<>();
+        String env;
+        try {
+            env = HexCliEnvs.resolve(s.profile().env, s.context());
+        } catch (RuntimeException e) {
+            env = "? (" + e.getMessage() + ")";
+        }
+        out.add("[HexCLI] active profile '" + s.profileName() + "'" + (s.profile().description == null ? "" : ": " + s.profile().description));
+        out.add("  caster: " + HexCliSession.describe(s.caster()) + " at " + HexCliSession.fmt(s.anchor()) + " in " + s.level().dimension().location());
+        out.add("  env: " + env + "  enlightened: " + s.enlightened() + "  media: " + s.mediaText() + "  ambit: " + s.ambitText());
+        out.add("  stack size: " + s.image().getStack().size() + "  registered envs: auto, " + String.join(", ", HexCliEnvs.all().keySet()));
+        say(ctx.getSource(), out);
+        return 1;
+    }
+
+    private static int casterSet(CommandContext<CommandSourceStack> ctx, String mode, @org.jetbrains.annotations.Nullable Entity target) {
+        HexCliSession s = HexCliSession.get(ctx.getSource().getServer());
+        switch (mode) {
+            case "player" -> s.setCasterPlayer();
+            case "none" -> s.setCasterNone();
+            default -> {
+                if (!(target instanceof LivingEntity le)) {
+                    say(ctx.getSource(), List.of("[HexCLI] caster error: " + HexCliSession.describe(target)
+                        + " is not a living entity; casters must be LivingEntity"));
+                    return 0;
+                }
+                s.setCaster(le);
+            }
+        }
+        say(ctx.getSource(), List.of("[HexCLI] caster = " + HexCliSession.describe(s.caster()) + " at " + HexCliSession.fmt(s.anchor())
+            + " (env " + HexCliEnvs.resolve(s.profile().env, s.context()) + ")"));
+        return 1;
+    }
+
+    private static Entity summonAt(CommandContext<CommandSourceStack> ctx, @org.jetbrains.annotations.Nullable CompoundTag nbt, List<String> tags)
+        throws CommandSyntaxException {
+        HexCliSession s = HexCliSession.get(ctx.getSource().getServer());
+        Holder.Reference<EntityType<?>> type = ResourceArgument.getSummonableEntityType(ctx, "entity");
+        return HexCliProfiles.summon(s.level(), type.key().location().toString(), s.anchor(), nbt == null ? null : nbt.toString(), tags);
+    }
+
+    private static int casterSummon(CommandContext<CommandSourceStack> ctx, @org.jetbrains.annotations.Nullable CompoundTag nbt)
+        throws CommandSyntaxException {
+        try {
+            Entity e = summonAt(ctx, nbt, List.of(HexCliProfiles.CASTER_TAG));
+            if (!(e instanceof LivingEntity)) {
+                e.discard();
+                say(ctx.getSource(), List.of("[HexCLI] caster error: " + HexCliSession.describe(e) + " is not a living entity"));
+                return 0;
+            }
+            return casterSet(ctx, "select", e);
+        } catch (ProfileException e) {
+            say(ctx.getSource(), List.of("[HexCLI] summon error: " + e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int worldSummon(CommandContext<CommandSourceStack> ctx, @org.jetbrains.annotations.Nullable CompoundTag nbt)
+        throws CommandSyntaxException {
+        try {
+            Entity e = summonAt(ctx, nbt, List.of(StringArgumentType.getString(ctx, "tag")));
+            say(ctx.getSource(), List.of("[HexCLI] summoned " + HexCliSession.describe(e) + " at " + HexCliSession.fmt(e.position())
+                + " tags=" + e.getTags()));
+            return 1;
+        } catch (ProfileException e) {
+            say(ctx.getSource(), List.of("[HexCLI] summon error: " + e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int media(CommandContext<CommandSourceStack> ctx, String amount) {
+        HexCliSession s = HexCliSession.get(ctx.getSource().getServer());
+        if (amount.equalsIgnoreCase("infinite")) s.setMedia(null);
+        else {
+            try {
+                long v = Long.parseLong(amount);
+                if (v < 0) throw new NumberFormatException();
+                s.setMedia(v);
+            } catch (NumberFormatException e) {
+                say(ctx.getSource(), List.of("[HexCLI] media must be 'infinite' or a non-negative integer (dust = 10000), got '" + amount + "'"));
+                return 0;
+            }
+        }
+        say(ctx.getSource(), List.of("[HexCLI] media = " + s.mediaText()));
+        return 1;
+    }
+
+    /** 解析原版选择器，要求恰好选中一个 LivingEntity。 */
+    static LivingEntity selectOne(MinecraftServer server, ServerLevel level, String selector) {
+        EntitySelector sel;
+        try {
+            sel = new EntitySelectorParser(new StringReader(selector)).parse();
+        } catch (CommandSyntaxException e) {
+            throw new ProfileException("bad selector '" + selector + "': " + e.getMessage());
+        }
+        CommandSourceStack src = server.createCommandSourceStack().withLevel(level).withPermission(4)
+            .withPosition(net.minecraft.world.phys.Vec3.atBottomCenterOf(level.getSharedSpawnPos())).withRotation(Vec2.ZERO);
+        List<? extends Entity> found;
+        try {
+            found = sel.findEntities(src);
+        } catch (CommandSyntaxException e) {
+            throw new ProfileException("selector '" + selector + "' failed: " + e.getMessage());
+        }
+        if (found.size() != 1)
+            throw new ProfileException("selector '" + selector + "' matched " + found.size() + " entities, need exactly 1");
+        if (!(found.get(0) instanceof LivingEntity le))
+            throw new ProfileException("selector '" + selector + "' matched " + HexCliSession.describe(found.get(0)) + ", which is not a LivingEntity");
+        return le;
     }
 
     // ---- 让时间流逝：tick / wait ----
