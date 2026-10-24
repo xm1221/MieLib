@@ -43,8 +43,9 @@ clothConfig = "11.1.106"
 modMenu = "7.1.0"
 inline = "1.20.1-1.0.1"
 
-# HexCLI only: Modrinth version id of hexParse-fabric-1.20.1-1.12.0
-hexparse-fabric = "wt2k5ALr"
+# hexParse (HexCLI only, optional for MieLib): Modrinth version ids
+hexparse-fabric = "wt2k5ALr" # hexParse-fabric-1.20.1-1.12.0
+hexparse-forge = "EcCjvGFr"  # hexParse-forge-1.20.1-1.12.0
 
 caelus = "3.1.0+1.20"
 
@@ -106,6 +107,7 @@ inline-fabric = { module="com.samsthenerd.inline:inline-fabric", version.ref="in
 inline-forge  = { module="com.samsthenerd.inline:inline-forge", version.ref="inline" }
 
 hexparse-fabric = { module="maven.modrinth:WjFyIzFj", version.ref="hexparse-fabric" }
+hexparse-forge  = { module="maven.modrinth:WjFyIzFj", version.ref="hexparse-forge" }
 
 asm          = { module="org.ow2.asm:asm", version.ref="asm" }
 asm-analysis = { module="org.ow2.asm:asm-analysis", version.ref="asm" }

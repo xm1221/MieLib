@@ -23,6 +23,8 @@ object Mielib {
 
         )
         MielibNetworking.init()
+        // HexCLI 默认关闭；开关只看系统属性 / 服务端配置（见 HEXCLI.md）
+        cn.xm1221.MieLib.hexcli.HexCli.init()
     }
 
     fun initServer() {

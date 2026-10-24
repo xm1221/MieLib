@@ -61,6 +61,10 @@
             "": "Dummy Server Config Option",
             "@Tooltip": "This is an example of a server-side config option that accepts an integer.",
           },
+          enableHexCli: {
+            "": "Enable HexCLI",
+            "@Tooltip": "Enables the HexCLI console commands on a dedicated server (requires hexParse). The launch argument -Dmielib.hexcli=true|false overrides this. Off by default.",
+          },
         },
       },
     },

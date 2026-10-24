@@ -19,6 +19,10 @@ dependencies {
 
     modApi(libs.clothConfig.common)
 
+    // HexCLI (part of MieLib) compiles against hexParse but it is NOT a hard dependency of MieLib:
+    // compile only, and the code that touches hexParse classes only runs when HexCLI is enabled.
+    modCompileOnly(libs.hexparse.fabric) { isTransitive = false }
+
     libs.mixinExtras.common.also {
         implementation(it)
         annotationProcessor(it)

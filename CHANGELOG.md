@@ -8,11 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- HexCLI (`hexcli/`, Fabric only, separate artifact `hexcli-fabric`, not bundled into MieLib jars): run Hex code in hexParse syntax on a headless dedicated server via `/hexcli run <code>` or raw `> <code>` console lines; persistent stack/ravenmind across commands, `/hexcli stack`, `/hexcli reset`, `/hexcli tick <n>`, `/hexcli wait [quiet] [timeout]`; observes every `CastingEnvironment` on the server (root vs spawned) and logs stack, mishaps and media used.
-- HexCLI public env registration API (`cn.xm1221.MieLib.hexcli.api`: `HexCliAPI.registerEnv`, `EnvSpec`, `CasterKind`, `HexCliEnvContext`/`HexCliEnvFactory`), built-in `hexcli:packaged` env (cypher/trinket/artifact), `hexcli env list` / `hexcli env use <id|auto>`, profile `envData`, and an unshipped `hexcli_example` addon source set (`:hexcli:runExampleServer`) demonstrating the soft-dependency pattern.
+- HexCLI (now part of MieLib, in `common` / `fabric` / `forge`; no separate mod id or jar): run Hex code in hexParse syntax on a headless dedicated server via `/hexcli run <code>` or raw `> <code>` console lines; persistent stack/ravenmind across commands, `/hexcli stack`, `/hexcli reset`, `/hexcli tick <n>`, `/hexcli wait [quiet] [timeout]`; observes every `CastingEnvironment` on the server (root vs spawned) and logs stack, mishaps and media used.
+- HexCLI public env registration API (`cn.xm1221.MieLib.hexcli.api`: `HexCliAPI.registerEnv`, `EnvSpec`, `CasterKind`, `HexCliEnvContext`/`HexCliEnvFactory`), built-in `mielib:packaged` env (cypher/trinket/artifact), `hexcli env list` / `hexcli env use <id|auto>`, profile `envData`, and an unshipped `hexcli_example` addon source set (`:fabric:runHexcliExampleServer`) demonstrating the soft-dependency pattern.
+- HexCLI on Forge (`:forge:runHexcliServer`); dev runs `:fabric:runHexcliServer` / `:fabric:runHexcliExampleServer` / `:forge:runHexcliServer`.
+- MieLib server config option `enableHexCli` (default `false`) and launch argument `-Dmielib.hexcli=true` to enable HexCLI.
+- `HEXCLI.md` at the repo root (moved from `hexcli/README.md`).
+- `mielib.utils.extractNestedJar` buildSrc helper (extracts jar-in-jar dependencies such as hexParse's yclib into the dev runtime).
 
 ### Changed
 
+- **HexCLI is off by default** and must be enabled explicitly (`-Dmielib.hexcli=true`, which wins, or `enableHexCli = true` in the MieLib server config); it also needs hexParse installed. Nothing is registered while it is off.
+- **HexCLI env ids are now `mielib:staff` / `mielib:circle` / `mielib:packaged` / `mielib:auto`** (bare paths such as `staff` still default to the `mielib` namespace). `HexCliAPI.MOD_ID` is replaced by `HexCliAPI.NAMESPACE` (= `mielib`).
+- HexCLI moved from the standalone `hexcli` subproject into MieLib's `common` (loader-agnostic, Architectury events / `@ExpectPlatform` fake player) plus `fabric` / `forge` implementations; `hexcli/` and the `hexcli` mod id are gone, the example addon is the Fabric `example` source set.
+- The `> <code>` console shortcut mixin now lives in `cn.xm1221.MieLib.mixin.hexcli.DedicatedServerConsoleMixin` (registered under `server` in `mielib-common.mixins.json`) and only rewrites input while HexCLI is active.
+- hexParse is an optional (soft) dependency of MieLib: Fabric `suggests`, Forge non-mandatory dependency, compile-only in `common`.
 - **BREAKING**: `IotaDisplayWorker` is now tag-only: constructor is `IotaDisplayWorker(type: IotaType<*>, priority: Int)`, default hook gate is `open fun ifEffect(data: Tag): Boolean = true`, and effect entry is `abstract fun effect(data: Tag, prev: IotaDisplayCall): IotaDisplayCall`.
 - Migration: replace `effect(iota: Iota?)` with `effect(data, prev)`, read values from the `KEY_DATA` tag, write needed display info in your iota's `serialize()`, and keep fields of `prev` you don't change.
 - `IotaDisplayHook` now executes as `effect(full, initial)`, and workers only run for tags whose `type === worker.type`.

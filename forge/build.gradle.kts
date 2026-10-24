@@ -1,3 +1,5 @@
+import mielib.utils.extractNestedJar
+
 plugins {
     id("mielib.platform")
 }
@@ -39,6 +41,16 @@ loom {
                 property("mielib.$platform-datagen", "true")
             }
         }
+
+        // HexCLI (off by default, enabled with -Dmielib.hexcli=true)
+        register("hexcliServer") {
+            server()
+            name("HexCLI Server")
+            runDir = "run/hexcli"
+            programArg("nogui")
+            property("mielib.hexcli", "true")
+            ideConfigGenerated(false)
+        }
     }
 }
 
@@ -58,6 +70,7 @@ mielibModDependencies {
     requires("cloth-config")
     requires(curseforge = "hexcasting", modrinth = "hex-casting")
     requires("kotlin-for-forge")
+    optional("hexparse")
 }
 
 dependencies {
@@ -86,9 +99,31 @@ dependencies {
         localRuntime(it)
         include(it)
     }
+
+    // HexCLI dev runtime: hexParse is optional for MieLib but required when HexCLI is enabled.
+    // Its yclib dependency is jar-in-jar, which Loom does not load in dev; extract it separately.
+    modLocalRuntime(libs.hexparse.forge)
+    modLocalRuntime(files(extractNestedJar(
+        libs.hexparse.forge.get().toString(),
+        Regex("""META-INF/jars/yclib-.*\.jar"""),
+        "yclib-forge.jar",
+    )))
 }
 
 tasks {
+    // Console input for the HexCLI dev server, plus EULA / offline-mode server.properties.
+    named<JavaExec>("runHexcliServer") {
+        standardInput = System.`in`
+        doFirst {
+            val run = file("run/hexcli")
+            run.mkdirs()
+            run.resolve("eula.txt").takeIf { !it.exists() }?.writeText("eula=true\n")
+            run.resolve("server.properties").takeIf { !it.exists() }?.writeText(
+                "online-mode=false\nspawn-protection=0\nlevel-name=hexcli-world\nmotd=HexCLI\nenable-rcon=false\n"
+            )
+        }
+    }
+
     shadowJar {
         exclude("fabric.mod.json")
     }

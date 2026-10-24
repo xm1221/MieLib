@@ -10,6 +10,9 @@
   "mixins": [
     "CastingVMMixin"
   ],
+  "server": [
+    "hexcli.DedicatedServerConsoleMixin"
+  ],
   "plugin": "cn.xm1221.MieLib.mixin.MielibMixinConfigPlugin",
   "injectors": {
     "defaultRequire": 1
