@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- HexCLI (`hexcli/`, Fabric only, separate artifact `hexcli-fabric`, not bundled into MieLib jars): run Hex code in hexParse syntax on a headless dedicated server via `/hexcli run <code>` or raw `> <code>` console lines; persistent stack/ravenmind across commands, `/hexcli stack`, `/hexcli reset`, `/hexcli tick <n>`, `/hexcli wait [quiet] [timeout]`; observes every `CastingEnvironment` on the server (root vs spawned) and logs stack, mishaps and media used.
+
 ### Changed
 
 - **BREAKING**: `IotaDisplayWorker` is now tag-only: constructor is `IotaDisplayWorker(type: IotaType<*>, priority: Int)`, default hook gate is `open fun ifEffect(data: Tag): Boolean = true`, and effect entry is `abstract fun effect(data: Tag, prev: IotaDisplayCall): IotaDisplayCall`.

@@ -26,6 +26,7 @@
 |------|------|
 | `common/` | 跨加载器逻辑与资源（钩子、Registrar、网络抽象等） |
 | `fabric/` / `forge/` | 加载器入口与平台实现（`MielibAbstractionsImpl` 等） |
+| `hexcli/` | HexCLI：无头服务器上的 Hex 命令行（仅 Fabric、纯 Java，独立产物，不打进 MieLib jar） |
 | `buildSrc/` | Gradle 约定插件 |
 | `doc/` | hexdoc 文档工程 |
 | `gradle/libs.versions.toml` | 版本目录；改依赖先改这里 |

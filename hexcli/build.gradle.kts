@@ -1,0 +1,143 @@
+import java.util.zip.ZipFile
+
+// HexCLI — MieLib 的开发用子项目（里程碑 1：仅 Fabric）。
+// 无头专用服务端 + 控制台输入 hexParse 代码执行法术。独立 mod id `hexcli`，不会打进 MieLib 的 jar。
+//
+// 注意：这里故意不套 mielib.java / mielib.minecraft 约定插件，也不用 Kotlin 写。
+// 原因：hexParse 是用 Kotlin 2.2 编译的，而本仓库的 Kotlin 插件是 1.9.22；只要项目应用了 Kotlin 插件，
+// Loom 就会用 1.9 的 kotlinx-metadata 去重映射所有 mod 的 Kotlin 元数据，遇到 hexParse 直接失败。
+// 纯 Java 子项目不会触发这一步。
+
+plugins {
+    java
+    id("dev.architectury.loom")
+}
+
+val mavenGroup: String by project
+val modVersion: String by project
+val minecraftVersion = libs.versions.minecraft.get()
+
+group = mavenGroup
+version = "$modVersion+$minecraftVersion-SNAPSHOT"
+base.archivesName = "hexcli-fabric"
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(libs.versions.java.get().toInt())
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.encoding = "UTF-8"
+    options.release = libs.versions.java.get().toInt()
+}
+
+repositories {
+    mavenCentral()
+    maven { url = uri("https://maven.blamejared.com") }
+    maven { url = uri("https://maven.fabricmc.net/") }
+    maven { url = uri("https://maven.hexxy.media") }
+    maven { url = uri("https://maven.ladysnake.org/releases") }
+    maven { url = uri("https://maven.parchmentmc.org") }
+    maven { url = uri("https://maven.shedaniel.me") }
+    maven { url = uri("https://maven.terraformersmc.com/releases") }
+    maven { url = uri("https://jitpack.io") }
+    exclusiveContent {
+        filter { includeGroup("maven.modrinth") }
+        forRepository { maven { url = uri("https://api.modrinth.com/maven") } }
+    }
+}
+
+loom {
+    silentMojangMappingsLicense()
+    mixin {
+        defaultRefmapName = "hexcli.refmap.json"
+    }
+    runs {
+        named("server") {
+            runDir = "run"
+            programArg("nogui")
+            ideConfigGenerated(false)
+        }
+        named("client") { ideConfigGenerated(false) }
+    }
+}
+
+// hexParse 把 yclib 作为 jar-in-jar 内嵌，但开发环境不会加载内嵌 jar，而 yclib 又没有公开 maven。
+// 这里在配置阶段把内嵌的 yclib 解出来，作为单独的开发运行时 mod 交给 Loom 重映射。
+val nestedYclib: File = run {
+    val out = layout.buildDirectory.file("nested/yclib.jar").get().asFile
+    if (!out.exists()) {
+        val raw = configurations.detachedConfiguration(dependencies.create(libs.hexparse.fabric.get().toString()))
+            .apply { isTransitive = false }
+            .singleFile
+        ZipFile(raw).use { zip ->
+            val entry = zip.entries().asSequence().first { it.name.matches(Regex("META-INF/jars/yclib-.*\\.jar")) }
+            out.parentFile.mkdirs()
+            zip.getInputStream(entry).use { input -> out.outputStream().use { input.copyTo(it) } }
+        }
+    }
+    out
+}
+
+dependencies {
+    minecraft(libs.minecraft)
+    mappings(loom.layered {
+        officialMojangMappings()
+        parchment(libs.parchment)
+    })
+
+    modImplementation(libs.fabric.loader)
+    modImplementation(libs.fabric.api)
+    modImplementation(libs.kotlin.fabric)
+
+    modImplementation(libs.architectury.fabric) {
+        exclude(group = "net.fabricmc", module = "fabric-loader")
+    }
+    modImplementation(libs.hexcasting.fabric) {
+        exclude(module = "phosphor")
+    }
+    modImplementation(libs.clothConfig.fabric) {
+        exclude(group = "net.fabricmc.fabric-api")
+    }
+
+    // 仓库里当前的 MieLib（不是 mavenLocal 里的旧版本），这样 HexCLI 测的就是正在开发的 MieLib
+    implementation(project(path = ":common", configuration = "namedElements")) { isTransitive = false }
+    implementation(project(path = ":fabric", configuration = "namedElements")) { isTransitive = false }
+
+    // hexParse：必需依赖（Modrinth WjFyIzFj，版本 wt2k5ALr = hexParse-fabric-1.20.1-1.12.0）
+    modImplementation(libs.hexparse.fabric)
+    modLocalRuntime(files(nestedYclib))
+
+    // Hex Casting 运行时依赖（与 :fabric 一致，只进开发运行时）
+    modLocalRuntime(libs.paucal.fabric)
+    modLocalRuntime(libs.patchouli.fabric)
+    modLocalRuntime(libs.cardinalComponents)
+    modLocalRuntime(libs.serializationHooks)
+    modLocalRuntime(libs.trinkets)
+    modLocalRuntime(libs.inline.fabric) { isTransitive = false }
+
+    libs.mixinExtras.fabric.also {
+        localRuntime(it)
+        annotationProcessor(it)
+    }
+}
+
+tasks {
+    // 让 `./gradlew :hexcli:runServer` 能从终端 / 管道读控制台输入
+    named<JavaExec>("runServer") {
+        standardInput = System.`in`
+        doFirst {
+            val run = file("run")
+            run.mkdirs()
+            // 开发用：自动同意 EULA、离线模式
+            run.resolve("eula.txt").takeIf { !it.exists() }?.writeText("eula=true\n")
+            run.resolve("server.properties").takeIf { !it.exists() }?.writeText(
+                "online-mode=false\nspawn-protection=0\nlevel-name=hexcli-world\nmotd=HexCLI\nenable-rcon=false\n"
+            )
+        }
+    }
+    processResources {
+        val props = mapOf("version" to project.version.toString())
+        inputs.properties(props)
+        filesMatching("fabric.mod.json") { expand(props) }
+    }
+}

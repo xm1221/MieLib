@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "hexcli",
+  "version": "${version}",
+  "name": "HexCLI",
+  "description": "MieLib dev harness: run Hex Casting code (hexParse syntax) from a headless server console.",
+  "authors": ["xm1221"],
+  "contact": {
+    "sources": "https://github.com/xm1221/MieLib"
+  },
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": ["cn.xm1221.MieLib.hexcli.HexCli"]
+  },
+  "mixins": ["hexcli.mixins.json"],
+  "depends": {
+    "minecraft": "1.20.1",
+    "fabricloader": "*",
+    "fabric-api": "*",
+    "fabric-language-kotlin": "*",
+    "hexcasting": "*",
+    "hexparse": "*",
+    "mielib": "*"
+  }
+}

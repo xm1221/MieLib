@@ -12,3 +12,6 @@ pluginManagement {
 
 rootProject.name = "MieLib"
 include("common", "fabric", "forge")
+
+// HexCLI: dev-only test harness (Fabric), NOT bundled into the MieLib jars
+include("hexcli")
