@@ -164,6 +164,8 @@ public final class HexCli implements ModInitializer {
             else out.add("[HexCLI] (no root cast event observed)");
             for (String p : session.printed) out.add("  printed: " + p);
             for (String m : session.player.drainMessages()) out.add("  message: " + m);
+            String disp = HexCliCircle.takeDisplay(env);
+            if (disp != null) out.add("  impetus: " + disp);
             if (session.mediaMode() == HexCliProfile.Mode.NUMBER) out.add("  media left: " + session.mediaText());
             say(src, out);
             return ev != null && ev.mishaps.isEmpty() ? 1 : 0;
@@ -257,8 +259,14 @@ public final class HexCli implements ModInitializer {
                 s.setCaster(le);
             }
         }
+        String env;
+        try {
+            env = HexCliEnvs.resolve(s.profile().env, s.context());
+        } catch (RuntimeException e) {
+            env = "? (" + e.getMessage() + ")";
+        }
         say(ctx.getSource(), List.of("[HexCLI] caster = " + HexCliSession.describe(s.caster()) + " at " + HexCliSession.fmt(s.anchor())
-            + " (env " + HexCliEnvs.resolve(s.profile().env, s.context()) + ")"));
+            + " (env " + env + ")"));
         return 1;
     }
 

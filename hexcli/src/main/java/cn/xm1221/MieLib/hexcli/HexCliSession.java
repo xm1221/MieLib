@@ -147,8 +147,9 @@ public final class HexCliSession {
         return pigment != null ? pigment : FrozenPigment.DEFAULT.get();
     }
 
-    public void setPigment(@Nullable FrozenPigment p) {
-        pigment = p;
+    /** profile 里配置的颜料（没配为 null）。 */
+    public @Nullable FrozenPigment profilePigment() {
+        return pigment;
     }
 
     public static String describe(@Nullable Entity e) {
@@ -162,7 +163,7 @@ public final class HexCliSession {
     public String mediaText() {
         return switch (mediaMode) {
             case INFINITE -> "infinite";
-            case INVENTORY -> "inventory (real items / overcast)";
+            case INVENTORY -> "inventory (env pays: player items/overcast, circle impetus)";
             default -> mediaRemaining + "/" + mediaBudget + " (" + String.format(Locale.ROOT, "%.2f", mediaRemaining / 10000.0) + " dust)";
         };
     }
@@ -265,7 +266,7 @@ public final class HexCliSession {
             throw new ProfileException("ambit: " + e.getMessage());
         }
         if (am == HexCliProfile.Mode.INVENTORY) throw new ProfileException("ambit cannot be \"inventory\"");
-        if (mm == HexCliProfile.Mode.DEFAULT) mm = type.equals("player") ? HexCliProfile.Mode.INVENTORY : HexCliProfile.Mode.INFINITE;
+        if (mm == HexCliProfile.Mode.DEFAULT) mm = HexCliProfile.Mode.INVENTORY; // default = 环境自己的规则
         if (!"auto".equals(p.env) && p.env != null) HexCliEnvs.get(p.env); // 未知 id 提前报错
         LivingEntity selected = null;
         if (type.equals("select")) {
@@ -317,9 +318,13 @@ public final class HexCliSession {
 
         // 启迪
         enlightened = c.enlightened;
-        // 真实玩家：授予 / 撤销本体的 hexcasting:enlightenment 进度（本体 isEnlightened 就看它）。
-        // Fabric 的 FakePlayer 不记录进度（award 永远返回 false），所以假玩家的启迪由 HexCliCastEnv 直接取 profile 值。
-        if (newCaster instanceof ServerPlayer sp && !(sp instanceof HexCliPlayer)) {
+        // 玩家（假玩家和选中的真实玩家都一样）：授予 / 撤销本体的 hexcasting:enlightenment 进度，
+        // 本体 StaffCastEnv.isEnlightened 就看它，HexCLI 不改环境。
+        // 无施法者的法术环在本体里总是启迪的（CircleCastEnv.isEnlightened），profile 的 enlightened 对它无效。
+        if (newCaster == null && !c.enlightened)
+            out.add("[HexCLI] warning: caster none uses CircleCastEnv, which is always enlightened; enlightened=false is ignored");
+        // 假玩家总是设置（之后 `hexcli caster player` 也对）；选中的真实玩家也设置。
+        for (ServerPlayer sp : newCaster instanceof ServerPlayer real && real != fp ? List.of(fp, real) : List.of(fp)) {
             String r = setAdvancement(sp, "enlightenment", c.enlightened);
             if (r != null) out.add("[HexCLI] warning: " + r);
         }
@@ -339,10 +344,8 @@ public final class HexCliSession {
         }
 
         // 媒质 / 范围
-        if (mm == HexCliProfile.Mode.INVENTORY && !(newCaster instanceof ServerPlayer)) {
-            out.add("[HexCLI] warning: media \"inventory\" only works for player casters; using infinite");
-            mm = HexCliProfile.Mode.INFINITE;
-        }
+        if (mm == HexCliProfile.Mode.INVENTORY && newCaster == null)
+            out.add("[HexCLI] note: media \"inventory\" with caster none = the test circle impetus' own media (a fresh impetus has none)");
         mediaMode = mm;
         mediaBudget = mediaRemaining = mm == HexCliProfile.Mode.NUMBER ? (long) HexCliProfile.numberOf(p.media) : 0;
         ambitMode = am;
@@ -384,7 +387,7 @@ public final class HexCliSession {
         try {
             envId = HexCliEnvs.resolve(p.env, context());
         } catch (RuntimeException e) {
-            envId = "?";
+            envId = "? (" + e.getMessage() + ")";
         }
         out.add("[HexCLI] profile '" + name + "' applied: caster=" + describe(newCaster)
             + " env=" + envId + (("auto".equals(p.env) || p.env == null) ? " (auto)" : "")
@@ -435,7 +438,15 @@ public final class HexCliSession {
             List<String> crs = new ArrayList<>();
             (grant ? prog.getRemainingCriteria() : prog.getCompletedCriteria()).forEach(crs::add);
             boolean changed = false;
-            for (String cr : crs) changed |= grant ? sp.getAdvancements().award(adv, cr) : sp.getAdvancements().revoke(adv, cr);
+            for (String cr : crs) {
+                if (sp instanceof HexCliPlayer) {
+                    // Fabric 的 PlayerAdvancementTrackerMixin 会拦掉 FakePlayer 的 award/revoke；
+                    // 假玩家不需要奖励、通知、触发器，直接改进度对象（本体 isEnlightened 读的就是它）。
+                    changed |= grant ? prog.grantProgress(cr) : prog.revokeProgress(cr);
+                } else {
+                    changed |= grant ? sp.getAdvancements().award(adv, cr) : sp.getAdvancements().revoke(adv, cr);
+                }
+            }
             boolean done = sp.getAdvancements().getOrStartProgress(adv).isDone();
             HexCli.LOGGER.debug("[HexCLI] advancement {} criteria={} changed={} done={}", path, crs, changed, done);
             return done == grant ? null : "hexcasting:" + path + " is still " + (done ? "done" : "not done");
@@ -469,7 +480,12 @@ public final class HexCliSession {
             throw new IllegalArgumentException("caster " + describe(caster) + " is gone (dead/removed); pick another with `hexcli caster ...`");
         HexCliEnvContext ctx = context();
         String id = HexCliEnvs.resolve(profile.env, ctx);
-        return HexCliEnvs.get(id).create(ctx);
+        CastingEnvironment env = HexCliEnvs.get(id).create(ctx);
+        // 观察组件先挂（它要看到组件扣费之前的完整费用），再挂 HexCLI 的媒质 / 范围组件。
+        // 只有这里创建的 root 环境会挂媒质 / 范围组件；派生施法（咒灵、法术环、延时……）只被 CastObserver 观察。
+        if (env.getExtension(CastObserver.Probe.KEY) == null) env.addExtension(new CastObserver.Probe(env));
+        HexCliComponents.attach(env, this, ctx.anchor());
+        return env;
     }
 
     /** 执行一段 iota，返回这次 run 对应的 root 事件（由 {@link CastObserver} 记录）。 */

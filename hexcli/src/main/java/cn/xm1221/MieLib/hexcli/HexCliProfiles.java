@@ -129,34 +129,11 @@ public final class HexCliProfiles {
         un.ambit = new JsonPrimitive("infinite");
         m.put("unenlightened", un);
 
-        HexCliProfile z = new HexCliProfile();
-        z.description = "a NoAI zombie holding a stick casts (night, pig target spawned next to it); 10 dust of media budget; ambit 16 blocks";
-        z.caster.type = "entity";
-        z.caster.entity = "minecraft:zombie";
-        z.caster.nbt = "{NoAI:1b,PersistenceRequired:1b,Silent:1b}";
-        z.caster.mainhand = new HexCliProfile.Stack("minecraft:stick", 1);
-        z.caster.tags = List.of("hexcli_zombie");
-        z.caster.enlightened = false;
-        z.media = new JsonPrimitive(100000);
-        z.ambit = new JsonPrimitive(16);
-        HexCliProfile.World zw = new HexCliProfile.World();
-        zw.time = 18000L; // 夜里，免得僵尸被太阳点着
-        zw.weather = "clear";
-        zw.gamerules.put("doDaylightCycle", "false");
-        zw.gamerules.put("doMobSpawning", "false");
-        HexCliProfile.Summon pig = new HexCliProfile.Summon();
-        pig.entity = "minecraft:pig";
-        pig.nbt = "{NoAI:1b}";
-        pig.tags = List.of("target");
-        zw.summons.add(pig);
-        z.world = zw;
-        m.put("zombie", z);
-
         HexCliProfile none = new HexCliProfile();
-        none.description = "no caster at all (like a headless circle/wisp-less cast), anchored at world spawn";
+        none.description = "no caster: a real spell circle (redstone impetus + 3 slates) is built at world spawn and the code runs in the base CircleCastEnv; 1 dust budget, ambit 32 blocks around the anchor";
         none.caster.type = "none";
         none.caster.enlightened = true;
-        none.media = new JsonPrimitive("infinite");
+        none.media = new JsonPrimitive(10000);
         none.ambit = new JsonPrimitive(32);
         m.put("nocaster", none);
 
