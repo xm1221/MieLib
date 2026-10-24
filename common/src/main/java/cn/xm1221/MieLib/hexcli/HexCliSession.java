@@ -204,8 +204,8 @@ public final class HexCliSession {
         String text = message.getString();
         HexCli.LOGGER.info("[HexCLI] print: {}", text);
         printed.add(text);
-        // 远程客户端：法术打印实时推送（客户端自己 run 里的 print 会重复收到，客户端自行去重）
-        HexCliRemote.pushPrint(text);
+        // 远程客户端：只推送 run 之外（延迟 / 派生施法）的打印；run 内的打印随回复返回
+        if (rootEnv == null) HexCliRemote.pushPrint(text);
     }
 
     /** 取出并清空假玩家收集到的系统消息（hexParse 提示、法术 chat 输出）。 */

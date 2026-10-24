@@ -1,6 +1,7 @@
 package cn.xm1221.MieLib.hexcli;
 
 import at.petrak.hexcasting.api.casting.iota.EntityIota;
+import at.petrak.hexcasting.api.casting.iota.GarbageIota;
 import at.petrak.hexcasting.api.casting.iota.Iota;
 import at.petrak.hexcasting.api.casting.iota.ListIota;
 import at.petrak.hexcasting.xplat.IXplatAbstractions;
@@ -32,6 +33,8 @@ public final class HexCliIotas {
     /** 人类可读的一行文本（实体 / 列表已修正）。 */
     public static String text(Iota iota) {
         if (iota instanceof EntityIota ei) return entityText(ei.getEntity());
+        // 本体的垃圾 iota 显示是乱码（obfuscated）文本，终端里看着像真数据
+        if (iota instanceof GarbageIota) return "<garbage>";
         if (iota instanceof ListIota li) {
             StringBuilder sb = new StringBuilder("[");
             boolean first = true;
@@ -80,8 +83,10 @@ public final class HexCliIotas {
         out.addProperty("color", color(iota));
 
         Component display;
-        if (iota instanceof EntityIota) {
-            display = Component.literal(text(iota));
+        if (iota instanceof EntityIota || iota instanceof GarbageIota) {
+            // 同本体：实体 AQUA；垃圾用暗灰（本体是乱码样式）
+            display = Component.literal(text(iota)).withStyle(iota instanceof EntityIota
+                ? net.minecraft.ChatFormatting.AQUA : net.minecraft.ChatFormatting.DARK_GRAY);
         } else {
             display = safeComponent(iota::display);
         }

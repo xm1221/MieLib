@@ -26,6 +26,21 @@ public final class Renderer {
         return color;
     }
 
+    /** 终端声明支持 24 位色（COLORTERM=truecolor/24bit，或 Windows Terminal 的 WT_SESSION）时按真彩色输出，否则 256 色。 */
+    public static int colorCount(org.jline.terminal.Terminal terminal) {
+        String ct = System.getenv("COLORTERM");
+        if (ct != null && (ct.equalsIgnoreCase("truecolor") || ct.equalsIgnoreCase("24bit"))) return 0x1000000;
+        if (System.getenv("WT_SESSION") != null) return 0x1000000;
+        Integer n = terminal == null ? null : terminal.getNumericCapability(org.jline.utils.InfoCmp.Capability.max_colors);
+        return n == null || n < 256 ? 256 : n;
+    }
+
+    /** 不带 ACS 线框替换的 ANSI 文本。 */
+    public String ansi(AttributedString s, org.jline.terminal.Terminal terminal) {
+        if (!color) return s.toString();
+        return s.toAnsi(colorCount(terminal), org.jline.utils.AttributedCharSequence.ForceMode.None, null, null, null);
+    }
+
     // ---- 样式小工具 ----
 
     private AttributedStyle s() {
@@ -164,7 +179,7 @@ public final class Renderer {
         return out;
     }
 
-    /** 列表 iota 的子元素：每行一个，缩进 + ├ / └。 */
+    /** 列表 iota 的子元素：每行一个，缩进 + · / ╰（避开 JLine 会转成 ACS 线框字符的 ├└│）。 */
     private void appendChildren(List<AttributedString> out, JsonObject iota, String indent) {
         if (!iota.has("children") || !iota.get("children").isJsonArray()) return;
         JsonArray children = iota.getAsJsonArray("children");
@@ -172,10 +187,10 @@ public final class Renderer {
             JsonObject child = children.get(i).getAsJsonObject();
             boolean last = i == children.size() - 1;
             AttributedStringBuilder b = new AttributedStringBuilder();
-            b.append(indent + (last ? "└ " : "├ "), dimStyle());
+            b.append(indent + (last ? "╰ " : "· "), dimStyle());
             appendIota(b, child);
             out.add(b.toAttributedString());
-            appendChildren(out, child, indent + (last ? "  " : "│ "));
+            appendChildren(out, child, indent + (last ? "  " : "┊ "));
         }
     }
 

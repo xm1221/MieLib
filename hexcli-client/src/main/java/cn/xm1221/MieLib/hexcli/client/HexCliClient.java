@@ -35,9 +35,6 @@ public final class HexCliClient {
     private static final String PROMPT = "hex> ";
     private static final String CONTINUATION = "...> ";
 
-    /** 刚在 run 回复里显示过的 print 文本（用于丢弃随之而来的重复 print 事件）。 */
-    private final java.util.Set<String> recentPrints = java.util.concurrent.ConcurrentHashMap.newKeySet();
-    private volatile Thread dedupeTimer;
     private final ClientConfig.Args args;
     private final Renderer renderer;
     private final Completer completer = new Completer();
@@ -91,11 +88,6 @@ public final class HexCliClient {
     }
 
     private void onEvent(JsonObject msg) {
-        // print 事件也包含自己 run 里打印的那些（服务器对每次 print 都推送）：短时间内去重。
-        if ("print".equals(Connection.str(msg, "event"))) {
-            String text = Connection.str(msg, "text");
-            if (text != null && recentPrints.remove(text)) return;
-        }
         List<AttributedString> lines = renderer.event(msg);
         printLines(lines);
     }
@@ -103,10 +95,10 @@ public final class HexCliClient {
     private void printLines(List<AttributedString> lines) {
         if (lines.isEmpty()) return;
         if (reader != null && terminal != null) {
-            for (AttributedString l : lines) reader.printAbove(l);
+            for (AttributedString l : lines) reader.printAbove(renderer.ansi(l, terminal));
         } else {
             PrintWriter out = terminal == null ? new PrintWriter(System.out, true) : terminal.writer();
-            for (AttributedString l : lines) out.println(l.toAnsi(terminal));
+            for (AttributedString l : lines) out.println(renderer.ansi(l, terminal));
             out.flush();
         }
     }
@@ -149,11 +141,30 @@ public final class HexCliClient {
         }
     }
 
+    /** meta 命令名（不带冒号）。行首第一个词（区分大小写）是其中之一就当命令，否则当 hex 代码发给服务器。 */
+    static final java.util.List<String> META_NAMES = List.of(
+        "quit", "q", "exit", "help", "run", "cast", "stack", "reset", "env", "profile", "media", "tick", "wait", "cmd");
+
+    /** 这一行若是命令（第一个词正好是命令名），原样返回；否则 null（整行作为 hex 代码发出，包括以 {@code :} 开头的行）。 */
+    static String asMeta(String trimmed) {
+        String first = trimmed.split("\\s+", 2)[0];
+        return META_NAMES.contains(first) ? trimmed : null;
+    }
+
     // ---- --exec ----
 
     private int execOnce(String code) throws IOException {
-        if (code.strip().startsWith(":")) {
-            System.err.println("hexcli: --exec takes hex code; meta-commands work in the REPL (e.g. pipe them via stdin)");
+        String[] head = code.strip().split("\\s+", 2);
+        if (head[0].equals("run") || head[0].equals("cast")) {
+            // run / cast：显式施放后面的内容（命令名开头的图案用这个）
+            code = head.length > 1 ? head[1].strip() : "";
+            if (code.isEmpty()) {
+                System.err.println("hexcli: usage: --exec \"" + head[0] + " <code>\"");
+                return 2;
+            }
+        } else if (asMeta(code.strip()) != null) {
+            System.err.println("hexcli: --exec takes hex code; commands (" + code.strip().split("\\s+", 2)[0]
+                + ") work in the REPL (e.g. pipe them via stdin)");
             return 2;
         }
         quitting = true; // 单次执行：断开时不要触发自动重连
@@ -162,7 +173,7 @@ public final class HexCliClient {
             List<AttributedString> lines = renderer.reply(reply);
             PrintWriter out = new PrintWriter(System.out, true);
             for (AttributedString l : lines) {
-                out.println(renderer.color() ? l.toAnsi(256, true) : l.toString());
+                out.println(renderer.ansi(l, null));
             }
             out.flush();
             if (!Connection.bool(reply, "ok", false)) return 1;
@@ -188,7 +199,7 @@ public final class HexCliClient {
 
         try {
             connect();
-            printNotice("connected to " + conn.profile() + " (env " + conn.env() + "); :help for meta-commands");
+            printNotice("connected to " + conn.profile() + " (env " + conn.env() + "); type help for commands");
             refreshCompletion(conn);
         } catch (IOException e) {
             printNotice(e.getMessage());
@@ -207,7 +218,8 @@ public final class HexCliClient {
             String trimmed = line.strip();
             if (trimmed.isEmpty()) continue;
             try {
-                if (trimmed.startsWith(":")) meta(trimmed);
+                String meta = asMeta(trimmed);
+                if (meta != null) meta(meta);
                 else send(trimmed);
             } catch (RuntimeException e) {
                 printNotice("error: " + e.getMessage());
@@ -239,65 +251,48 @@ public final class HexCliClient {
             printNotice("not connected (" + rootMessage(e) + ")");
             return;
         }
-        JsonObject data = Connection.obj(reply, "data");
-        if (data != null) {
-            for (JsonElement p : Connection.array(data, "prints")) recentPrints.add(p.getAsString());
-            if (!recentPrints.isEmpty()) {
-                if (dedupeTimer == null || !dedupeTimer.isAlive()) {
-                    dedupeTimer = new Thread(() -> {
-                        try {
-                            Thread.sleep(5000);
-                        } catch (InterruptedException ignored) {
-                        }
-                        recentPrints.clear();
-                    }, "hexcli-print-dedupe");
-                    dedupeTimer.setDaemon(true);
-                    dedupeTimer.start();
-                }
-            }
-        }
         printLines(renderer.reply(reply));
     }
 
     private void meta(String line) {
         String[] parts = line.split("\\s+", 2);
-        String cmd = parts[0].toLowerCase(Locale.ROOT);
+        String cmd = parts[0];
         String rest = parts.length > 1 ? parts[1].strip() : "";
         switch (cmd) {
-            case ":quit", ":q", ":exit" -> quitting = true;
-            case ":help" -> printLines(help());
-            case ":run" -> {
-                if (rest.isEmpty()) printNotice("usage: :run <code>");
+            case "quit", "q", "exit" -> quitting = true;
+            case "help" -> printLines(help());
+            case "run", "cast" -> {
+                if (rest.isEmpty()) printNotice("usage: " + cmd + " <code>");
                 else send(rest);
             }
-            case ":stack" -> requestAndPrint("stack");
-            case ":reset" -> requestAndPrint("reset");
-            case ":env" -> {
+            case "stack" -> requestAndPrint("stack");
+            case "reset" -> requestAndPrint("reset");
+            case "env" -> {
                 String[] a = rest.split("\\s+", 2);
                 if (rest.isEmpty() || a[0].equalsIgnoreCase("list")) requestAndPrint("env.list");
                 else if (a[0].equalsIgnoreCase("use")) {
-                    if (a.length < 2) printNotice("usage: :env use <id>");
+                    if (a.length < 2) printNotice("usage: env use <id>");
                     else requestAndPrint("env.use", "id", a[1].strip());
-                } else printNotice("usage: :env [list|use <id>]");
+                } else printNotice("usage: env [list|use <id>]");
             }
-            case ":profile" -> {
+            case "profile" -> {
                 String[] a = rest.split("\\s+", 2);
                 if (rest.isEmpty() || a[0].equalsIgnoreCase("list")) requestAndPrint("profile.list");
                 else if (a[0].equalsIgnoreCase("show")) requestAndPrint("profile.show");
                 else if (a[0].equalsIgnoreCase("use")) {
-                    if (a.length < 2) printNotice("usage: :profile use <name>");
+                    if (a.length < 2) printNotice("usage: profile use <name>");
                     else requestAndPrint("profile.use", "name", a[1].strip());
-                } else printNotice("usage: :profile [list|show|use <name>]");
+                } else printNotice("usage: profile [list|show|use <name>]");
             }
-            case ":media" -> {
-                if (rest.isEmpty()) printNotice("usage: :media <amount|infinite>");
+            case "media" -> {
+                if (rest.isEmpty()) printNotice("usage: media <amount|infinite>");
                 else requestAndPrint("media", "amount", rest);
             }
-            case ":tick" -> {
-                if (rest.isEmpty()) printNotice("usage: :tick <n>");
+            case "tick" -> {
+                if (rest.isEmpty()) printNotice("usage: tick <n>");
                 else requestAndPrint(intField("tick", "ticks", rest));
             }
-            case ":wait" -> {
+            case "wait" -> {
                 String[] a = rest.split("\\s+");
                 JsonObject o = new JsonObject();
                 o.addProperty("type", "wait");
@@ -305,32 +300,33 @@ public final class HexCliClient {
                     if (a.length > 0 && !a[0].isBlank()) o.addProperty("quiet", Integer.parseInt(a[0]));
                     if (a.length > 1) o.addProperty("timeout", Integer.parseInt(a[1]));
                 } catch (NumberFormatException e) {
-                    printNotice("usage: :wait [quiet] [timeout] (integers)");
+                    printNotice("usage: wait [quiet] [timeout] (integers)");
                     return;
                 }
                 requestAndPrint(o);
             }
-            case ":cmd" -> {
-                if (rest.isEmpty()) printNotice("usage: :cmd <hexcli subcommand>");
+            case "cmd" -> {
+                if (rest.isEmpty()) printNotice("usage: cmd <hexcli subcommand>");
                 else requestAndPrint("command", "line", rest);
             }
-            default -> printNotice("unknown meta-command " + cmd + " (:help)");
+            default -> printNotice("unknown command " + cmd + " (help)");
         }
     }
 
     private List<AttributedString> help() {
         return List.of(
-            new AttributedString("  plain input            run hexParse code"),
-            new AttributedString("  :stack                 show the session stack"),
-            new AttributedString("  :reset                 reset to the profile's initial image"),
-            new AttributedString("  :env [list|use <id>]   list / switch casting environments"),
-            new AttributedString("  :profile [list|show|use <name>]"),
-            new AttributedString("  :media <amount|infinite>"),
-            new AttributedString("  :tick <n>              let n ticks pass"),
-            new AttributedString("  :wait [quiet] [timeout]"),
-            new AttributedString("  :cmd <hexcli ...>      run any hexcli subcommand (caster/world/...)"),
-            new AttributedString("  :run <code>            same as plain input"),
-            new AttributedString("  :help / :quit (Ctrl-D)"));
+            new AttributedString("  anything else          run as hexParse code"),
+            new AttributedString("  stack                  show the session stack"),
+            new AttributedString("  reset                  reset to the profile's initial image"),
+            new AttributedString("  env [list|use <id>]    list / switch casting environments"),
+            new AttributedString("  profile [list|show|use <name>]"),
+            new AttributedString("  media <amount|infinite>"),
+            new AttributedString("  tick <n>               let n ticks pass"),
+            new AttributedString("  wait [quiet] [timeout]"),
+            new AttributedString("  cmd <hexcli ...>       run any hexcli subcommand (caster/world/...)"),
+            new AttributedString("  run|cast <code>        cast the rest as code (for patterns named like a command)"),
+            new AttributedString("  help / quit (q, exit, Ctrl-D)"),
+            new AttributedString("  commands match the first word (case-sensitive)"));
     }
 
     /** 数值参数按数字发（服务器那边读的是 int）。 */

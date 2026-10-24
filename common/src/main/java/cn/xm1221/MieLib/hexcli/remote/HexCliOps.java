@@ -122,6 +122,8 @@ public final class HexCliOps {
             data.add("prints", prints);
             JsonArray messages = new JsonArray();
             for (String m : session.drainMessages()) {
+                // 环境会把事故也发给施法者（假玩家）的聊天；cast 里已有，不再重复
+                if (ev != null && ev.mishapsRaw.contains(m)) continue;
                 out.add("  message: " + m);
                 messages.add(m);
             }
@@ -400,8 +402,8 @@ public final class HexCliOps {
         for (String p : fullIds) full.add(p);
         data.add("patternIds", full);
         JsonArray cmds = new JsonArray();
-        for (String c : List.of(":run", ":stack", ":reset", ":env", ":env list", ":env use", ":profile",
-            ":profile list", ":profile show", ":profile use", ":media", ":tick", ":wait", ":cmd", ":help", ":quit")) {
+        for (String c : List.of("run", "cast", "stack", "reset", "env", "env list", "env use", "profile",
+            "profile list", "profile show", "profile use", "media", "tick", "wait", "cmd", "help", "quit")) {
             cmds.add(c);
         }
         data.add("commands", cmds);

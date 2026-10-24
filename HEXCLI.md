@@ -80,7 +80,7 @@ hexParse 的“未知符号”提示会打印成 `[HexCLI] hexParse: ...`。
 ## 终端客户端
 
 服务器端跑起来以后，可以用一个**独立的终端客户端**（`hexcli-client` 子项目，纯 Java 17，不是 mod、不进任何 mod jar）
-连上去交互：带行编辑、历史、Tab 补全、彩色栈，以及 `:stack` 之类的快捷命令。协议是回环地址上的
+连上去交互：带行编辑、历史、Tab 补全、彩色栈，以及 `stack`、`help` 之类的命令。协议是回环地址上的
 换行分隔 JSON，所以客户端可以单独运行、单独打包。
 
 ### 启动
@@ -132,27 +132,32 @@ hexParse 的“未知符号”提示会打印成 `[HexCLI] hexParse: ...`。
 
 ### 交互
 
-普通输入就是 hexParse 代码，按回车执行；`()`、`[]`、`{}` 不平衡时自动续行（提示符变成 `...> `）。
-Tab 补全图案名（服务器 action registry 里的名字，连上后拉一次）、meta 命令、`:env use` 的环境 id、`:profile use` 的 profile 名。
-历史存在 `~/.hexcli_history`。
+一行的第一个词（区分大小写）如果是命令名，就当命令执行，其余部分是参数；否则整行作为 hexParse 代码发给服务器，按回车执行。
+`()`、`[]`、`{}` 不平衡时自动续行（提示符变成 `...> `）。没有 `:` 前缀写法：以 `:` 开头的行也按代码发给 hexParse。
+命令名优先于同名图案；要施放这种代码，用 `cast <code>`（或 `run <code>`），或者在 hexParse 里给图案起别名。
+Tab 补全：行首补全命令名和图案名（服务器 action registry 里的名字，连上后拉一次），之后补全图案名，`env use` 补环境 id，
+`profile use` 补 profile 名。历史存在 `~/.hexcli_history`。
 
-| Meta 命令 | 作用 |
-|-----------|------|
-| `:stack` / `:reset` | 同 `hexcli stack` / `hexcli reset` |
-| `:env [list\|use <id>]` | 同 `hexcli env ...`（`use auto` 也行） |
-| `:profile [list\|show\|use <name>]` | 同 `hexcli profile ...` |
-| `:media <amount\|infinite>` | 同 `hexcli media ...` |
-| `:tick <n>` / `:wait [quiet] [timeout]` | 同 `hexcli tick` / `hexcli wait`（异步：结束时才打印结果） |
-| `:cmd <hexcli 子命令>` | 执行任意 `hexcli ...`（例如 `:cmd caster summon minecraft:zombie`、`:cmd world summon ...`） |
-| `:run <code>` | 等同于直接输入代码 |
-| `:help` / `:quit`（也接受 `:q` / `:exit` / Ctrl-D） | 帮助 / 退出 |
+| 命令 | 作用 |
+|------|------|
+| `stack` / `reset` | 同 `hexcli stack` / `hexcli reset` |
+| `env [list\|use <id>]` | 同 `hexcli env ...`（`use auto` 也行） |
+| `profile [list\|show\|use <name>]` | 同 `hexcli profile ...` |
+| `media <amount\|infinite>` | 同 `hexcli media ...` |
+| `tick <n>` / `wait [quiet] [timeout]` | 同 `hexcli tick` / `hexcli wait`（异步：结束时才打印结果） |
+| `cmd <hexcli 子命令>` | 执行任意 `hexcli ...`（例如 `cmd caster summon minecraft:zombie`、`cmd world summon ...`） |
+| `run <code>` / `cast <code>` | 把后面的内容当代码施放；要施放第一个词正好是命令名的东西（比如叫 `stack` 的图案别名）就用它 |
+| `help` / `quit`（也接受 `q` / `exit` / Ctrl-D） | 帮助 / 退出 |
+
+`--exec` 只接受代码：`--exec "cast <code>"` / `run <code>` 照常施放后面的内容，第一个词是其它命令名时报错并以退出码 2 退出。
 
 运行结果：先一行 resolution（`EVALUATED` 绿色，`ERRORED` / `INVALID` 红色），然后栈从底到顶（顶上一个 `▶`），
-每个 iota 按它的类型颜色上色，列表元素缩进成 `├` / `└`；接着渡鸦之思、mishap（红色 `!`）、`print:`、消息、impetus、
-用掉的媒质（灰色）。其它命令的文本行原样打印。
+每个 iota 按它的类型颜色上色，列表元素缩进成 `·` / `╰`（嵌套用 `┊` 对齐）；垃圾 iota 显示为 `<garbage>`；
+接着渡鸦之思、mishap（红色 `! step N: ...`，N 是本次执行里第几个 iota，每条只显示一次）、`print:`、消息、impetus、
+用掉的媒质（灰色）。其它命令的文本行原样打印。终端声明真彩色（`COLORTERM=truecolor` 或 Windows Terminal）时用 24 位色，否则 256 色。
 
 服务器上的**其它**施法（法术环、Hexal 小精灵、延时施法……）会以事件形式实时打印在当前提示符上方；
-法术的 `print` 也会实时推送（自己 `run` 里已经显示过的会去重）。
+不在自己 `run` 里的法术 `print` 也会实时推送（`run` 里的随回复显示，不再推送）。
 
 断线（服务器重启 / 端口变了）会打印一行提示，然后每 2 秒重试，每次都重新读 `client.json`（端口和 token 每次启动都不同）；
 没连上时发请求会打印 `not connected`。

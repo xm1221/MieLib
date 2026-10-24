@@ -38,6 +38,8 @@ public final class CastEvent {
     long mediaUsed = 0;
     ResolvedPatternType lastResolution = null;
     public final List<String> mishaps = new ArrayList<>();
+    /** 不带 step 前缀的原始事故文本，用来过滤假玩家聊天里同一条事故的重复消息。 */
+    public final List<String> mishapsRaw = new ArrayList<>();
     List<String> stack = List.of();
     List<JsonObject> stackJson = List.of();
     String ravenmind = null;

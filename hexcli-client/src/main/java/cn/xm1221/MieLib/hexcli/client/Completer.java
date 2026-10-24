@@ -13,14 +13,13 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Tab 补全：行首 {@code :} 时补全 meta 命令，{@code :env use} / {@code :profile use} 补全 id / 名字；
+ * Tab 补全：行首补全命令名和图案名，{@code env use} / {@code profile use} 补全 id / 名字；
  * 其它情况按 hexParse 图案名（服务器 {@code complete} 请求给的 action registry 名字）补全。
  * 这些列表由 {@link HexCliClient} 在连接后填入。
  */
 public final class Completer implements org.jline.reader.Completer {
-    private static final List<String> META = List.of(
-        ":run", ":stack", ":reset", ":env", ":env list", ":env use", ":profile", ":profile list",
-        ":profile show", ":profile use", ":media", ":tick", ":wait", ":cmd", ":help", ":quit", ":q", ":exit");
+    private static final List<String> ENV_SUB = List.of("list", "use");
+    private static final List<String> PROFILE_SUB = List.of("list", "show", "use");
 
     private final Set<String> patterns = new TreeSet<>();
     private final Set<String> envs = new TreeSet<>(List.of("auto"));
@@ -50,27 +49,29 @@ public final class Completer implements org.jline.reader.Completer {
 
     @Override
     public synchronized void complete(LineReader reader, ParsedLine line, List<Candidate> candidates) {
-        String buffer = line.line();
         String word = line.word();
-        String trimmed = buffer.stripLeading();
+        List<String> words = line.words();
+        int idx = line.wordIndex();
+        String first = words.isEmpty() ? "" : words.get(0);
 
-        if (trimmed.startsWith(":")) {
-            String[] parts = trimmed.split("\\s+");
-            if (parts.length >= 2 && parts[0].equals(":env") && parts[1].equals("use")) {
-                add(candidates, envs, word);
-                return;
-            }
-            if (parts.length >= 2 && parts[0].equals(":profile") && parts[1].equals("use")) {
-                add(candidates, profiles, word);
-                return;
-            }
-            if (word.startsWith(":") || parts.length <= 1) {
-                for (String m : META) {
-                    if (m.startsWith(word)) candidates.add(new Candidate(m));
-                }
-                return;
-            }
+        if (idx == 0) {
+            // 行首：命令名 + 图案名
+            for (String m : HexCliClient.META_NAMES) if (m.startsWith(word)) candidates.add(new Candidate(m));
+            add(candidates, patterns, word);
             return;
+        }
+        if (HexCliClient.META_NAMES.contains(first)) {
+            if (first.equals("env")) {
+                if (idx == 1) add(candidates, new TreeSet<>(ENV_SUB), word);
+                else if (idx == 2 && words.get(1).equals("use")) add(candidates, envs, word);
+                return;
+            }
+            if (first.equals("profile")) {
+                if (idx == 1) add(candidates, new TreeSet<>(PROFILE_SUB), word);
+                else if (idx == 2 && words.get(1).equals("use")) add(candidates, profiles, word);
+                return;
+            }
+            if (!first.equals("run") && !first.equals("cast")) return;
         }
         add(candidates, patterns, word);
     }

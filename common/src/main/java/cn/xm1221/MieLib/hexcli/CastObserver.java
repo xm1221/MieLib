@@ -125,7 +125,9 @@ public final class CastObserver {
                     } catch (Throwable t) {
                         msg = null;
                     }
-                    ev.mishaps.add(msg != null ? msg : m.getMishap().getClass().getSimpleName());
+                    String text = msg != null ? msg : m.getMishap().getClass().getSimpleName();
+                    ev.mishapsRaw.add(text);
+                    ev.mishaps.add("step " + ev.steps + ": " + text);
                 }
             }
         }

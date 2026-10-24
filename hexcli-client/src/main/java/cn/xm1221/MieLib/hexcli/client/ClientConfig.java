@@ -50,11 +50,11 @@ public final class ClientConfig {
           --no-color           disable colors (also auto-disabled when not a tty)
           -h, --help           show this help
 
-        REPL meta-commands: :stack :reset :env [list|use <id>]
-          :profile [list|show|use <name>] :media <amount> :tick <n>
-          :wait [quiet] [timeout] :cmd <hexcli subcommand> :help :quit
+        REPL commands (first word, case-sensitive): stack reset env [list|use <id>]
+          profile [list|show|use <name>] media <amount> tick <n>
+          wait [quiet] [timeout] cmd <hexcli subcommand> run|cast <code> help quit
         Any other line is run as hexParse code. Multi-line input continues
-        while (), [] or {} are unbalanced. Ctrl-D / :quit exits.
+        while (), [] or {} are unbalanced. Ctrl-D / quit exits.
         """;
 
     private ClientConfig() {
