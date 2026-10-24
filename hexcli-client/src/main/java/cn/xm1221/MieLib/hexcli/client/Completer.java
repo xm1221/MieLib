@@ -22,6 +22,16 @@ public final class Completer implements org.jline.reader.Completer {
     private static final List<String> PROFILE_SUB = List.of("list", "show", "use");
 
     private final Set<String> patterns = new TreeSet<>();
+    /** {@code --file} 后补全路径：只列目录和 .hexparse / .hex / .txt 文件。 */
+    private final org.jline.builtins.Completers.FileNameCompleter files = new org.jline.builtins.Completers.FileNameCompleter() {
+        @Override
+        protected boolean accept(java.nio.file.Path path) {
+            if (!super.accept(path)) return false;
+            if (java.nio.file.Files.isDirectory(path)) return true;
+            String n = path.getFileName().toString().toLowerCase(Locale.ROOT);
+            return n.endsWith(".hexparse") || n.endsWith(".hex") || n.endsWith(".txt");
+        }
+    };
     private final Set<String> envs = new TreeSet<>(List.of("auto"));
     private final Set<String> profiles = new TreeSet<>();
 
@@ -71,7 +81,18 @@ public final class Completer implements org.jline.reader.Completer {
                 else if (idx == 2 && words.get(1).equals("use")) add(candidates, profiles, word);
                 return;
             }
-            if (!first.equals("run") && !first.equals("cast")) return;
+            if (first.equals("run") || first.equals("cast")) {
+                if (idx >= 2 && words.get(idx - 1).equals("--file")) {
+                    files.complete(reader, line, candidates);
+                    return;
+                }
+                if (word.startsWith("-")) {
+                    for (String f : RunArgs.FLAGS) if (f.startsWith(word)) candidates.add(new Candidate(f));
+                    return;
+                }
+            } else {
+                return;
+            }
         }
         add(candidates, patterns, word);
     }

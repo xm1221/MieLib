@@ -19,6 +19,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `HexCliIotas`: entity iotas now render as `<type> "<name>" @ x, y, z #<uuid8>` instead of the Inline placeholder, in console output, ravenmind text and JSON.
 - `mielib.utils.extractNestedJar` buildSrc helper (extracts jar-in-jar dependencies such as hexParse's yclib into the dev runtime).
 
+- HexCLI terminal client: `run --step <code>` / `cast --step <code>` steps through the top-level iotas one at a time on the server (`step.begin` / `step.next` / `step.abort`; Enter = next, `c` = continue, `q` = abort, stops on a mishap); `run --file <path>` / `cast --file <path>` casts a UTF-8 `.hexparse` file (combinable with `--step`, path completion), top-level `-f, --file <path>` option, a general `--xxx` option convention for commands, and `docs/examples/hexcli/demo.hexparse`.
+
 ### Changed
 
 - HexCLI terminal client: each mishap is shown once, prefixed with its step (`! step N: ...`), instead of again as a caster chat `message:`; garbage iotas render as `<garbage>`; list trees use `·`/`╰` (no ACS line-drawing substitution); truecolor output when the terminal advertises it.

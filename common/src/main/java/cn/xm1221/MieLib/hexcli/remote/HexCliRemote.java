@@ -326,6 +326,9 @@ public final class HexCliRemote {
             try {
                 switch (type) {
                     case "run" -> submit(() -> HexCliOps.run(server, strOr(msg, "code", "")), out, id);
+                    case "step.begin" -> submit(() -> HexCliOps.stepBegin(server, strOr(msg, "code", ""), strOr(msg, "label", null)), out, id);
+                    case "step.next" -> submit(() -> HexCliOps.stepNext(server), out, id);
+                    case "step.abort" -> submit(() -> HexCliOps.stepAbort(server), out, id);
                     case "stack" -> submit(() -> HexCliOps.stack(server), out, id);
                     case "reset" -> submit(() -> HexCliOps.reset(server), out, id);
                     case "env.list" -> submit(() -> HexCliOps.envList(server), out, id);

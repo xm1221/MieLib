@@ -227,6 +227,14 @@ public final class Renderer {
         return out;
     }
 
+    /** 单步头：{@code [i/N] <iota>}。 */
+    public AttributedString stepHeader(int i, int total, JsonObject preview) {
+        AttributedStringBuilder b = new AttributedStringBuilder();
+        b.append("[" + i + "/" + total + "] ", color ? AttributedStyle.BOLD.foreground(AttributedStyle.CYAN) : AttributedStyle.DEFAULT);
+        if (preview != null) appendIota(b, preview);
+        return b.toAttributedString();
+    }
+
     // ---- 事件 ----
 
     public List<AttributedString> event(JsonObject msg) {

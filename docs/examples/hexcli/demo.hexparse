@@ -1,0 +1,10 @@
+// HexCLI 示例法术：算 1 + 2，取施法者脚下坐标并抬高 2 格，最后把两者装进一个列表。
+// 终端客户端里运行：
+//   run --file docs/examples/hexcli/demo.hexparse
+//   run --step --file docs/examples/hexcli/demo.hexparse     (逐个顶层 iota 执行)
+// 或者直接：java -jar hexcli-client/build/libs/hexcli-client-1.0-all.jar --file docs/examples/hexcli/demo.hexparse
+
+num_1 num_2 add                      /* 栈：3 */
+get_caster entity_pos/foot           // 栈：3, 脚下坐标
+num_0 num_2 num_0 construct_vec add  // 坐标 + (0, 2, 0)
+num_2 last_n_list                    // [3, 坐标]

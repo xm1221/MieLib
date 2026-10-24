@@ -64,6 +64,9 @@ public final class HexCliClient {
         boolean color = !args.noColor && tty;
         HexCliClient client = new HexCliClient(args, color);
         try {
+            if (args.file != null) {
+                System.exit(client.execOnce("run --file \"" + args.file + "\""));
+            }
             if (args.exec != null) {
                 System.exit(client.execOnce(args.exec));
             }
@@ -156,12 +159,17 @@ public final class HexCliClient {
     private int execOnce(String code) throws IOException {
         String[] head = code.strip().split("\\s+", 2);
         if (head[0].equals("run") || head[0].equals("cast")) {
-            // run / cast：显式施放后面的内容（命令名开头的图案用这个）
-            code = head.length > 1 ? head[1].strip() : "";
-            if (code.isEmpty()) {
-                System.err.println("hexcli: usage: --exec \"" + head[0] + " <code>\"");
+            // run / cast：显式施放后面的内容（命令名开头的图案用这个），可带 --file
+            RunArgs ra = RunArgs.parse(head.length > 1 ? head[1] : "");
+            if (ra.step) {
+                System.err.println("hexcli: --step is interactive; it cannot be used with --exec");
                 return 2;
             }
+            if (ra.error != null) {
+                System.err.println("hexcli: " + ra.error);
+                return 2;
+            }
+            code = ra.code;
         } else if (asMeta(code.strip()) != null) {
             System.err.println("hexcli: --exec takes hex code; commands (" + code.strip().split("\\s+", 2)[0]
                 + ") work in the REPL (e.g. pipe them via stdin)");
@@ -262,8 +270,10 @@ public final class HexCliClient {
             case "quit", "q", "exit" -> quitting = true;
             case "help" -> printLines(help());
             case "run", "cast" -> {
-                if (rest.isEmpty()) printNotice("usage: " + cmd + " <code>");
-                else send(rest);
+                RunArgs ra = RunArgs.parse(rest);
+                if (ra.error != null) printNotice(ra.error + "  (usage: " + cmd + " [--step] [--file <path>] [code])");
+                else if (ra.step) stepLoop(ra.code, ra.file);
+                else send(ra.code);
             }
             case "stack" -> requestAndPrint("stack");
             case "reset" -> requestAndPrint("reset");
@@ -324,7 +334,9 @@ public final class HexCliClient {
             new AttributedString("  tick <n>               let n ticks pass"),
             new AttributedString("  wait [quiet] [timeout]"),
             new AttributedString("  cmd <hexcli ...>       run any hexcli subcommand (caster/world/...)"),
-            new AttributedString("  run|cast <code>        cast the rest as code (for patterns named like a command)"),
+            new AttributedString("  run|cast [opts] <code> cast the rest as code (for patterns named like a command)"),
+            new AttributedString("    --step               one top-level iota at a time (Enter next, c continue, q abort)"),
+            new AttributedString("    --file <path>        cast a file's content (UTF-8, e.g. spell.hexparse)"),
             new AttributedString("  help / quit (q, exit, Ctrl-D)"),
             new AttributedString("  commands match the first word (case-sensitive)"));
     }
@@ -339,6 +351,77 @@ public final class HexCliClient {
             throw new IllegalArgumentException("not a number: " + value);
         }
         return o;
+    }
+
+    // ---- 单步 ----
+
+    private JsonObject call(JsonObject req) {
+        Connection c = conn;
+        if (c == null || c.isClosed()) {
+            printNotice("not connected");
+            return null;
+        }
+        try {
+            return c.request(req).get(120, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            printNotice("request timed out");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            printNotice("not connected (" + rootMessage(e) + ")");
+        }
+        return null;
+    }
+
+    private static JsonObject req(String type, String... kv) {
+        JsonObject o = new JsonObject();
+        o.addProperty("type", type);
+        for (int i = 0; i + 1 < kv.length; i += 2) o.addProperty(kv[i], kv[i + 1]);
+        return o;
+    }
+
+    /** run --step：每次执行一个顶层 iota。Enter 下一步，c 跑完剩下的，q 中止（栈保持现状）。 */
+    private void stepLoop(String code, String file) {
+        JsonObject reply = call(file != null ? req("step.begin", "code", code, "label", file) : req("step.begin", "code", code));
+        if (reply == null) return;
+        if (!Connection.bool(reply, "ok", false)) {
+            printLines(renderer.reply(reply));
+            return;
+        }
+        printLines(renderer.reply(reply));
+        JsonObject info = Connection.obj(Connection.obj(reply, "data"), "step");
+        boolean all = false;
+        while (info != null && !Connection.bool(info, "done", true)) {
+            int total = Connection.integer(info, "total", 0);
+            int idx = Connection.integer(info, "index", 0);
+            printLines(List.of(renderer.stepHeader(idx + 1, total, Connection.obj(info, "preview"))));
+            if (!all) {
+                String ans;
+                reader.setVariable(LineReader.DISABLE_HISTORY, true);
+                try {
+                    ans = reader.readLine("step [Enter=next c=continue q=abort]> ").strip();
+                } catch (UserInterruptException | EndOfFileException e) {
+                    ans = "q";
+                } finally {
+                    reader.setVariable(LineReader.DISABLE_HISTORY, false);
+                }
+                if (ans.equals("q")) {
+                    JsonObject r = call(req("step.abort"));
+                    if (r != null) printLines(renderer.reply(r));
+                    return;
+                }
+                if (ans.equals("c")) all = true;
+            }
+            reply = call(req("step.next"));
+            if (reply == null) return;
+            printLines(renderer.reply(reply));
+            info = Connection.obj(Connection.obj(reply, "data"), "step");
+            if (info != null && "mishap".equals(Connection.str(info, "stopped"))) {
+                printNotice("stopped at step " + (Connection.integer(info, "executed", 0) + 1) + "/" + total + " (mishap); stack kept");
+                return;
+            }
+        }
+        printNotice("step session finished");
     }
 
     private void requestAndPrint(String type, String... kv) {

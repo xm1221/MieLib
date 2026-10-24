@@ -127,6 +127,7 @@ hexParse 的“未知符号”提示会打印成 `[HexCLI] hexParse: ...`。
 | `--dir <server dir>` | `client.json` 所在目录（默认见上） |
 | `--host` / `--port` / `--token` | 覆盖 `client.json` 里的值（手动转发端口时用） |
 | `-e, --exec <code>` | 跑一段代码、打印结果就退出；成功退出码 0，mishap / 错误退出码 1（脚本 / 冒烟测试用） |
+| `-f, --file <path>` | 施放一个 `.hexparse` 文件后退出，等于 `-e "run --file <path>"` |
 | `--no-color` | 关闭颜色（不是 tty 时也自动关闭） |
 | `-h, --help` | 帮助 |
 
@@ -136,7 +137,7 @@ hexParse 的“未知符号”提示会打印成 `[HexCLI] hexParse: ...`。
 `()`、`[]`、`{}` 不平衡时自动续行（提示符变成 `...> `）。没有 `:` 前缀写法：以 `:` 开头的行也按代码发给 hexParse。
 命令名优先于同名图案；要施放这种代码，用 `cast <code>`（或 `run <code>`），或者在 hexParse 里给图案起别名。
 Tab 补全：行首补全命令名和图案名（服务器 action registry 里的名字，连上后拉一次），之后补全图案名，`env use` 补环境 id，
-`profile use` 补 profile 名。历史存在 `~/.hexcli_history`。
+`profile use` 补 profile 名，`run` / `cast` 后面以 `-` 开头补选项，`--file` 后面补路径（只列目录和 `.hexparse` / `.hex` / `.txt`）。历史存在 `~/.hexcli_history`。
 
 | 命令 | 作用 |
 |------|------|
@@ -146,10 +147,28 @@ Tab 补全：行首补全命令名和图案名（服务器 action registry 里�
 | `media <amount\|infinite>` | 同 `hexcli media ...` |
 | `tick <n>` / `wait [quiet] [timeout]` | 同 `hexcli tick` / `hexcli wait`（异步：结束时才打印结果） |
 | `cmd <hexcli 子命令>` | 执行任意 `hexcli ...`（例如 `cmd caster summon minecraft:zombie`、`cmd world summon ...`） |
-| `run <code>` / `cast <code>` | 把后面的内容当代码施放；要施放第一个词正好是命令名的东西（比如叫 `stack` 的图案别名）就用它 |
+| `run [选项] <code>` / `cast [选项] <code>` | 把后面的内容当代码施放；要施放第一个词正好是命令名的东西（比如叫 `stack` 的图案别名）就用它。选项见下 |
 | `help` / `quit`（也接受 `q` / `exit` / Ctrl-D） | 帮助 / 退出 |
 
-`--exec` 只接受代码：`--exec "cast <code>"` / `run <code>` 照常施放后面的内容，第一个词是其它命令名时报错并以退出码 2 退出。
+`--exec` 只接受代码：`--exec "cast <code>"` / `run <code>` 照常施放后面的内容（可以带 `--file`），第一个词是其它命令名、
+或者带了 `--step`（需要交互）时报错并以退出码 2 退出。
+
+#### 命令选项
+
+通用约定：选项是命令名之后、正文之前的 `--xxx`；遇到第一个不以 `--` 开头的词就是正文，单独一个 `--` 表示后面全是正文
+（正文本身以 `--` 开头时用）。不认识的选项会提示并且不执行。目前只有 `run` / `cast` 有选项：
+
+| 选项 | 作用 |
+|------|------|
+| `--file <path>` | 把文件内容（UTF-8）当代码施放；路径相对客户端的当前目录，支持 `~/`，带空格的路径用双引号。约定扩展名 `.hexparse`，注释和换行由 hexParse 处理。文件不存在 / 为空会直接报错。和正文二选一 |
+| `--step` | 单步：服务器把代码解析成顶层 iota，每步执行一个（Hermes / Thoth 之类算一步，里面的展开不单独停），用的是持久的会话栈 |
+
+单步时每步先打印 `[i/N] <iota>`（图案显示 registry 名，数字等特殊图案显示处理器名），然后等按键：
+回车执行这一步并打印栈，`c` 不再停、一直跑到底，`q` 中止（已经执行的部分留在栈上）。某一步出 mishap 就停下，mishap 只显示一次。
+两个选项可以一起用：`run --step --file spell.hexparse`。示例文件见 [`docs/examples/hexcli/demo.hexparse`](docs/examples/hexcli/demo.hexparse)。
+
+协议上是三个请求：`step.begin {code, label?}`（解析，回 `data.step = {total, index, done, preview}`）、`step.next`（执行下一个，
+回复同 `run`，另带 `data.step`，出 mishap 时 `step.stopped = "mishap"`）、`step.abort`。单步状态在服务器上只有一份，`reset` 会清掉它。
 
 运行结果：先一行 resolution（`EVALUATED` 绿色，`ERRORED` / `INVALID` 红色），然后栈从底到顶（顶上一个 `▶`），
 每个 iota 按它的类型颜色上色，列表元素缩进成 `·` / `╰`（嵌套用 `┊` 对齐）；垃圾 iota 显示为 `<garbage>`；

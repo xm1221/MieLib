@@ -59,6 +59,13 @@ public final class HexCliOps {
 
     public static HexCliReply run(MinecraftServer server, String code) {
         HexCliSession session = HexCliSession.get(server);
+        JsonObject data = newRunData(session);
+        Parsed p = parse(session, code, data);
+        if (p.fail() != null) return p.fail();
+        return castIotas(session, code, p.iotas(), data);
+    }
+
+    private static JsonObject newRunData(HexCliSession session) {
         JsonObject data = new JsonObject();
         data.add("cast", JsonNull.INSTANCE);
         data.add("prints", new JsonArray());
@@ -71,6 +78,13 @@ public final class HexCliOps {
         data.add("media", media);
         data.add("error", JsonNull.INSTANCE);
 
+        return data;
+    }
+
+    private record Parsed(List<Iota> iotas, @Nullable HexCliReply fail) {
+    }
+
+    private static Parsed parse(HexCliSession session, String code, JsonObject data) {
         session.drainMessages();
         List<Iota> iotas;
         try {
@@ -79,7 +93,7 @@ public final class HexCliOps {
             String msg = "parse error: " + t.getClass().getSimpleName() + ": " + t.getMessage();
             LOGGER.debug("parse error", t);
             data.addProperty("error", msg);
-            return HexCliReply.fail(List.of("[HexCLI] " + msg), data);
+            return new Parsed(List.of(), HexCliReply.fail(List.of("[HexCLI] " + msg), data));
         }
         List<String> parserMsgs = session.drainMessages();
         JsonArray parserJson = new JsonArray();
@@ -94,8 +108,132 @@ public final class HexCliOps {
         if (iotas.isEmpty()) {
             String msg = "hexParse produced no iotas for: " + code;
             data.addProperty("error", msg);
-            return HexCliReply.fail(List.of("[HexCLI] " + msg), data);
+            return new Parsed(List.of(), HexCliReply.fail(List.of("[HexCLI] " + msg), data));
         }
+        return new Parsed(iotas, null);
+    }
+
+    // ---- 单步执行（run --step / cast --step） ----
+
+    /** 当前单步会话（只在服务器线程上访问；同一时间一个，新的 begin 覆盖旧的）。 */
+    private static @Nullable StepState stepState;
+
+    private static final class StepState {
+        final String code;
+        final List<Iota> iotas;
+        int next = 0;
+
+        StepState(String code, List<Iota> iotas) {
+            this.code = code;
+            this.iotas = iotas;
+        }
+    }
+
+    private static JsonObject stepInfo(HexCliSession session, StepState st, boolean done) {
+        JsonObject o = new JsonObject();
+        o.addProperty("total", st.iotas.size());
+        o.addProperty("index", st.next); // 下一个要执行的（0 起）
+        o.addProperty("done", done);
+        if (!done && st.next < st.iotas.size()) {
+            Iota nx = st.iotas.get(st.next);
+            JsonObject pv = HexCliIotas.toJson(nx);
+            pv.addProperty("text", previewText(session, nx));
+            pv.remove("rich");      // 图案的 display() 是 Inline 占位，用预览文本代替
+            pv.remove("children");
+            o.add("preview", pv);
+        }
+        return o;
+    }
+
+    /** 预览文本：图案 iota 显示成 hexParse 名字 / 特殊处理器名字（本体 display() 是 Inline 占位）。 */
+    private static String previewText(HexCliSession session, Iota iota) {
+        if (iota instanceof at.petrak.hexcasting.api.casting.iota.PatternIota pi) {
+            try {
+                var m = at.petrak.hexcasting.common.casting.PatternRegistryManifest.matchPattern(
+                    pi.getPattern(), session.createEnv(), false);
+                if (m instanceof at.petrak.hexcasting.api.casting.PatternShapeMatch.Normal n) return n.key.location().getPath();
+                if (m instanceof at.petrak.hexcasting.api.casting.PatternShapeMatch.PerWorld w) return w.key.location().getPath();
+                if (m instanceof at.petrak.hexcasting.api.casting.PatternShapeMatch.Special sp) return sp.handler.getName().getString();
+            } catch (Throwable ignored) {
+            }
+            return "pattern " + pi.getPattern().getStartDir() + " " + pi.getPattern().anglesSignature();
+        }
+        if (iota instanceof at.petrak.hexcasting.api.casting.iota.ListIota li) {
+            StringBuilder sb = new StringBuilder("[");
+            boolean first = true;
+            for (Iota c : li.getList()) {
+                if (!first) sb.append(", ");
+                sb.append(previewText(session, c));
+                first = false;
+            }
+            return sb.append("]").toString();
+        }
+        return HexCliIotas.text(iota);
+    }
+
+    /** 起步提示里的来源：客户端给的标签（如文件名），否则把代码压成一行并截断。 */
+    private static String stepLabel(String code, String label) {
+        if (label != null && !label.isBlank()) return label;
+        String one = code.strip().replaceAll("\\s+", " ");
+        return one.length() > 60 ? one.substring(0, 59) + "…" : one;
+    }
+
+    public static HexCliReply stepBegin(MinecraftServer server, String code, String label) {
+        HexCliSession session = HexCliSession.get(server);
+        JsonObject data = newRunData(session);
+        Parsed p = parse(session, code, data);
+        if (p.fail() != null) return p.fail();
+        StepState st = new StepState(code, new ArrayList<>(p.iotas()));
+        stepState = st;
+        JsonObject info = stepInfo(session, st, false);
+        JsonObject d = new JsonObject();
+        d.add("step", info);
+        d.add("parserMessages", data.get("parserMessages"));
+        return new HexCliReply(List.of("[HexCLI] stepping " + st.iotas.size() + " top-level iota(s) of " + stepLabel(code, label)), d, true);
+    }
+
+    public static HexCliReply stepNext(MinecraftServer server) {
+        HexCliSession session = HexCliSession.get(server);
+        StepState st = stepState;
+        if (st == null || st.next >= st.iotas.size()) {
+            stepState = null;
+            JsonObject d = new JsonObject();
+            d.addProperty("error", "no step session (use run --step <code>)");
+            return HexCliReply.fail(List.of("[HexCLI] no step session"), d);
+        }
+        int i = st.next;
+        Iota iota = st.iotas.get(i);
+        String label = "[" + (i + 1) + "/" + st.iotas.size() + "] " + previewText(session, iota);
+        HexCliReply r = castIotas(session, label, List.of(iota), newRunData(session));
+        st.next++;
+        JsonObject data = r.data();
+        // 单步时每次只执行一个 iota，事故里的 "step 1" 改成整段代码里的序号
+        JsonObject cast = data.has("cast") && data.get("cast").isJsonObject() ? data.getAsJsonObject("cast") : null;
+        if (cast != null && cast.has("mishaps")) {
+            JsonArray fixed = new JsonArray();
+            for (var m : cast.getAsJsonArray("mishaps")) fixed.add(m.getAsString().replaceFirst("^step \\d+: ", "step " + (i + 1) + ": "));
+            cast.add("mishaps", fixed);
+        }
+        boolean stop = !r.ok() || st.next >= st.iotas.size();
+        if (stop) stepState = null;
+        JsonObject info = stepInfo(session, st, stop);
+        info.addProperty("executed", i);
+        if (!r.ok()) info.addProperty("stopped", "mishap");
+        data.add("step", info);
+        return new HexCliReply(r.lines(), data, r.ok());
+    }
+
+    public static HexCliReply stepAbort(MinecraftServer server) {
+        StepState st = stepState;
+        stepState = null;
+        JsonObject d = new JsonObject();
+        String msg = st == null ? "no step session" : "step session aborted at " + st.next + "/" + st.iotas.size() + " (stack kept)";
+        d.addProperty("message", msg);
+        return new HexCliReply(List.of("[HexCLI] " + msg), d, true);
+    }
+
+    /** 在会话的持久 image 上执行一组 iota（普通 run 和单步共用）。 */
+    private static HexCliReply castIotas(HexCliSession session, String code, List<Iota> iotas, JsonObject data) {
         CastingEnvironment env;
         try {
             env = session.createEnv();
@@ -176,6 +314,7 @@ public final class HexCliOps {
     public static HexCliReply reset(MinecraftServer server) {
         HexCliSession s = HexCliSession.get(server);
         s.reset();
+        stepState = null;
         HexCliReply reply = HexCliReply.ok(List.of("[HexCLI] session reset to profile '" + s.profileName() + "' initial image (stack "
             + s.image().getStack().size() + ", ravenmind " + (CastEvent.ravenmindOf(s.image()) == null ? "none" : "set") + ")"));
         JsonObject data = new JsonObject();

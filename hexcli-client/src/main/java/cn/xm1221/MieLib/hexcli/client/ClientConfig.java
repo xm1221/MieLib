@@ -29,6 +29,7 @@ public final class ClientConfig {
         public Integer port;
         public String token;
         public String exec;
+        public String file;
         public boolean noColor;
         public boolean help;
         public final List<String> errors = new ArrayList<>();
@@ -46,13 +47,14 @@ public final class ClientConfig {
           --port <port>        override the port from client.json
           --token <token>      override the token from client.json
           -e, --exec <code>    run one snippet, print the reply and exit
+          -f, --file <path>    cast a .hexparse file and exit (= -e "run --file <path>")
                                (exit code 0 = ok, 1 = mishap / error)
           --no-color           disable colors (also auto-disabled when not a tty)
           -h, --help           show this help
 
         REPL commands (first word, case-sensitive): stack reset env [list|use <id>]
           profile [list|show|use <name>] media <amount> tick <n>
-          wait [quiet] [timeout] cmd <hexcli subcommand> run|cast <code> help quit
+          wait [quiet] [timeout] cmd <hexcli subcommand> run|cast [--step] [--file <path>] <code> help quit
         Any other line is run as hexParse code. Multi-line input continues
         while (), [] or {} are unbalanced. Ctrl-D / quit exits.
         """;
@@ -79,6 +81,7 @@ public final class ClientConfig {
                 }
                 case "--token" -> a.token = need(argv, ++i, "--token", a);
                 case "--exec", "-e" -> a.exec = need(argv, ++i, "--exec", a);
+                case "--file", "-f" -> a.file = need(argv, ++i, "--file", a);
                 case "--no-color" -> a.noColor = true;
                 case "--help", "-h" -> a.help = true;
                 default -> a.errors.add("unknown option '" + arg + "'");
