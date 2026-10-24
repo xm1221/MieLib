@@ -31,6 +31,8 @@ public final class CastObserver {
     private static final List<Consumer<CastEvent>> listeners = new CopyOnWriteArrayList<>();
     private static volatile int lastActivityTick = -1;
     private static @Nullable MinecraftServer server;
+    /** 服务器停止中：此时不再派发事件（环境 / 世界正在拆除）。 */
+    private static volatile boolean shuttingDown = false;
 
     public static void init() {
         CastingEnvironment.addCreateEventListener((env, userData) -> {
@@ -40,6 +42,13 @@ public final class CastObserver {
 
     static void bindServer(@Nullable MinecraftServer s) {
         server = s;
+        shuttingDown = false;
+    }
+
+    /** 服务器开始停止：丢掉还没派发的事件，避免在拆除过程中访问世界。 */
+    static void shutdown() {
+        shuttingDown = true;
+        server = null;
     }
 
     /** 最近一次观察到施法活动的服务器 tick。 */
@@ -63,6 +72,7 @@ public final class CastObserver {
     }
 
     private static void finish(CastEvent ev) {
+        if (shuttingDown) return;
         markActivity();
         if (!ev.root) {
             for (String line : ev.render()) HexCli.LOGGER.info(line);

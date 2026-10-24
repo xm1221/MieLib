@@ -1,11 +1,10 @@
 package cn.xm1221.MieLib.hexcli;
 
-import at.petrak.hexcasting.api.casting.eval.vm.CastingImage;
-import at.petrak.hexcasting.api.casting.iota.Iota;
-import at.petrak.hexcasting.api.casting.eval.CastingEnvironment;
-import cn.xm1221.MieLib.hexcli.api.EnvSpec;
-import cn.xm1221.MieLib.hexcli.api.HexCliAPI;
 import cn.xm1221.MieLib.hexcli.HexCliProfiles.ProfileException;
+import cn.xm1221.MieLib.hexcli.api.HexCliAPI;
+import cn.xm1221.MieLib.hexcli.remote.HexCliOps;
+import cn.xm1221.MieLib.hexcli.remote.HexCliRemote;
+import cn.xm1221.MieLib.hexcli.remote.HexCliReply;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -30,7 +29,6 @@ import com.mojang.brigadier.context.CommandContext;
 import dev.architectury.event.events.common.CommandRegistrationEvent;
 import dev.architectury.event.events.common.LifecycleEvent;
 import dev.architectury.event.events.common.TickEvent;
-import dev.architectury.platform.Platform;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -40,10 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * HexCLI 入口（MieLib 的一部分，默认关闭）。命令只需控制台权限，不需要玩家：
@@ -61,8 +56,6 @@ public final class HexCli {
 
     /** 是否真正启用（{@link #init()} 判定一次；关闭或 hexParse 缺失时保持 false）。 */
     private static boolean active = false;
-
-    private static final List<Waiter> waiters = new ArrayList<>();
 
     private HexCli() {
     }
@@ -88,14 +81,15 @@ public final class HexCli {
             } catch (ProfileException e) {
                 LOGGER.error("[HexCLI] could not apply default profile: {}", e.getMessage());
             }
+            HexCliRemote.start(server);
         });
         LifecycleEvent.SERVER_STOPPING.register(server -> {
-            CastObserver.bindServer(null);
+            HexCliRemote.stop();
+            HexCliOps.clearWaiters();
+            CastObserver.shutdown();
             HexCliSession.drop();
-            waiters.forEach(Waiter::close);
-            waiters.clear();
         });
-        TickEvent.SERVER_POST.register(HexCli::tickWaiters);
+        TickEvent.SERVER_POST.register(HexCliOps::tickWaiters);
         active = true;
         LOGGER.info("HexCLI loaded. Try: hexcli run 1 2 add   (or: > 1 2 add)");
     }
@@ -163,176 +157,47 @@ public final class HexCli {
         for (String l : lines) src.sendSuccess(() -> Component.literal(l), false);
     }
 
+    private static int reply(CommandContext<CommandSourceStack> ctx, HexCliReply reply) {
+        say(ctx.getSource(), reply.lines());
+        return reply.ok() ? 1 : 0;
+    }
+
     private static int run(CommandContext<CommandSourceStack> ctx, String code) {
-        CommandSourceStack src = ctx.getSource();
-        HexCliSession session = HexCliSession.get(src.getServer());
-        List<Iota> iotas;
-        session.drainMessages();
-        try {
-            iotas = session.parse(code);
-        } catch (Throwable t) {
-            say(src, List.of("[HexCLI] parse error: " + t.getClass().getSimpleName() + ": " + t.getMessage()));
-            LOGGER.debug("parse error", t);
-            return 0;
-        }
-        List<String> parserMsgs = session.drainMessages();
-        if (!parserMsgs.isEmpty()) {
-            List<String> pm = new ArrayList<>();
-            for (String m : parserMsgs) pm.add("[HexCLI] hexParse: " + m);
-            say(src, pm);
-        }
-        if (iotas.isEmpty()) {
-            say(src, List.of("[HexCLI] hexParse produced no iotas for: " + code));
-            return 0;
-        }
-        CastingEnvironment env;
-        try {
-            env = session.createEnv();
-        } catch (IllegalArgumentException e) {
-            say(src, List.of("[HexCLI] cannot cast: " + e.getMessage()));
-            return 0;
-        }
-        try {
-            CastEvent ev = session.run(iotas, env);
-            List<String> out = new ArrayList<>();
-            out.add("[HexCLI] > " + code + "  (" + iotas.size() + " iota" + (iotas.size() == 1 ? "" : "s") + ")");
-            if (ev != null) out.addAll(ev.render());
-            else out.add("[HexCLI] (no root cast event observed)");
-            for (String p : session.printed) out.add("  printed: " + p);
-            for (String m : session.drainMessages()) out.add("  message: " + m);
-            String disp = HexCliCircle.takeDisplay(env);
-            if (disp != null) out.add("  impetus: " + disp);
-            if (session.mediaMode() == HexCliProfile.Mode.NUMBER) out.add("  media left: " + session.mediaText());
-            say(src, out);
-            return ev != null && ev.mishaps.isEmpty() ? 1 : 0;
-        } catch (Throwable t) {
-            LOGGER.error("HexCLI run crashed", t);
-            say(src, List.of("[HexCLI] execution error: " + t.getClass().getSimpleName() + ": " + t.getMessage()));
-            return 0;
-        }
+        return reply(ctx, HexCliOps.run(ctx.getSource().getServer(), code));
     }
 
     private static int stack(CommandContext<CommandSourceStack> ctx) {
-        CastingImage img = HexCliSession.get(ctx.getSource().getServer()).image();
-        List<String> out = new ArrayList<>();
-        out.add("[HexCLI] session state");
-        List<String> stack = new ArrayList<>();
-        for (Iota i : img.getStack()) stack.add(CastEvent.safe(() -> i.display().getString()));
-        CastEvent.renderStack(out, stack);
-        String rm = CastEvent.ravenmindOf(img);
-        out.add("  ravenmind: " + (rm == null ? "(none)" : rm));
-        if (img.getParenCount() > 0) out.add("  open introspection depth: " + img.getParenCount());
-        say(ctx.getSource(), out);
-        return 1;
+        return reply(ctx, HexCliOps.stack(ctx.getSource().getServer()));
     }
 
     private static int reset(CommandContext<CommandSourceStack> ctx) {
-        HexCliSession.get(ctx.getSource().getServer()).reset();
-        HexCliSession s = HexCliSession.get(ctx.getSource().getServer());
-        say(ctx.getSource(), List.of("[HexCLI] session reset to profile '" + s.profileName() + "' initial image (stack "
-            + s.image().getStack().size() + ", ravenmind " + (CastEvent.ravenmindOf(s.image()) == null ? "none" : "set") + ")"));
-        return 1;
+        return reply(ctx, HexCliOps.reset(ctx.getSource().getServer()));
     }
 
     // ---- profile / caster / world / media ----
 
     private static int profileList(CommandContext<CommandSourceStack> ctx) {
-        MinecraftServer server = ctx.getSource().getServer();
-        String active = HexCliSession.get(server).profileName();
-        List<String> out = new ArrayList<>();
-        List<String> names = HexCliProfiles.list(server);
-        out.add("[HexCLI] profiles in " + HexCliProfiles.dir(server) + " (" + names.size() + ")");
-        for (String n : names) {
-            String d = HexCliProfiles.descriptionOf(server, n);
-            out.add((n.equals(active) ? "  * " : "    ") + n + (d == null ? "" : " - " + d));
-        }
-        say(ctx.getSource(), out);
-        return names.size();
-    }
-
-    private static int profileUse(CommandContext<CommandSourceStack> ctx, String name) {
-        try {
-            say(ctx.getSource(), HexCliSession.get(ctx.getSource().getServer()).applyProfile(name));
-            return 1;
-        } catch (ProfileException e) {
-            say(ctx.getSource(), List.of("[HexCLI] profile error: " + e.getMessage()));
-            return 0;
-        } catch (RuntimeException e) {
-            LOGGER.error("profile apply crashed", e);
-            say(ctx.getSource(), List.of("[HexCLI] profile error: " + e));
-            return 0;
-        }
-    }
-
-    /** env list 的来源显示：spec.source 或 id 命名空间，能找到 mod 容器时带上 mod 名（走 Architectury Platform）。 */
-    static String sourceLabel(ResourceLocation id, EnvSpec spec) {
-        String src = spec.source() != null ? spec.source() : id.getNamespace();
-        String name = Platform.getOptionalMod(src).map(m -> m.getName()).orElse(null);
-        return name != null && !name.equals(src) ? src + " (" + name + ")" : src;
-    }
-
-    private static int envList(CommandContext<CommandSourceStack> ctx) {
-        HexCliSession s = HexCliSession.get(ctx.getSource().getServer());
-        List<String> out = new ArrayList<>();
-        out.add("[HexCLI] registered envs (auto: player->" + HexCliAPI.STAFF + ", none->" + HexCliAPI.CIRCLE + ", "
-            + "living->the only env accepting living):");
-        ResourceLocation effective;
-        try {
-            effective = s.resolveEnv();
-        } catch (RuntimeException e) {
-            effective = null;
-        }
-        for (Map.Entry<ResourceLocation, EnvSpec> e : HexCliAPI.envs().entrySet()) {
-            ResourceLocation id = e.getKey();
-            EnvSpec spec = e.getValue();
-            out.add((id.equals(effective) ? "  * " : "    ") + id
-                + "  casters=" + spec.castersText()
-                + "  source=" + sourceLabel(id, spec)
-                + "  - " + spec.description());
-        }
-        String cur = s.effectiveIsAuto() ? "auto" : s.effectiveEnvIdString();
-        out.add("  current: " + cur + (effective == null ? " (not resolved now)" : " -> " + effective));
-        say(ctx.getSource(), out);
-        return HexCliAPI.envs().size();
-    }
-
-    private static int envUse(CommandContext<CommandSourceStack> ctx, @org.jetbrains.annotations.Nullable String raw) {
-        HexCliSession s = HexCliSession.get(ctx.getSource().getServer());
-        ResourceLocation id;
-        try {
-            id = HexCliEnvs.parseId(raw); // null = auto
-            HexCliEnvs.requireKnown(id);
-        } catch (IllegalArgumentException e) {
-            say(ctx.getSource(), List.of("[HexCLI] env error: " + e.getMessage()));
-            return 0;
-        }
-        s.setEnvOverride(id);
-        String resolved;
-        try {
-            resolved = HexCliEnvs.resolve(id, s.caster()).toString();
-        } catch (RuntimeException e) {
-            resolved = "error: " + e.getMessage();
-        }
-        say(ctx.getSource(), List.of("[HexCLI] env = " + s.effectiveEnvIdString() + " (resolved: " + resolved + ")"));
-        return 1;
+        return reply(ctx, HexCliOps.profileList(ctx.getSource().getServer()));
     }
 
     private static int profileShow(CommandContext<CommandSourceStack> ctx) {
-        HexCliSession s = HexCliSession.get(ctx.getSource().getServer());
-        List<String> out = new ArrayList<>();
-        String env;
-        try {
-            env = HexCliEnvs.resolve(s.effectiveEnvId(), s.caster()) + (s.effectiveIsAuto() ? " (auto)" : "");
-        } catch (RuntimeException e) {
-            env = "? (" + e.getMessage() + ")";
-        }
-        out.add("[HexCLI] active profile '" + s.profileName() + "'" + (s.profile().description == null ? "" : ": " + s.profile().description));
-        out.add("  caster: " + HexCliSession.describe(s.caster()) + " at " + HexCliSession.fmt(s.anchor()) + " in " + s.level().dimension().location());
-        out.add("  env: " + env + "  enlightened: " + s.enlightened() + "  media: " + s.mediaText() + "  ambit: " + s.ambitText());
-        out.add("  stack size: " + s.image().getStack().size() + "  registered envs: auto, "
-            + HexCliAPI.envs().keySet().stream().map(ResourceLocation::toString).collect(Collectors.joining(", ")));
-        say(ctx.getSource(), out);
-        return 1;
+        return reply(ctx, HexCliOps.profileShow(ctx.getSource().getServer()));
+    }
+
+    private static int profileUse(CommandContext<CommandSourceStack> ctx, String name) {
+        return reply(ctx, HexCliOps.profileUse(ctx.getSource().getServer(), name));
+    }
+
+    private static int envList(CommandContext<CommandSourceStack> ctx) {
+        return reply(ctx, HexCliOps.envList(ctx.getSource().getServer()));
+    }
+
+    private static int envUse(CommandContext<CommandSourceStack> ctx, @org.jetbrains.annotations.Nullable String raw) {
+        return reply(ctx, HexCliOps.envUse(ctx.getSource().getServer(), raw));
+    }
+
+    private static int media(CommandContext<CommandSourceStack> ctx, String amount) {
+        return reply(ctx, HexCliOps.media(ctx.getSource().getServer(), amount));
     }
 
     private static int casterSet(CommandContext<CommandSourceStack> ctx, String mode, @org.jetbrains.annotations.Nullable Entity target) {
@@ -396,23 +261,6 @@ public final class HexCli {
         }
     }
 
-    private static int media(CommandContext<CommandSourceStack> ctx, String amount) {
-        HexCliSession s = HexCliSession.get(ctx.getSource().getServer());
-        if (amount.equalsIgnoreCase("infinite")) s.setMedia(null);
-        else {
-            try {
-                long v = Long.parseLong(amount);
-                if (v < 0) throw new NumberFormatException();
-                s.setMedia(v);
-            } catch (NumberFormatException e) {
-                say(ctx.getSource(), List.of("[HexCLI] media must be 'infinite' or a non-negative integer (dust = 10000), got '" + amount + "'"));
-                return 0;
-            }
-        }
-        say(ctx.getSource(), List.of("[HexCLI] media = " + s.mediaText()));
-        return 1;
-    }
-
     /** 解析原版选择器，要求恰好选中一个 LivingEntity。 */
     static LivingEntity selectOne(MinecraftServer server, ServerLevel level, String selector) {
         EntitySelector sel;
@@ -438,55 +286,11 @@ public final class HexCli {
 
     // ---- 让时间流逝：tick / wait ----
 
-    private static final class Waiter {
-        final CommandSourceStack src;
-        final int startTick, timeout, quiet; // quiet < 0 表示固定 tick 数
-        final List<CastEvent> seen = new ArrayList<>();
-        final Runnable unsubscribe;
-
-        Waiter(CommandSourceStack src, int startTick, int timeout, int quiet) {
-            this.src = src;
-            this.startTick = startTick;
-            this.timeout = timeout;
-            this.quiet = quiet;
-            this.unsubscribe = CastObserver.subscribe(ev -> {
-                if (!ev.root) seen.add(ev);
-            });
-        }
-
-        void close() {
-            unsubscribe.run();
-        }
-    }
-
     private static int waitFor(CommandContext<CommandSourceStack> ctx, int timeout, int quiet) {
         CommandSourceStack src = ctx.getSource();
-        waiters.add(new Waiter(src, src.getServer().getTickCount(), timeout, quiet));
-        say(src, List.of(quiet < 0
-            ? "[HexCLI] letting " + timeout + " ticks pass..."
-            : "[HexCLI] waiting until no casts for " + quiet + " ticks (timeout " + timeout + ")..."));
+        HexCliReply started = HexCliOps.wait(src.getServer(), timeout, quiet,
+            done -> say(src, done.lines()));
+        say(src, started.lines());
         return 1;
-    }
-
-    private static void tickWaiters(MinecraftServer server) {
-        if (waiters.isEmpty()) return;
-        int now = server.getTickCount();
-        Iterator<Waiter> it = waiters.iterator();
-        while (it.hasNext()) {
-            Waiter w = it.next();
-            int elapsed = now - w.startTick;
-            int lastActivity = Math.max(CastObserver.lastActivityTick(), w.startTick);
-            String reason;
-            if (w.quiet >= 0 && now - lastActivity >= w.quiet) reason = "quiet for " + w.quiet + " ticks";
-            else if (elapsed >= w.timeout) reason = w.quiet < 0 ? "done" : "TIMEOUT";
-            else continue;
-            it.remove();
-            w.close();
-            String ids = w.seen.isEmpty() ? "none"
-                : w.seen.stream().map(e -> "#" + e.id).collect(Collectors.joining(" "));
-            int mishaps = w.seen.stream().mapToInt(e -> e.mishaps.size()).sum();
-            say(w.src, List.of("[HexCLI] " + reason + " after " + elapsed + " ticks; spawned casts: "
-                + w.seen.size() + " (" + ids + "), mishaps: " + mishaps));
-        }
     }
 }

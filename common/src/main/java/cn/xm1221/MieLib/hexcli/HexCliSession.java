@@ -13,6 +13,7 @@ import at.petrak.hexcasting.common.lib.HexItems;
 import at.petrak.hexcasting.xplat.IXplatAbstractions;
 import cn.xm1221.MieLib.hexcli.api.HexCliEnvContext;
 import cn.xm1221.MieLib.hexcli.HexCliProfiles.ProfileException;
+import cn.xm1221.MieLib.hexcli.remote.HexCliRemote;
 import com.mojang.authlib.GameProfile;
 import io.yukkuric.hexparse.hooks.GreatPatternUnlocker;
 import io.yukkuric.hexparse.parsers.ParserMain;
@@ -81,7 +82,7 @@ public final class HexCliSession {
     private @Nullable FrozenPigment pigment;
 
     /** 本次 run 里法术打印出的文字。 */
-    final List<String> printed = new ArrayList<>();
+    public final List<String> printed = new ArrayList<>();
 
     private HexCliSession(MinecraftServer server) {
         this.server = server;
@@ -200,8 +201,11 @@ public final class HexCliSession {
     }
 
     public void print(Component message) {
-        HexCli.LOGGER.info("[HexCLI] print: {}", message.getString());
-        printed.add(message.getString());
+        String text = message.getString();
+        HexCli.LOGGER.info("[HexCLI] print: {}", text);
+        printed.add(text);
+        // 远程客户端：法术打印实时推送（客户端自己 run 里的 print 会重复收到，客户端自行去重）
+        HexCliRemote.pushPrint(text);
     }
 
     /** 取出并清空假玩家收集到的系统消息（hexParse 提示、法术 chat 输出）。 */
@@ -413,7 +417,7 @@ public final class HexCliSession {
         return out;
     }
 
-    static String fmt(Vec3 v) {
+    public static String fmt(Vec3 v) {
         return String.format(Locale.ROOT, "%.1f, %.1f, %.1f", v.x, v.y, v.z);
     }
 

@@ -51,6 +51,9 @@ caelus = "3.1.0+1.20"
 
 # other dependencies
 
+jline = "3.26.3"
+gson = "2.10.1"
+
 asm = "9.5"
 shadow = "7.1.2"
 modPublish = "1.0.0"
@@ -108,6 +111,9 @@ inline-forge  = { module="com.samsthenerd.inline:inline-forge", version.ref="inl
 
 hexparse-fabric = { module="maven.modrinth:WjFyIzFj", version.ref="hexparse-fabric" }
 hexparse-forge  = { module="maven.modrinth:WjFyIzFj", version.ref="hexparse-forge" }
+
+jline = { module="org.jline:jline", version.ref="jline" }
+gson = { module="com.google.code.gson:gson", version.ref="gson" }
 
 asm          = { module="org.ow2.asm:asm", version.ref="asm" }
 asm-analysis = { module="org.ow2.asm:asm-analysis", version.ref="asm" }

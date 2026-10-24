@@ -1,0 +1,256 @@
+package cn.xm1221.MieLib.hexcli.client;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import org.jline.utils.AttributedString;
+import org.jline.utils.AttributedStringBuilder;
+import org.jline.utils.AttributedStyle;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 把服务器回复 / 事件渲染成终端文本（ANSI，JLine {@link AttributedStringBuilder}）。
+ * <p>
+ * {@code --no-color} 或非 tty 时退化成纯文本（不带任何样式）。
+ */
+public final class Renderer {
+    private final boolean color;
+
+    public Renderer(boolean color) {
+        this.color = color;
+    }
+
+    public boolean color() {
+        return color;
+    }
+
+    // ---- 样式小工具 ----
+
+    private AttributedStyle s() {
+        return AttributedStyle.DEFAULT;
+    }
+
+    private AttributedStyle fgStyle(String hex) {
+        if (!color) return s();
+        int[] rgb = rgb(hex);
+        return rgb == null ? s() : s().foreground(rgb[0], rgb[1], rgb[2]);
+    }
+
+    private AttributedStyle dimStyle() {
+        return color ? s().faint() : s();
+    }
+
+    private AttributedStyle redStyle() {
+        return color ? s().foreground(AttributedStyle.RED) : s();
+    }
+
+    private AttributedStyle greenStyle() {
+        return color ? s().foreground(AttributedStyle.GREEN) : s();
+    }
+
+    /** {@code #rrggbb} → {r,g,b}；不是合法颜色返回 null。 */
+    public static int[] rgb(String hex) {
+        if (hex == null || !hex.startsWith("#") || hex.length() != 7) return null;
+        try {
+            int v = Integer.parseInt(hex.substring(1), 16);
+            return new int[]{(v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF};
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    // ---- 一条回复 ----
+
+    /** 渲染一个 reply 消息；返回要打印的行。 */
+    public List<AttributedString> reply(JsonObject msg) {
+        JsonObject data = Connection.obj(msg, "data");
+        boolean ok = Connection.bool(msg, "ok", true);
+        List<AttributedString> out = new ArrayList<>();
+        JsonArray lines = Connection.array(msg, "lines");
+        String error = data == null ? null : Connection.str(data, "error");
+
+        if (data != null && data.has("cast")) {
+            out.addAll(renderRun(data));
+            if (error != null && !error.isBlank()) out.add(errorLine(error));
+            return out;
+        }
+        if (data != null && data.has("stack") && !data.has("profiles") && !data.has("envs")) {
+            out.addAll(renderStackReply(data));
+            return out;
+        }
+        // 其它（profile / env / media / command / ...）：服务器给的文本行原样打印
+        for (JsonElement l : lines) out.add(plain(l.getAsString()));
+        if (error != null && !error.isBlank() && lines.isEmpty()) out.add(errorLine(error));
+        if (out.isEmpty() && !ok) out.add(errorLine(error == null ? "request failed" : error));
+        return out;
+    }
+
+    private List<AttributedString> renderRun(JsonObject data) {
+        List<AttributedString> out = new ArrayList<>();
+        JsonObject cast = Connection.obj(data, "cast");
+        String error = Connection.str(data, "error");
+        for (JsonElement m : Connection.array(data, "parserMessages")) {
+            out.add(plain("hexParse: " + m.getAsString()));
+        }
+        if (cast != null) out.addAll(renderCast(cast));
+        else if (error == null) out.add(styled("(no cast)", dimStyle()));
+        for (JsonElement p : Connection.array(data, "prints")) out.add(plain("print: " + p.getAsString()));
+        for (JsonElement m : Connection.array(data, "messages")) out.add(plain("message: " + m.getAsString()));
+        String impetus = Connection.str(data, "impetus");
+        if (impetus != null) out.add(styled("impetus: " + impetus, dimStyle()));
+        JsonObject media = Connection.obj(data, "media");
+        if (media != null) {
+            String text = Connection.str(media, "text");
+            if (text != null) out.add(styled("media: " + text, dimStyle()));
+        }
+        if (error != null && !error.isBlank()) out.add(errorLine(error));
+        return out;
+    }
+
+    private List<AttributedString> renderCast(JsonObject cast) {
+        List<AttributedString> out = new ArrayList<>();
+        String res = Connection.str(cast, "resolution");
+        int steps = Connection.integer(cast, "steps", 0);
+        long ops = cast.has("ops") && !cast.get("ops").isJsonNull() ? cast.get("ops").getAsLong() : 0;
+
+        AttributedStringBuilder head = new AttributedStringBuilder();
+        head.append("cast #" + Connection.integer(cast, "id", 0) + "  ");
+        if (res == null) {
+            head.append("(no patterns)");
+        } else {
+            head.append(res, "EVALUATED".equals(res) ? greenStyle() : redStyle());
+        }
+        head.append(String.format("   steps %d  ops %d", steps, ops), dimStyle());
+        out.add(head.toAttributedString());
+
+        out.addAll(renderStack(Connection.array(cast, "stack")));
+
+        JsonObject rm = Connection.obj(cast, "ravenmind");
+        if (rm != null) {
+            AttributedStringBuilder b = new AttributedStringBuilder().append("ravenmind: ");
+            appendIota(b, rm);
+            out.add(b.toAttributedString());
+        } else {
+            out.add(styled("ravenmind: (none)", dimStyle()));
+        }
+
+        for (JsonElement m : Connection.array(cast, "mishaps")) out.add(errorLine(m.getAsString()));
+
+        if (cast.has("mediaUsed") && !cast.get("mediaUsed").isJsonNull()) {
+            double dust = cast.has("mediaDust") ? cast.get("mediaDust").getAsDouble() : 0;
+            out.add(styled(String.format("media used: %d (%.2f dust)", cast.get("mediaUsed").getAsLong(), dust), dimStyle()));
+        }
+        return out;
+    }
+
+    private List<AttributedString> renderStack(JsonArray stack) {
+        List<AttributedString> out = new ArrayList<>();
+        if (stack.size() == 0) {
+            out.add(styled("(empty stack)", dimStyle()));
+            return out;
+        }
+        for (int i = 0; i < stack.size(); i++) {
+            JsonObject iota = stack.get(i).getAsJsonObject();
+            boolean top = i == stack.size() - 1;
+            AttributedStringBuilder b = new AttributedStringBuilder();
+            b.append(String.format("  [%d] ", i), dimStyle());
+            b.append(top ? "▶ " : "  ");
+            appendIota(b, iota);
+            out.add(b.toAttributedString());
+            appendChildren(out, iota, "      ");
+        }
+        return out;
+    }
+
+    /** 列表 iota 的子元素：每行一个，缩进 + ├ / └。 */
+    private void appendChildren(List<AttributedString> out, JsonObject iota, String indent) {
+        if (!iota.has("children") || !iota.get("children").isJsonArray()) return;
+        JsonArray children = iota.getAsJsonArray("children");
+        for (int i = 0; i < children.size(); i++) {
+            JsonObject child = children.get(i).getAsJsonObject();
+            boolean last = i == children.size() - 1;
+            AttributedStringBuilder b = new AttributedStringBuilder();
+            b.append(indent + (last ? "└ " : "├ "), dimStyle());
+            appendIota(b, child);
+            out.add(b.toAttributedString());
+            appendChildren(out, child, indent + (last ? "  " : "│ "));
+        }
+    }
+
+    /** 按 rich 分段 / iota 颜色上色。 */
+    private void appendIota(AttributedStringBuilder b, JsonObject iota) {
+        String text = Connection.str(iota, "text");
+        if (text == null) text = "";
+        if (color && iota.has("rich") && iota.get("rich").isJsonArray()) {
+            JsonArray rich = iota.getAsJsonArray("rich");
+            if (rich.size() > 0) {
+                for (JsonElement e : rich) {
+                    JsonObject seg = e.getAsJsonObject();
+                    String s = Connection.str(seg, "text");
+                    if (s == null) continue;
+                    AttributedStyle st = fgStyle(Connection.str(seg, "color"));
+                    if (Connection.bool(seg, "bold", false)) st = st.bold();
+                    if (Connection.bool(seg, "italic", false)) st = st.italic();
+                    if (Connection.bool(seg, "underlined", false)) st = st.underline();
+                    b.append(s, st);
+                }
+                return;
+            }
+        }
+        b.append(text, fgStyle(Connection.str(iota, "color")));
+    }
+
+    private List<AttributedString> renderStackReply(JsonObject data) {
+        List<AttributedString> out = new ArrayList<>();
+        out.addAll(renderStack(Connection.array(data, "stack")));
+        String rm = Connection.str(data, "ravenmind");
+        out.add(rm == null ? styled("ravenmind: (none)", dimStyle()) : plain("ravenmind: " + rm));
+        int parens = Connection.integer(data, "parens", 0);
+        if (parens > 0) out.add(styled("open introspection depth: " + parens, dimStyle()));
+        return out;
+    }
+
+    // ---- 事件 ----
+
+    public List<AttributedString> event(JsonObject msg) {
+        List<AttributedString> out = new ArrayList<>();
+        String kind = Connection.str(msg, "event");
+        if ("cast".equals(kind)) {
+            JsonObject cast = Connection.obj(msg, "cast");
+            if (cast != null) {
+                out.add(styled("— spawned cast —", dimStyle()));
+                out.addAll(renderCast(cast));
+            }
+        } else if ("print".equals(kind)) {
+            String text = Connection.str(msg, "text");
+            if (text != null) out.add(plain("print: " + text));
+        }
+        return out;
+    }
+
+    // ---- 小工具 ----
+
+    private AttributedString plain(String s) {
+        return new AttributedStringBuilder().append(s).toAttributedString();
+    }
+
+    private AttributedString styled(String s, AttributedStyle style) {
+        return new AttributedStringBuilder().append(s, style).toAttributedString();
+    }
+
+    private AttributedString errorLine(String text) {
+        return styled("! " + text, redStyle());
+    }
+
+    /** 渲染结果转纯文本（--exec / 非 tty 用）。 */
+    public static String plainText(List<AttributedString> lines) {
+        StringBuilder sb = new StringBuilder();
+        for (AttributedString l : lines) {
+            if (sb.length() > 0) sb.append('\n');
+            sb.append(l.toString());
+        }
+        return sb.toString();
+    }
+}

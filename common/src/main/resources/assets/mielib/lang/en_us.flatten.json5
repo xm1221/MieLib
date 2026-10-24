@@ -65,6 +65,10 @@
             "": "Enable HexCLI",
             "@Tooltip": "Enables the HexCLI console commands on a dedicated server (requires hexParse). The launch argument -Dmielib.hexcli=true|false overrides this. Off by default.",
           },
+          hexCliPort: {
+            "": "HexCLI Remote Port",
+            "@Tooltip": "TCP port for the HexCLI remote client (loopback only). 0 picks a free port on every start. The launch argument -Dmielib.hexcli.port=<n> overrides this.",
+          },
         },
       },
     },

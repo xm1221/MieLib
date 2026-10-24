@@ -77,6 +77,111 @@ hexcli wait 40 600
 要用数字反射图案写 `num_1`。图案名用 Hex 的注册名路径（`write/local`，不是 `write_local`）；
 hexParse 的“未知符号”提示会打印成 `[HexCLI] hexParse: ...`。
 
+## 终端客户端
+
+服务器端跑起来以后，可以用一个**独立的终端客户端**（`hexcli-client` 子项目，纯 Java 17，不是 mod、不进任何 mod jar）
+连上去交互：带行编辑、历史、Tab 补全、彩色栈，以及 `:stack` 之类的快捷命令。协议是回环地址上的
+换行分隔 JSON，所以客户端可以单独运行、单独打包。
+
+### 启动
+
+1. 用 HexCLI 打开服务器（见上面的“开发运行”）。服务器启动后会打印：
+
+   ```
+   [HexCLI] remote client endpoint 127.0.0.1:NNNNN (see hexcli/client.json)
+   ```
+
+   并在 `<run dir>/hexcli/client.json` 写入 `{"host","port","token","version"}`（端口是随机挑的，token 每次启动都变）。
+
+2. 构建并运行客户端（仓库根目录）：
+
+   ```bash
+   # 打包成自带依赖的 jar
+   ./gradlew :hexcli-client:fatJar
+   # Linux / macOS
+   java -jar hexcli-client/build/libs/hexcli-client-*-all.jar --dir fabric/run/hexcli
+   ```
+
+   Windows（`gradlew.bat`）：
+
+   ```bat
+   gradlew.bat :hexcli-client:fatJar
+   java -jar hexcli-client\build\libs\hexcli-client-1.0-all.jar --dir fabric\run\hexcli
+   ```
+
+   PowerShell 里也可以写：
+
+   ```powershell
+   java -jar .\hexcli-client\build\libs\hexcli-client-1.0-all.jar --dir .\fabric\run\hexcli
+   ```
+
+   `--dir` 指向服务器目录（里面要有 `hexcli/client.json`；直接指向 `hexcli/` 也行）。不给 `--dir` 时依次找
+   当前目录、`./run/hexcli`、`./fabric/run/hexcli`、`./forge/run/hexcli`。
+
+   `./gradlew :hexcli-client:run` 也能跑，但它没有真正的终端（没有行编辑 / 历史 / 补全），日常用 `java -jar`。
+
+### 选项
+
+| 选项 | 作用 |
+|------|------|
+| `--dir <server dir>` | `client.json` 所在目录（默认见上） |
+| `--host` / `--port` / `--token` | 覆盖 `client.json` 里的值（手动转发端口时用） |
+| `-e, --exec <code>` | 跑一段代码、打印结果就退出；成功退出码 0，mishap / 错误退出码 1（脚本 / 冒烟测试用） |
+| `--no-color` | 关闭颜色（不是 tty 时也自动关闭） |
+| `-h, --help` | 帮助 |
+
+### 交互
+
+普通输入就是 hexParse 代码，按回车执行；`()`、`[]`、`{}` 不平衡时自动续行（提示符变成 `...> `）。
+Tab 补全图案名（服务器 action registry 里的名字，连上后拉一次）、meta 命令、`:env use` 的环境 id、`:profile use` 的 profile 名。
+历史存在 `~/.hexcli_history`。
+
+| Meta 命令 | 作用 |
+|-----------|------|
+| `:stack` / `:reset` | 同 `hexcli stack` / `hexcli reset` |
+| `:env [list\|use <id>]` | 同 `hexcli env ...`（`use auto` 也行） |
+| `:profile [list\|show\|use <name>]` | 同 `hexcli profile ...` |
+| `:media <amount\|infinite>` | 同 `hexcli media ...` |
+| `:tick <n>` / `:wait [quiet] [timeout]` | 同 `hexcli tick` / `hexcli wait`（异步：结束时才打印结果） |
+| `:cmd <hexcli 子命令>` | 执行任意 `hexcli ...`（例如 `:cmd caster summon minecraft:zombie`、`:cmd world summon ...`） |
+| `:run <code>` | 等同于直接输入代码 |
+| `:help` / `:quit`（也接受 `:q` / `:exit` / Ctrl-D） | 帮助 / 退出 |
+
+运行结果：先一行 resolution（`EVALUATED` 绿色，`ERRORED` / `INVALID` 红色），然后栈从底到顶（顶上一个 `▶`），
+每个 iota 按它的类型颜色上色，列表元素缩进成 `├` / `└`；接着渡鸦之思、mishap（红色 `!`）、`print:`、消息、impetus、
+用掉的媒质（灰色）。其它命令的文本行原样打印。
+
+服务器上的**其它**施法（法术环、Hexal 小精灵、延时施法……）会以事件形式实时打印在当前提示符上方；
+法术的 `print` 也会实时推送（自己 `run` 里已经显示过的会去重）。
+
+断线（服务器重启 / 端口变了）会打印一行提示，然后每 2 秒重试，每次都重新读 `client.json`（端口和 token 每次启动都不同）；
+没连上时发请求会打印 `not connected`。
+
+### 协议概要
+
+回环地址上的 TCP，换行分隔 UTF-8 JSON（单行最大 1 MB）：
+
+1. 客户端先发 `{"type":"hello","token":"..."}`。token 对 → `{"type":"hello","ok":true,"version":1,"profile":"default","env":"mielib:staff"}`；
+   不对 → `{"type":"hello","ok":false,"error":"bad token"}` 并断开。
+2. 请求 `{"id":<int>,"type":"...",...}` → 回复 `{"id":..,"type":"reply","ok":bool,"lines":[...],"data":{...}}`。
+   类型：`run{code}`、`stack`、`reset`、`env.list`、`env.use{id}`、`profile.list`、`profile.show`、`profile.use{name}`、
+   `media{amount}`、`tick{ticks}`、`wait{quiet?,timeout?}`、`command{line}`（跑 `hexcli <line>`）、`complete`、`ping`。
+3. 服务器主动推送 `{"type":"event","event":"cast","cast":{...}}`（每一次非 root 施法）和
+   `{"type":"event","event":"print","text":"..."}`。
+
+`run` 的 `data` 里是结构化的施法记录（`cast` 含 `stack` / `ravenmind` / `mishaps` / `mediaUsed` 等，每个 iota 有
+`type`、`text`、`color`、`rich` 分段，列表还有 `children`，实体有 `entity`），外加 `prints` / `messages` /
+`parserMessages` / `impetus` / `media` / `error`。控制台输出和客户端看到的是同一套文本（实体 iota 显示成
+`minecraft:zombie "Zombie" @ 3.5, 77.0, 0.5 #1a2b3c4d`，不再是 Inline 的占位符）。
+
+### 安全
+
+- 只绑定**回环地址**（`127.0.0.1` / `::1`），不对局域网开放；没有 TLS，适合本机调试。
+- 每次启动生成 16 字节随机 token（hex），写在 `<server dir>/hexcli/client.json`（服务器停止时删除）；
+  不知道 token 的连接会被立即断开。
+- 所有游戏操作都提交到服务器线程执行，socket 线程只做 JSON 读写。
+- 端口：`-Dmielib.hexcli.port=<n>` 或 MieLib 服务端配置 `hexCliPort`（默认 `0` = 每次启动自动挑空闲端口）。
+
 ## Profile（JSON）
 
 服务器启动时会在 `<run dir>/hexcli/profiles/` 写出示例（已存在则不覆盖），并自动应用 `default`：

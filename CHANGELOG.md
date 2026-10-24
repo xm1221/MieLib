@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - HexCLI on Forge (`:forge:runHexcliServer`); dev runs `:fabric:runHexcliServer` / `:fabric:runHexcliExampleServer` / `:forge:runHexcliServer`.
 - MieLib server config option `enableHexCli` (default `false`) and launch argument `-Dmielib.hexcli=true` to enable HexCLI.
 - `HEXCLI.md` at the repo root (moved from `hexcli/README.md`).
+- HexCLI standalone terminal client (`hexcli-client` Gradle subproject, plain Java 17, not a mod and not in any mod jar): `:hexcli-client:fatJar` produces `hexcli-client-<version>-all.jar`; connects over loopback to the server's HexCLI remote endpoint (`hexcli/client.json`, random token), JLine REPL with history, multi-line input, tab completion, colored stack rendering, `:stack` / `:reset` / `:env` / `:profile` / `:media` / `:tick` / `:wait` / `:cmd` meta-commands, async cast/print events, automatic reconnect, and `--exec <code>` for scripting.
+- HexCLI remote server (`cn.xm1221.MieLib.hexcli.remote`): loopback-only newline-delimited JSON protocol with token handshake, structured `run` replies (iotas as JSON with type/text/color/rich segments/children), push events for spawned casts and prints, and `HexCliOps` shared by the console commands and the remote endpoint.
+- MieLib server config option `hexCliPort` (default `0` = pick a free port) and launch argument `-Dmielib.hexcli.port=<n>`.
+- `HexCliIotas`: entity iotas now render as `<type> "<name>" @ x, y, z #<uuid8>` instead of the Inline placeholder, in console output, ravenmind text and JSON.
 - `mielib.utils.extractNestedJar` buildSrc helper (extracts jar-in-jar dependencies such as hexParse's yclib into the dev runtime).
 
 ### Changed
