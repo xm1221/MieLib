@@ -18,6 +18,7 @@ object Mielib {
 
     fun init() {
         MielibServerConfig.init()
+        MieIotas.init()
         initRegistries(
 
         )

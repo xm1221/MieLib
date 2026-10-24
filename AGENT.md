@@ -140,4 +140,14 @@
 - 所有者：xm1221  
 - 相关附属：MieHex / MieHex:Revolution 等（消费本库，不在本仓库内实现其内容）。
 
+---
+
+## 11. Iota display hook
+
+- **仅客户端显示钩子**：`IotaDisplayHook` / `IotaTypeMixin` 只负责展示层；不要在这里做服务端逻辑。
+- **tag-only 契约**：worker 只处理 `KEY_DATA` 的 `Tag`，**不要在 hook 内反序列化 iota**。
+- **当前只包裹静态入口**：只 wrap `IotaType.getDisplay` / `IotaType.getDisplayWithMaxWidth` / `IotaType.getColor`，不再对抽象 `display(Tag)` 下手。
+- **避免递归**：在 hook/worker 内不要再调用上述被 wrap 的公开 `IotaType` 方法，否则会回到 hook 造成递归。
+- **服务端反序列化统一走**：确需反序列化时，仅在服务端通过 `MieIotas.tryDeserialize(...)` 处理。
+
 有疑问时先停下来问维护者，不要猜测着扩大范围。
