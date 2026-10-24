@@ -271,7 +271,8 @@ public final class HexCliClient {
             case "help" -> printLines(help());
             case "run", "cast" -> {
                 RunArgs ra = RunArgs.parse(rest);
-                if (ra.error != null) printNotice(ra.error + "  (usage: " + cmd + " [--step] [--file <path>] [code])");
+                if (ra.error != null) printNotice(ra.file != null && !ra.error.startsWith("give") ? ra.error
+                    : ra.error + "  (usage: " + cmd + " [--step] [--file <path>] [code])");
                 else if (ra.step) stepLoop(ra.code, ra.file);
                 else send(ra.code);
             }
