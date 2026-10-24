@@ -6,6 +6,7 @@ package mielib
 
 import kotlin.io.path.div
 import libs
+import org.gradle.api.publish.maven.MavenPublication
 
 plugins {
     id("mielib.java")
@@ -46,6 +47,23 @@ dependencies {
     })
 
     annotationProcessor(libs.bundles.asm)
+}
+
+publishing {
+    publications {
+        register<MavenPublication>("maven") {
+            artifactId = base.archivesName.get()
+
+            val javaComponent = components.findByName("java")
+            if (javaComponent != null) {
+                from(javaComponent)
+            } else {
+                project.afterEvaluate {
+                    from(components["java"])
+                }
+            }
+        }
+    }
 }
 
 sourceSets {

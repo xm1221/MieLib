@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Maven publication for `publishToMavenLocal` (mielib-common / mielib-fabric / mielib-forge).
 - `MieIotas.tryDeserialize(full, level)` / `MieIotas.tryDeserialize(type, data, level)` (server cached via Architectury `LifecycleEvent.SERVER_STARTED` / `SERVER_STOPPED`, with `GarbageIota` fallback).
 - `IotaDisplayHook.hasWorkersFor` / `displayOf` / `colorOf`.
 - Iota display color override support.
