@@ -26,7 +26,7 @@ public class GuiSpellcastingMixin {
             float readabilityOffset, float lastSegmentLen, double seed,
             Operation<Void> original
     ){
-       var res= DrawPatternHook.effect(drawLast,tail,head,flowIrregular);
+       var res= DrawPatternHook.effect(drawLast,tail,head,flowIrregular,seed);
        original.call(mat, points, dupIndices, res.getDrawLast(),res.getTail(),res.getHead(),res.getFlowIrregular() ,readabilityOffset, lastSegmentLen, seed);
     }
 

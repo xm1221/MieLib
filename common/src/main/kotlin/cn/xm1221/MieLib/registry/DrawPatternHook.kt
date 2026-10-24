@@ -22,9 +22,22 @@ object DrawPatternHook : HookWorkerRegistry<DrawPatternWorker>("DrawPatternHook"
     /** 按 [ordered] 的顺序依次应用 worker；未命中的 worker 保持原值。 */
     @JvmStatic
     fun effect(
-        drawLast: Boolean, tail: Int, head: Int, flowIrregular: Float
+        drawLast: Boolean,
+        tail: Int,
+        head: Int,
+        flowIrregular: Float,
+        seed: Double,
     ): DrawPatternWorker.DrawResult =
         fold(DrawPatternWorker.DrawResult(drawLast, tail, head, flowIrregular)) { worker, result ->
-            if (worker.ifEffect(result)) worker.effect(result) else result
+            if (worker.ifEffect(result, seed)) worker.effect(result, seed) else result
         }
+
+    /** 兼容旧调用：seed 不可用时传入 [Double.NaN]。 */
+    @JvmStatic
+    fun effect(
+        drawLast: Boolean,
+        tail: Int,
+        head: Int,
+        flowIrregular: Float,
+    ): DrawPatternWorker.DrawResult = effect(drawLast, tail, head, flowIrregular, Double.NaN)
 }

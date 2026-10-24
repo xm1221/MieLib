@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `IotaDisplayHook` now executes as `effect(full, initial)`, and workers only run for tags whose `type === worker.type`.
 - The `IotaType` mixin is now client-only and wraps static `IotaType.getDisplay` / `getDisplayWithMaxWidth` / `getColor` instead of abstract `display(Tag)`.
 - `HookWorkerRegistry` now caches sorted worker order.
+- `DrawPatternWorker.ifEffect` / `effect` are now `open` with defaults (`true` / identity) instead of `abstract`.
 
 ### Added
 
@@ -21,6 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `IotaDisplayHook.hasWorkersFor` / `displayOf` / `colorOf`.
 - Iota display color override support.
 - `HookWorkerRegistry.isEmpty()`.
+- `DrawPatternWorker` seed-aware overloads: `ifEffect(result, seed)` / `effect(result, seed)`.
+- `DrawPatternHook.effect(..., seed)`.
 
 ### Removed
 
