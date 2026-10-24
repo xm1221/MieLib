@@ -3,13 +3,14 @@ import java.util.zip.ZipFile
 // HexCLI — MieLib 的开发用子项目（里程碑 1：仅 Fabric）。
 // 无头专用服务端 + 控制台输入 hexParse 代码执行法术。独立 mod id `hexcli`，不会打进 MieLib 的 jar。
 //
-// 注意：这里故意不套 mielib.java / mielib.minecraft 约定插件，也不用 Kotlin 写。
-// 原因：hexParse 是用 Kotlin 2.2 编译的，而本仓库的 Kotlin 插件是 1.9.22；只要项目应用了 Kotlin 插件，
-// Loom 就会用 1.9 的 kotlinx-metadata 去重映射所有 mod 的 Kotlin 元数据，遇到 hexParse 直接失败。
-// 纯 Java 子项目不会触发这一步。
+// 不套 mielib.minecraft 约定插件：HexCLI 有自己的 mod id / 运行配置，也不需要 accesswidener、发布等。
+// Kotlin：仓库已升到 Kotlin 2.2.21 + Architectury Loom 1.9（自带 kotlin-metadata-jvm），
+// 能正确重映射用 Kotlin 2.2 编译的 hexParse，所以这里也应用 Kotlin 插件，Java / Kotlin 都可以写。
+// （之前失败的根因是 Loom 1.7 内置的 kotlinx-metadata-jvm 最高只认 2.0 元数据，不是项目的 Kotlin 版本。）
 
 plugins {
     java
+    kotlin("jvm")
     id("dev.architectury.loom")
 }
 
@@ -23,6 +24,10 @@ base.archivesName = "hexcli-fabric"
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(libs.versions.java.get().toInt())
+}
+
+kotlin {
+    jvmToolchain(libs.versions.java.get().toInt())
 }
 
 tasks.withType<JavaCompile>().configureEach {
