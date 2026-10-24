@@ -1,7 +1,6 @@
 package cn.xm1221.MieLib.forge.datagen
 
 import at.petrak.hexcasting.forge.datagen.TagsProviderEFHSetter
-import cn.xm1221.MieLib.datagen.MielibActionTags
 import net.minecraft.data.DataProvider
 import net.minecraft.data.PackOutput
 import net.minecraftforge.data.event.GatherDataEvent
@@ -16,7 +15,7 @@ object ForgeMielibDatagen {
 
             // Forge-only datagen
             if (System.getProperty("mielib.forge-datagen") == "true") {
-                addVanillaProvider(includeServer()) { MielibActionTags(it, lookupProvider) }
+                // TODO: add Forge-only datagen providers
             }
         }
     }
