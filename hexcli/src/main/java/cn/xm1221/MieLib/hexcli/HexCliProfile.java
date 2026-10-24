@@ -1,6 +1,7 @@
 package cn.xm1221.MieLib.hexcli;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -14,8 +15,10 @@ import java.util.Map;
  */
 public final class HexCliProfile {
     public @Nullable String description;
-    /** 施法环境 id：auto（按施法者类型自动选）或 {@link cn.xm1221.MieLib.hexcli.env.HexCliEnvs} 里注册的 id。 */
+    /** 施法环境 id：auto（按施法者类型自动选）或已注册的环境 id（如 hexcli:staff，命名空间缺省为 hexcli）。 */
     public String env = "auto";
+    /** 自由 JSON 对象，原样交给工厂（通过上下文的 envData）；由 Gson 直接映射。 */
+    public @Nullable JsonObject envData;
     public Caster caster = new Caster();
     /** "infinite" | "inventory" | 数字（原始媒质单位，紫水晶粉 = 10000）。 */
     public @Nullable JsonElement media;

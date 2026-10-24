@@ -9,6 +9,7 @@ import at.petrak.hexcasting.api.misc.Result;
 import at.petrak.hexcasting.api.pigment.FrozenPigment;
 import at.petrak.hexcasting.common.blocks.circles.BlockSlate;
 import at.petrak.hexcasting.common.lib.HexBlocks;
+import cn.xm1221.MieLib.hexcli.api.HexCliEnvContext;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -42,7 +43,7 @@ public final class HexCliCircle {
                 throw new IllegalArgumentException("could not build the HexCLI test circle at " + origin.toShortString()
                     + " in " + level.dimension().location());
         }
-        FrozenPigment pig = ctx.session().profilePigment();
+        FrozenPigment pig = ctx.session().profilePigment(); // session() 是 @ApiStatus.Internal，HexCLI 自己的代码可以用
         if (pig != null) impetus.setPigment(pig);
         impetus.clearDisplay();
         return new CircleCastEnv(level, state);

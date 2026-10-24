@@ -26,6 +26,15 @@ java {
     toolchain.languageVersion = JavaLanguageVersion.of(libs.versions.java.get().toInt())
 }
 
+// 示例附属（mod id `hexcli_example`）：只用于开发运行时，不进 hexcli 的 jar。
+// 见 src/example/java：演示 HexCLI 环境注册 API 的软依赖写法。
+sourceSets {
+    create("example") {
+        compileClasspath += main.get().compileClasspath + main.get().output
+        runtimeClasspath += main.get().runtimeClasspath + main.get().output
+    }
+}
+
 kotlin {
     jvmToolchain(libs.versions.java.get().toInt())
 }
@@ -56,6 +65,10 @@ loom {
     mixin {
         defaultRefmapName = "hexcli.refmap.json"
     }
+    mods {
+        create("hexcli") { sourceSet(sourceSets.main.get()) }
+        create("hexcli_example") { sourceSet(sourceSets["example"]) }
+    }
     runs {
         named("server") {
             runDir = "run"
@@ -63,6 +76,13 @@ loom {
             ideConfigGenerated(false)
         }
         named("client") { ideConfigGenerated(false) }
+        create("exampleServer") {
+            server()
+            runDir = "run"
+            programArg("nogui")
+            source(sourceSets["example"])
+            ideConfigGenerated(false)
+        }
     }
 }
 
@@ -128,18 +148,22 @@ dependencies {
 
 tasks {
     // 让 `./gradlew :hexcli:runServer` 能从终端 / 管道读控制台输入
-    named<JavaExec>("runServer") {
-        standardInput = System.`in`
-        doFirst {
-            val run = file("run")
-            run.mkdirs()
-            // 开发用：自动同意 EULA、离线模式
-            run.resolve("eula.txt").takeIf { !it.exists() }?.writeText("eula=true\n")
-            run.resolve("server.properties").takeIf { !it.exists() }?.writeText(
-                "online-mode=false\nspawn-protection=0\nlevel-name=hexcli-world\nmotd=HexCLI\nenable-rcon=false\n"
-            )
+    listOf("runServer", "runExampleServer").forEach { name ->
+        named<JavaExec>(name) {
+            standardInput = System.`in`
+            doFirst {
+                val run = file("run")
+                run.mkdirs()
+                // 开发用：自动同意 EULA、离线模式
+                run.resolve("eula.txt").takeIf { !it.exists() }?.writeText("eula=true\n")
+                run.resolve("server.properties").takeIf { !it.exists() }?.writeText(
+                    "online-mode=false\nspawn-protection=0\nlevel-name=hexcli-world\nmotd=HexCLI\nenable-rcon=false\n"
+                )
+            }
         }
     }
+    // `:hexcli:build` 也编译示例 source set（示例不进 jar：jar 只用 main）。
+    named("build") { dependsOn("exampleClasses") }
     processResources {
         val props = mapOf("version" to project.version.toString())
         inputs.properties(props)

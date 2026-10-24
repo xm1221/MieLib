@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "hexcli_example",
+  "version": "0.0.0",
+  "name": "HexCLI Example",
+  "description": "Example addon showing how to register a HexCLI casting environment (not shipped).",
+  "authors": [
+    "xm1221"
+  ],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "cn.xm1221.MieLib.hexcli.example.HexCliExample"
+    ]
+  },
+  "depends": {
+    "minecraft": "1.20.1",
+    "fabricloader": "*",
+    "hexcasting": "*"
+  },
+  "suggests": {
+    "hexcli": "*"
+  },
+  "mixins": [
+    "hexcli_example.mixins.json"
+  ]
+}

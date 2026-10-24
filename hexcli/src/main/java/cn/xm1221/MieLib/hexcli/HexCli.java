@@ -3,6 +3,8 @@ package cn.xm1221.MieLib.hexcli;
 import at.petrak.hexcasting.api.casting.eval.vm.CastingImage;
 import at.petrak.hexcasting.api.casting.iota.Iota;
 import at.petrak.hexcasting.api.casting.eval.CastingEnvironment;
+import cn.xm1221.MieLib.hexcli.api.EnvSpec;
+import cn.xm1221.MieLib.hexcli.api.HexCliAPI;
 import cn.xm1221.MieLib.hexcli.HexCliProfiles.ProfileException;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.StringReader;
@@ -32,6 +34,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -89,6 +93,18 @@ public final class HexCli implements ModInitializer {
                 .then(Commands.literal("use").then(Commands.argument("name", StringArgumentType.word())
                     .suggests((c, b) -> SharedSuggestionProvider.suggest(HexCliProfiles.list(c.getSource().getServer()), b))
                     .executes(c -> profileUse(c, StringArgumentType.getString(c, "name"))))))
+            .then(Commands.literal("env")
+                .then(Commands.literal("list").executes(HexCli::envList))
+                .then(Commands.literal("use")
+                    .then(Commands.literal("auto").executes(c -> envUse(c, null)))
+                    .then(Commands.argument("id", StringArgumentType.greedyString()) // word() 不收 ':'
+                        .suggests((c, b) -> {
+                            List<String> ids = new ArrayList<>();
+                            ids.add("auto");
+                            for (ResourceLocation rl : HexCliAPI.envs().keySet()) ids.add(rl.toString());
+                            return SharedSuggestionProvider.suggest(ids, b);
+                        })
+                        .executes(c -> envUse(c, StringArgumentType.getString(c, "id"))))))
             .then(Commands.literal("caster")
                 .then(Commands.literal("player").executes(c -> casterSet(c, "player", null)))
                 .then(Commands.literal("none").executes(c -> casterSet(c, "none", null)))
@@ -228,19 +244,74 @@ public final class HexCli implements ModInitializer {
         }
     }
 
+    /** env list 的来源显示：spec.source 或 id 命名空间，能找到 mod 容器时带上 mod 名（加载器相关，留在入口类里）。 */
+    static String sourceLabel(ResourceLocation id, EnvSpec spec) {
+        String src = spec.source() != null ? spec.source() : id.getNamespace();
+        String name = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer(src)
+            .map(c -> c.getMetadata().getName()).orElse(null);
+        return name != null && !name.equals(src) ? src + " (" + name + ")" : src;
+    }
+
+    private static int envList(CommandContext<CommandSourceStack> ctx) {
+        HexCliSession s = HexCliSession.get(ctx.getSource().getServer());
+        List<String> out = new ArrayList<>();
+        out.add("[HexCLI] registered envs (auto: player->hexcli:staff, none->hexcli:circle, "
+            + "living->the only env accepting living):");
+        ResourceLocation effective;
+        try {
+            effective = s.resolveEnv();
+        } catch (RuntimeException e) {
+            effective = null;
+        }
+        for (Map.Entry<ResourceLocation, EnvSpec> e : HexCliAPI.envs().entrySet()) {
+            ResourceLocation id = e.getKey();
+            EnvSpec spec = e.getValue();
+            out.add((id.equals(effective) ? "  * " : "    ") + id
+                + "  casters=" + spec.castersText()
+                + "  source=" + sourceLabel(id, spec)
+                + "  - " + spec.description());
+        }
+        String cur = s.effectiveIsAuto() ? "auto" : s.effectiveEnvIdString();
+        out.add("  current: " + cur + (effective == null ? " (not resolved now)" : " -> " + effective));
+        say(ctx.getSource(), out);
+        return HexCliAPI.envs().size();
+    }
+
+    private static int envUse(CommandContext<CommandSourceStack> ctx, @org.jetbrains.annotations.Nullable String raw) {
+        HexCliSession s = HexCliSession.get(ctx.getSource().getServer());
+        ResourceLocation id;
+        try {
+            id = HexCliEnvs.parseId(raw); // null = auto
+            HexCliEnvs.requireKnown(id);
+        } catch (IllegalArgumentException e) {
+            say(ctx.getSource(), List.of("[HexCLI] env error: " + e.getMessage()));
+            return 0;
+        }
+        s.setEnvOverride(id);
+        String resolved;
+        try {
+            resolved = HexCliEnvs.resolve(id, s.caster()).toString();
+        } catch (RuntimeException e) {
+            resolved = "error: " + e.getMessage();
+        }
+        say(ctx.getSource(), List.of("[HexCLI] env = " + s.effectiveEnvIdString() + " (resolved: " + resolved + ")"));
+        return 1;
+    }
+
     private static int profileShow(CommandContext<CommandSourceStack> ctx) {
         HexCliSession s = HexCliSession.get(ctx.getSource().getServer());
         List<String> out = new ArrayList<>();
         String env;
         try {
-            env = HexCliEnvs.resolve(s.profile().env, s.context());
+            env = HexCliEnvs.resolve(s.effectiveEnvId(), s.caster()) + (s.effectiveIsAuto() ? " (auto)" : "");
         } catch (RuntimeException e) {
             env = "? (" + e.getMessage() + ")";
         }
         out.add("[HexCLI] active profile '" + s.profileName() + "'" + (s.profile().description == null ? "" : ": " + s.profile().description));
         out.add("  caster: " + HexCliSession.describe(s.caster()) + " at " + HexCliSession.fmt(s.anchor()) + " in " + s.level().dimension().location());
         out.add("  env: " + env + "  enlightened: " + s.enlightened() + "  media: " + s.mediaText() + "  ambit: " + s.ambitText());
-        out.add("  stack size: " + s.image().getStack().size() + "  registered envs: auto, " + String.join(", ", HexCliEnvs.all().keySet()));
+        out.add("  stack size: " + s.image().getStack().size() + "  registered envs: auto, "
+            + HexCliAPI.envs().keySet().stream().map(ResourceLocation::toString).collect(Collectors.joining(", ")));
         say(ctx.getSource(), out);
         return 1;
     }
@@ -261,7 +332,7 @@ public final class HexCli implements ModInitializer {
         }
         String env;
         try {
-            env = HexCliEnvs.resolve(s.profile().env, s.context());
+            env = s.resolveEnv().toString() + (s.effectiveIsAuto() ? " (auto)" : "");
         } catch (RuntimeException e) {
             env = "? (" + e.getMessage() + ")";
         }

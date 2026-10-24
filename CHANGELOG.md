@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - HexCLI (`hexcli/`, Fabric only, separate artifact `hexcli-fabric`, not bundled into MieLib jars): run Hex code in hexParse syntax on a headless dedicated server via `/hexcli run <code>` or raw `> <code>` console lines; persistent stack/ravenmind across commands, `/hexcli stack`, `/hexcli reset`, `/hexcli tick <n>`, `/hexcli wait [quiet] [timeout]`; observes every `CastingEnvironment` on the server (root vs spawned) and logs stack, mishaps and media used.
+- HexCLI public env registration API (`cn.xm1221.MieLib.hexcli.api`: `HexCliAPI.registerEnv`, `EnvSpec`, `CasterKind`, `HexCliEnvContext`/`HexCliEnvFactory`), built-in `hexcli:packaged` env (cypher/trinket/artifact), `hexcli env list` / `hexcli env use <id|auto>`, profile `envData`, and an unshipped `hexcli_example` addon source set (`:hexcli:runExampleServer`) demonstrating the soft-dependency pattern.
 
 ### Changed
 

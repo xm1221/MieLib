@@ -2,6 +2,7 @@ package cn.xm1221.MieLib.hexcli;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import net.minecraft.commands.CommandSource;
@@ -147,6 +148,17 @@ public final class HexCliProfiles {
         HexCliProfile.Stack pg = new HexCliProfile.Stack("hexcasting:dye_colorizer_purple", 1);
         st.pigment = pg;
         m.put("stacked", st);
+
+        HexCliProfile pkg = new HexCliProfile();
+        pkg.description = "fake player casting through the cypher in the main hand (env hexcli:packaged); infinite media/ambit";
+        pkg.env = "hexcli:packaged";
+        pkg.caster.mainhand = new HexCliProfile.Stack("hexcasting:cypher", 1);
+        pkg.caster.learnedGreatPatterns = List.of("all");
+        pkg.media = new JsonPrimitive("infinite");
+        pkg.ambit = new JsonPrimitive("infinite");
+        pkg.envData = new JsonObject();
+        pkg.envData.addProperty("hand", "main");
+        m.put("packaged", pkg);
         return m;
     }
 

@@ -11,6 +11,7 @@ import at.petrak.hexcasting.api.pigment.FrozenPigment;
 import at.petrak.hexcasting.api.player.Sentinel;
 import at.petrak.hexcasting.common.lib.HexItems;
 import at.petrak.hexcasting.xplat.IXplatAbstractions;
+import cn.xm1221.MieLib.hexcli.api.HexCliEnvContext;
 import cn.xm1221.MieLib.hexcli.HexCliProfiles.ProfileException;
 import com.mojang.authlib.GameProfile;
 import io.yukkuric.hexparse.hooks.GreatPatternUnlocker;
@@ -63,6 +64,9 @@ public final class HexCliSession {
     private ServerLevel level;
     private Vec3 anchor;
     private @Nullable LivingEntity caster;
+
+    /** {@code hexcli env use <id>} 设置的覆盖；null = 跟随 profile。 */
+    private @Nullable ResourceLocation envOverride;
 
     private String profileName = "(builtin)";
     private HexCliProfile profile = new HexCliProfile();
@@ -267,7 +271,13 @@ public final class HexCliSession {
         }
         if (am == HexCliProfile.Mode.INVENTORY) throw new ProfileException("ambit cannot be \"inventory\"");
         if (mm == HexCliProfile.Mode.DEFAULT) mm = HexCliProfile.Mode.INVENTORY; // default = 环境自己的规则
-        if (!"auto".equals(p.env) && p.env != null) HexCliEnvs.get(p.env); // 未知 id 提前报错
+        if (!"auto".equals(p.env) && p.env != null) { // 未知 id 提前报错
+            try {
+                HexCliEnvs.requireKnown(HexCliEnvs.parseId(p.env));
+            } catch (IllegalArgumentException e) {
+                throw new ProfileException(e.getMessage());
+            }
+        }
         LivingEntity selected = null;
         if (type.equals("select")) {
             if (c.selector == null || c.selector.isBlank()) throw new ProfileException("caster.type=select needs caster.selector");
@@ -370,6 +380,7 @@ public final class HexCliSession {
         // 所以 "num_1 num_2" 得到的是 [1, 2] 而不是两个图案。
         profileName = name;
         profile = p;
+        envOverride = null; // `profile use` 之后回到 profile.env
         CastingImage start = new CastingImage();
         if (p.initialStack != null && !p.initialStack.isBlank()) start = evalScratch(p.initialStack, "initialStack", start);
         CompoundTag img = start.serializeToNbt();
@@ -383,14 +394,14 @@ public final class HexCliSession {
         initialImage = img;
         reset();
 
-        String envId;
+        String envId = effectiveEnvIdString();
         try {
-            envId = HexCliEnvs.resolve(p.env, context());
+            HexCliEnvs.resolve(effectiveEnvId(), caster);
         } catch (RuntimeException e) {
             envId = "? (" + e.getMessage() + ")";
         }
         out.add("[HexCLI] profile '" + name + "' applied: caster=" + describe(newCaster)
-            + " env=" + envId + (("auto".equals(p.env) || p.env == null) ? " (auto)" : "")
+            + " env=" + envId + (effectiveIsAuto() ? " (auto)" : "")
             + " enlightened=" + enlightened + " media=" + mediaText() + " ambit=" + ambitText()
             + " stack=" + image.getStack().size() + (CastEvent.ravenmindOf(image) == null ? "" : " ravenmind=set"));
         if (newCaster == null) out.add("[HexCLI]   anchor " + fmt(anchor) + " in " + lvl.dimension().location());
@@ -457,8 +468,40 @@ public final class HexCliSession {
 
     // ---- 执行 ----
 
+    /** 当前生效的环境 id：{@code hexcli env use} 覆盖优先，否则用 profile.env（null = auto）。 */
+    public @Nullable ResourceLocation effectiveEnvId() {
+        return envOverride != null ? envOverride : HexCliEnvs.parseId(profile.env);
+    }
+
+    /** 当前生效环境是不是 auto（profile.env 为 auto/null 且无 env use 覆盖）。 */
+    public boolean effectiveIsAuto() {
+        return envOverride == null && ("auto".equals(profile.env) || profile.env == null);
+    }
+
+    /** 当前生效环境 id 的文本（含 auto），用于打印。 */
+    public String effectiveEnvIdString() {
+        ResourceLocation id = effectiveEnvId();
+        return id == null ? "auto" : id.toString();
+    }
+
+    /** 设置本次会话的环境覆盖（{@code hexcli env use <id>}）；null = 回到 profile.env。 */
+    public void setEnvOverride(@Nullable ResourceLocation id) {
+        envOverride = id;
+    }
+
+    public @Nullable ResourceLocation envOverride() {
+        return envOverride;
+    }
+
+    /** 解析当前生效的环境 id；失败抛 IllegalArgumentException（消息直接给用户看）。 */
+    public ResourceLocation resolveEnv() {
+        return HexCliEnvs.resolve(effectiveEnvId(), caster);
+    }
+
+    /** 本次施法的上下文；env id 已解析（未知 id / LIVING 有歧义时抛 IllegalArgumentException）。 */
     public HexCliEnvContext context() {
-        return new HexCliEnvContext(level(), caster, anchor(), profile, this);
+        // HexCliEnvContext 的构造器保证 envData 非 null 且是深拷贝
+        return new HexCliEnvContext(level(), caster, anchor(), resolveEnv(), profile.envData, this, profile);
     }
 
     /** hexParse 文本 -> iota 列表。解析失败抛异常，由命令层兜住。 */
@@ -479,8 +522,8 @@ public final class HexCliSession {
         if (caster != null && (caster.isRemoved() || !caster.isAlive()) && caster != player)
             throw new IllegalArgumentException("caster " + describe(caster) + " is gone (dead/removed); pick another with `hexcli caster ...`");
         HexCliEnvContext ctx = context();
-        String id = HexCliEnvs.resolve(profile.env, ctx);
-        CastingEnvironment env = HexCliEnvs.get(id).create(ctx);
+        ResourceLocation id = ctx.envId();
+        CastingEnvironment env = HexCliEnvs.create(id, ctx);
         // 观察组件先挂（它要看到组件扣费之前的完整费用），再挂 HexCLI 的媒质 / 范围组件。
         // 只有这里创建的 root 环境会挂媒质 / 范围组件；派生施法（咒灵、法术环、延时……）只被 CastObserver 观察。
         if (env.getExtension(CastObserver.Probe.KEY) == null) env.addExtension(new CastObserver.Probe(env));
