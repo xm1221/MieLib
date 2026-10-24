@@ -1,6 +1,11 @@
 package cn.xm1221.MieLib.registry
 
+import at.petrak.hexcasting.api.casting.iota.Iota
+import at.petrak.hexcasting.api.casting.iota.IotaType
+import at.petrak.hexcasting.api.utils.putCompound
+import at.petrak.hexcasting.common.lib.hex.HexIotaTypes
 import cn.xm1221.MieLib.worker.IotaDisplayWorker
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.Tag
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
@@ -27,9 +32,30 @@ object IotaDisplayHook : HookWorkerRegistry<IotaDisplayWorker>("IotaDisplayHook"
      */
     @JvmStatic
     fun effect(
-        tag: Tag
-    ): Component? =
-        fold<Component?>(null) { worker, previous ->
-            if (worker.ifEffect(tag)) worker.effect(tag) else previous
+        tag: CompoundTag
+    ): IotaDisplayCall {
+        return fold(IotaDisplayCall.init(tag)) { worker, previous ->
+            (if (worker.ifEffect(tag)) worker.effect(tag) else previous)!!
         }
+
+
+    }
+
+    class IotaDisplayCall(var display: Component?, var color: Int?,val type: IotaType<*>?) {
+        fun display(): Component? {
+            return display
+        }
+
+        fun color(): Int? {
+            return color
+        }
+
+        companion object {
+        @JvmStatic
+            fun init(tag: CompoundTag):IotaDisplayCall {
+                return IotaDisplayCall(IotaType.getDisplay(tag), IotaType.getColor(tag), IotaType.getTypeFromTag(tag))
+            }
+        }
+
+    }
 }
