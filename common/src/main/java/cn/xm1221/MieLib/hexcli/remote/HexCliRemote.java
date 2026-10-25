@@ -336,7 +336,9 @@ public final class HexCliRemote {
                     case "reset" -> submit(() -> HexCliOps.reset(server), out, id);
                     case "env.list" -> submit(() -> HexCliOps.envList(server), out, id);
                     case "env.use" -> {
-                        String env = str(msg, "id");
+                        // payload field must NOT be "id" — that is the request correlation number
+                        String env = str(msg, "env");
+                        if (env == null) env = str(msg, "name"); // tolerate old/alternate clients
                         submit(() -> HexCliOps.envUse(server, env), out, id);
                     }
                     case "profile.list" -> submit(() -> HexCliOps.profileList(server), out, id);

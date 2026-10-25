@@ -283,7 +283,7 @@ public final class HexCliClient {
                 if (rest.isEmpty() || a[0].equalsIgnoreCase("list")) requestAndPrint("env.list");
                 else if (a[0].equalsIgnoreCase("use")) {
                     if (a.length < 2) printNotice("usage: env use <id>");
-                    else requestAndPrint("env.use", "id", a[1].strip());
+                    else requestAndPrint("env.use", "env", a[1].strip());
                 } else printNotice("usage: env [list|use <id>]");
             }
             case "profile" -> {

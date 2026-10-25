@@ -188,7 +188,7 @@ Tab 补全：行首补全命令名和图案名（服务器 action registry 里�
 1. 客户端先发 `{"type":"hello","token":"..."}`。token 对 → `{"type":"hello","ok":true,"version":1,"profile":"default","env":"mielib:staff"}`；
    不对 → `{"type":"hello","ok":false,"error":"bad token"}` 并断开。
 2. 请求 `{"id":<int>,"type":"...",...}` → 回复 `{"id":..,"type":"reply","ok":bool,"lines":[...],"data":{...}}`。
-   类型：`run{code}`、`stack`、`reset`、`env.list`、`env.use{id}`、`profile.list`、`profile.show`、`profile.use{name}`、
+   类型：`run{code}`、`stack`、`reset`、`env.list`、`env.use{env}`、`profile.list`、`profile.show`、`profile.use{name}`、
    `media{amount}`、`tick{ticks}`、`wait{quiet?,timeout?}`、`command{line}`（跑 `hexcli <line>`）、`complete`、`ping`。
 3. 服务器主动推送 `{"type":"event","event":"cast","cast":{...}}`（每一次非 root 施法）和
    `{"type":"event","event":"print","text":"..."}`。
