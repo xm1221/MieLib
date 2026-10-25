@@ -10,9 +10,6 @@ on:
       mod_release:
         type: boolean
         required: true
-      hexdoc_release:
-        type: boolean
-        required: true
       dry_run:
         type: boolean
         required: true
@@ -23,11 +20,6 @@ on:
 
 permissions:
   contents: read
-
-env:
-  # adding a branch name here will make hexdoc deploy prerelease versions of your web book on every push to that branch
-  # for example: https://hexcasting.hexxy.media/v/latest/main/en_us/
-  HEXDOC_BRANCHES: '["main"]'
 
 jobs:
   build-mod:
@@ -164,72 +156,3 @@ jobs:
           mc: 1.20.1
           modloader: ${{ matrix.modloader }}
           fabric-api: ${{ matrix.fabric-api }}
-
-  build-hexdoc:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: read
-    outputs:
-      pages-url: ${{ steps.build.outputs.pages-url }}
-      deploy: ${{ github.event_name != 'pull_request' && contains(fromJson(env.HEXDOC_BRANCHES), github.ref_name) && !inputs.dry_run }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version-file: .python-version
-
-      - uses: astral-sh/setup-uv@v6
-        with:
-          activate-environment: true
-          enable-cache: true
-
-      - name: Sync dependencies
-        run: uv sync --frozen --no-dev
-
-      - id: build
-        uses: hexdoc-dev/actions/build@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          release: ${{ inputs.hexdoc_release == true }}
-
-  deploy-pages:
-    needs:
-      - build-hexdoc
-    if: needs.build-hexdoc.outputs.deploy == 'true'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: hexdoc-deploy-pages
-      cancel-in-progress: false
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version-file: .python-version
-
-      - uses: astral-sh/setup-uv@v6
-        with:
-          activate-environment: true
-          enable-cache: true
-
-      - name: Sync dependencies
-        run: uv sync --frozen --no-dev
-
-      - name: Merge new hexdoc build into existing book
-        uses: hexdoc-dev/actions/merge@v1
-        with:
-          release: ${{ inputs.hexdoc_release == true }}
-          site-url: ${{ needs.build-hexdoc.outputs.pages-url }}
-
-      # if you want to add extra things to your website (eg. Javadoc/Dokka), add it to _site/dst/docs here
-
-      - name: Deploy to Pages
-        uses: hexdoc-dev/actions/deploy-pages@v1
-        with:
-          merge: false
-          release: ${{ inputs.hexdoc_release == true }}
