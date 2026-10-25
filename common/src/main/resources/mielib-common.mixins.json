@@ -16,5 +16,6 @@
   "plugin": "cn.xm1221.MieLib.mixin.MielibMixinConfigPlugin",
   "injectors": {
     "defaultRequire": 1
-  }
+  },
+  "refmap": "mielib-common.refmap.json"
 }

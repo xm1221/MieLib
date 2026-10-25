@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
  */
 @Mixin(DedicatedServer.class)
 public abstract class DedicatedServerConsoleMixin {
-    @ModifyVariable(method = "handleConsoleInput", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    @ModifyVariable(method = "handleConsoleInput(Ljava/lang/String;Lnet/minecraft/commands/CommandSourceStack;)V", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private String mielib$rewriteRawLine(String msg) {
         if (!HexCli.isActive()) return msg;
         String trimmed = msg.stripLeading();
