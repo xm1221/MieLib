@@ -84,7 +84,7 @@ public final class ExampleMobCastEnv extends CastingEnvironment {
     }
 
     @Override
-    protected List<ItemStack> getUsableStacks(StackDiscoveryMode mode) {
+    public List<ItemStack> getUsableStacks(StackDiscoveryMode mode) {
         List<ItemStack> out = new ArrayList<>();
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack s = mob.getItemInHand(hand);
@@ -94,7 +94,7 @@ public final class ExampleMobCastEnv extends CastingEnvironment {
     }
 
     @Override
-    protected List<HeldItemInfo> getPrimaryStacks() {
+    public List<HeldItemInfo> getPrimaryStacks() {
         List<HeldItemInfo> out = new ArrayList<>();
         out.add(new HeldItemInfo(mob.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND));
         out.add(new HeldItemInfo(mob.getItemInHand(InteractionHand.OFF_HAND), InteractionHand.OFF_HAND));
