@@ -32,8 +32,8 @@ object MielibNetworking {
     }
 
     /**
-     * Same id [dev.architectury.networking.NetworkChannel] used to derive from the message class,
-     * so a 0.0.3 peer still speaks this packet. Only one direction is registered for it.
+     * Same id [dev.architectury.networking.NetworkChannel] derived from the message class.
+     * Only one direction is registered for it.
      */
     private fun packetId(type: Class<*>): ResourceLocation {
         val suffix = UUID.nameUUIDFromBytes(type.name.toByteArray(StandardCharsets.UTF_8))
