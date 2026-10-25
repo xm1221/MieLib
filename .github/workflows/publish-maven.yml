@@ -1,0 +1,46 @@
+name: Publish Maven
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      MAVEN_DEPLOY_KEY:
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Checkout maven repo
+        uses: actions/checkout@v4
+        with:
+          repository: xm1221/maven
+          path: maven-repo
+          ssh-key: ${{ secrets.MAVEN_DEPLOY_KEY }}
+
+      - name: Publish
+        env:
+          RELEASE: true
+        run: ./gradlew publishMaven -PmavenRepo="${{ github.workspace }}/maven-repo" --no-daemon
+
+      - name: Push maven repo
+        working-directory: maven-repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No maven changes"
+          else
+            git commit -m "Publish MieLib"
+            git push
+          fi

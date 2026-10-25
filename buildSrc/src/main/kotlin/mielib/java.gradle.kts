@@ -83,6 +83,8 @@ tasks {
     javadoc {
         options {
             this as StandardJavadocDocletOptions
+            encoding = "UTF-8"
+            charSet = "UTF-8"
             addStringOption("Xdoclint:none", "-quiet")
         }
     }

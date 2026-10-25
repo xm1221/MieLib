@@ -23,6 +23,11 @@ tasks {
         dependsOn(":forge:runCommonDatagen")
         dependsOn(":forge:runForgeDatagen")
     }
+
+    // common / fabric / forge only. Requires -PmavenRepo=<dir> or MAVEN_REPO.
+    register("publishMaven") {
+        dependsOn(":common:publish", ":fabric:publish", ":forge:publish")
+    }
 }
 
 publishMods {
