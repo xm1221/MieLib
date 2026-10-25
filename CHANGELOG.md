@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.0.4] - 2026-10-25
+
+Minecraft **1.21.1** line. Maven version is `0.0.4+1.21.1`.
+
+### Fixed
+
+- NeoForge 1.21.1 clients no longer crash in `RegisterPayloadHandlersEvent` with `Cannot register payload mielib:networking_channel/<uuid> as it is already registered`. Architectury `NetworkChannel.register` registered every message as C2S and, on the client, again as S2C under the same id. NeoForge treats payload ids as unique across directions. Each message is now registered for one direction (`MsgSyncConfigS2C` is server-to-client). A dedicated server registers the S2C payload type, without a client receiver, so it can still sync server config.
+
+### Changed
+
+- `MielibNetworking.CHANNEL` is gone. `NetworkChannel.register` is what double-registered the payload. `sendToPlayer`, `sendToPlayers`, and `sendToServer` are unchanged.
+
 ## [0.0.3] - 2026-10-25
 
 Minecraft **1.21.1** line (Fabric + NeoForge). Maven version is `0.0.3+1.21.1` (`modVersion` + Minecraft version, same scheme as 1.20.1). This branch does not replace `main`.
