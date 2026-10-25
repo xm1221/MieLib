@@ -1,5 +1,6 @@
 package cn.xm1221.MieLib.hexcli;
 
+import at.petrak.hexcasting.api.casting.eval.CastingEnvironment;
 import at.petrak.hexcasting.api.casting.eval.env.CircleCastEnv;
 import at.petrak.hexcasting.api.casting.eval.env.PackagedItemCastEnv;
 import at.petrak.hexcasting.api.casting.eval.env.StaffCastEnv;
@@ -42,7 +43,7 @@ import java.util.stream.Collectors;
 public final class HexCliEnvs {
     public static final ResourceLocation AUTO = HexCliAPI.AUTO;
     public static final ResourceLocation STAFF = HexCliAPI.STAFF;
-    public static final ResourceLocation CIRCLE = HexCliAPI.CIRCLE;
+    public static final ResourceLocation CIRCLE = HexCliAPI.UNOWNED_CIRCLE;
     public static final ResourceLocation PACKAGED = HexCliAPI.PACKAGED;
 
     private static final Map<ResourceLocation, EnvSpec> SPECS = new LinkedHashMap<>();
@@ -65,13 +66,19 @@ public final class HexCliEnvs {
             .description("Hex Casting PackagedItemCastEnv (cypher/trinket/artifact in hand)")
             .source(HexCliAPI.NAMESPACE)
             .build());
+
+        registerEnv(HexCliAPI.CIRCLE, EnvSpec.builder(HexCliCircle::createEnv)
+                .casters(CasterKind.PLAYER)
+                .description("Hex Casting CircleCastEnv on an auto-built impetus circle")
+                .source(HexCliAPI.NAMESPACE).
+                build());
     }
 
     private HexCliEnvs() {
     }
 
     /** 内置 mielib:packaged 工厂：读 envData 里的 hand（main/off，默认 main），校验手里是打包类物品。 */
-    static at.petrak.hexcasting.api.casting.eval.CastingEnvironment createPackaged(HexCliEnvContext ctx) {
+    static CastingEnvironment createPackaged(HexCliEnvContext ctx) {
         JsonObject data = ctx.envData();
         String handStr = data.has("hand") ? data.get("hand").getAsString() : "main";
         InteractionHand hand;
@@ -177,7 +184,7 @@ public final class HexCliEnvs {
     }
 
     /** 在 HexCliSession.createEnv 里真正创建环境：先校验施法者匹配，再调工厂（兜空 / 兜异常）。 */
-    static at.petrak.hexcasting.api.casting.eval.CastingEnvironment create(ResourceLocation id, HexCliEnvContext ctx) {
+    static CastingEnvironment create(ResourceLocation id, HexCliEnvContext ctx) {
         EnvSpec spec = env(id); // 取快照后不再持锁：工厂是外部代码，可能很慢 / 反过来注册环境
         if (spec == null) throw new IllegalArgumentException("unknown HexCLI env '" + id + "', known: " + knownList());
         if (!spec.accepts(ctx.caster())) {
@@ -186,7 +193,7 @@ public final class HexCliEnvs {
                 + casterHint());
         }
         try {
-            at.petrak.hexcasting.api.casting.eval.CastingEnvironment env = spec.factory().create(ctx);
+            CastingEnvironment env = spec.factory().create(ctx);
             if (env == null) throw new IllegalArgumentException("env " + id + " factory returned null");
             return env;
         } catch (IllegalArgumentException e) {

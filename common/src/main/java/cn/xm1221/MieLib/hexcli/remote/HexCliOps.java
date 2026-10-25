@@ -412,7 +412,7 @@ public final class HexCliOps {
     public static HexCliReply envList(MinecraftServer server) {
         HexCliSession s = HexCliSession.get(server);
         List<String> out = new ArrayList<>();
-        out.add("[HexCLI] registered envs (auto: player->" + HexCliAPI.STAFF + ", none->" + HexCliAPI.CIRCLE + ", "
+        out.add("[HexCLI] registered envs (auto: player->" + HexCliAPI.STAFF + ", none->" + HexCliAPI.UNOWNED_CIRCLE + ", "
             + "living->the only env accepting living):");
         ResourceLocation effective;
         try {

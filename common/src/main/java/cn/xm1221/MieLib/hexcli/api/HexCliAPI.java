@@ -35,8 +35,10 @@ public final class HexCliAPI {
     /** 保留 id：profile 里写 {@code "env": "auto"} 表示按施法者类型动态解析，不能注册。 */
     public static final ResourceLocation AUTO = new ResourceLocation(NAMESPACE, "auto");
     public static final ResourceLocation STAFF = new ResourceLocation(NAMESPACE, "staff");
-    public static final ResourceLocation CIRCLE = new ResourceLocation(NAMESPACE, "circle");
+    public static final ResourceLocation UNOWNED_CIRCLE = new ResourceLocation(NAMESPACE, "unowned_circle");
     public static final ResourceLocation PACKAGED = new ResourceLocation(NAMESPACE, "packaged");
+
+    public static final ResourceLocation CIRCLE = new ResourceLocation(NAMESPACE, "circle");
 
     /**
      * 注册一个环境。重复 id 直接抛异常（带“已被谁注册”信息）；{@code mielib:auto} 是保留 id，不可注册。
