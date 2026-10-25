@@ -59,6 +59,22 @@ object MielibServerConfig {
         var dummyServerConfigOption: Int = 64
             private set
 
+        /**
+         * 启用 HexCLI（无头服务器上的 Hex 命令行，见 HEXCLI.md）。默认关闭。
+         * 启动参数 `-Dmielib.hexcli=true|false` 优先于本项。服务端专用，不参与网络同步。
+         */
+        @Tooltip
+        var enableHexCli: Boolean = false
+            private set
+
+        /**
+         * HexCLI 远程客户端的 TCP 端口（只绑定回环地址）。0 = 每次启动自动挑一个空闲端口。
+         * 启动参数 `-Dmielib.hexcli.port=<n>` 优先于本项。服务端专用，不参与网络同步。
+         */
+        @Tooltip
+        var hexCliPort: Int = 0
+            private set
+
         fun encode(buf: FriendlyByteBuf) {
             buf.writeInt(dummyServerConfigOption)
         }

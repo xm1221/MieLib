@@ -172,6 +172,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.kotlin/
 env/
 venv/
 ENV/

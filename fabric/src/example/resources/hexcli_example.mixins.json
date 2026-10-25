@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "cn.xm1221.MieLib.hexcli.example.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": ["LivingEntityAttributesMixin"],
+  "injectors": { "defaultRequire": 1 }
+}

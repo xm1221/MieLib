@@ -6,8 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Changed
+### Added
 
+- HexCLI (now part of MieLib, in `common` / `fabric` / `forge`; no separate mod id or jar): run Hex code in hexParse syntax on a headless dedicated server via `/hexcli run <code>` or raw `> <code>` console lines; persistent stack/ravenmind across commands, `/hexcli stack`, `/hexcli reset`, `/hexcli tick <n>`, `/hexcli wait [quiet] [timeout]`; observes every `CastingEnvironment` on the server (root vs spawned) and logs stack, mishaps and media used.
+- HexCLI public env registration API (`cn.xm1221.MieLib.hexcli.api`: `HexCliAPI.registerEnv`, `EnvSpec`, `CasterKind`, `HexCliEnvContext`/`HexCliEnvFactory`), built-in `mielib:packaged` env (cypher/trinket/artifact), `hexcli env list` / `hexcli env use <id|auto>`, profile `envData`, and an unshipped `hexcli_example` addon source set (`:fabric:runHexcliExampleServer`) demonstrating the soft-dependency pattern.
+- HexCLI on Forge (`:forge:runHexcliServer`); dev runs `:fabric:runHexcliServer` / `:fabric:runHexcliExampleServer` / `:forge:runHexcliServer`.
+- MieLib server config option `enableHexCli` (default `false`) and launch argument `-Dmielib.hexcli=true` to enable HexCLI.
+- `HEXCLI.md` at the repo root (moved from `hexcli/README.md`).
+- HexCLI standalone terminal client (`hexcli-client` Gradle subproject, plain Java 17, not a mod and not in any mod jar): `:hexcli-client:fatJar` produces `hexcli-client-<version>-all.jar`; connects over loopback to the server's HexCLI remote endpoint (`hexcli/client.json`, random token), JLine REPL with history, multi-line input, tab completion, colored stack rendering, `stack` / `reset` / `env` / `profile` / `media` / `tick` / `wait` / `cmd` / `run` / `cast` / `help` / `quit` commands (bare words matched on the first word, before falling back to hex code), async cast/print events, automatic reconnect, and `--exec <code>` for scripting.
+- HexCLI remote server (`cn.xm1221.MieLib.hexcli.remote`): loopback-only newline-delimited JSON protocol with token handshake, structured `run` replies (iotas as JSON with type/text/color/rich segments/children), push events for spawned casts and prints, and `HexCliOps` shared by the console commands and the remote endpoint.
+- MieLib server config option `hexCliPort` (default `0` = pick a free port) and launch argument `-Dmielib.hexcli.port=<n>`.
+- `HexCliIotas`: entity iotas now render as `<type> "<name>" @ x, y, z #<uuid8>` instead of the Inline placeholder, in console output, ravenmind text and JSON.
+- `mielib.utils.extractNestedJar` buildSrc helper (extracts jar-in-jar dependencies such as hexParse's yclib into the dev runtime).
+
+- HexCLI terminal client: `run --step <code>` / `cast --step <code>` steps through the top-level iotas one at a time on the server (`step.begin` / `step.next` / `step.abort`; Enter = next, `c` = continue, `q` = abort, stops on a mishap); `run --file <path>` / `cast --file <path>` casts a UTF-8 `.hexparse` file (combinable with `--step`, path completion), top-level `-f, --file <path>` option, a general `--xxx` option convention for commands, and `docs/examples/hexcli/demo.hexparse`.
+
+### Changed
+- HexCLI preloads base Hex `Mishap` first (then common subclasses, esp. `MishapEvalTooMuch`) on `SERVER_STARTED`. HexOP Delay's Gambit recovers from `StackOverflowError` (delay-0 recursion) by `new MishapEvalTooMuch()`; if `Mishap.<clinit>` first runs during that SOE recovery the JVM permanently poisons the base class (`NoClassDefFoundError: Could not initialize class …Mishap`) and every mishap dies. Preload on a healthy stack avoids that. (`Mishap.<clinit>` itself only constructs Companion — no dedicated-server / fake-player init bug.)
+- HexCLI crash messages call out mishap-class NCDFE / SOE from recursive delay-0 schedules and say to restart if already poisoned.
+
+- HexCLI terminal client: cast resolution `ESCAPED` is yellow (EVALUATED green; ERRORED / others red).
+- **Hex Casting dependency bumped 0.11.3 → 0.11.4** (and its required **Inline 1.20.1-1.0.1 → 1.20.1-1.2.2**). 0.11.4 ships real JVM `default` methods on `ConstMediaAction` (`operate` / `getMediaCost` / `executeWithOpCount`), which fixes `AbstractMethodError` from addons compiled with newer Kotlin `jvm-default` (notably HexOverpowered Delay's Gambit / `OpScheduleCall`). No MieLib mixin needed.
+- HexCLI remote: broadcast of async cast/print events no longer NPEs when the write queue had a null stream (delayed HexOP casts can now reach a connected client).
+- HexCLI: cast crashes (including `AbstractMethodError`) return a clear error line to the client, not only a server log.
+
+
+- HexCLI terminal client: each mishap is shown once, prefixed with its step (`! step N: ...`), instead of again as a caster chat `message:`; garbage iotas render as `<garbage>`; list iotas render inline on one line (`[a, [b, c], d]`, per-type element colors, bright depth-colored brackets, `… (+N)` past 500 elements, no manual wrapping); colors too dark for a dark terminal are lightened; truecolor output when the terminal advertises it.
+- **HexCLI is off by default** and must be enabled explicitly (`-Dmielib.hexcli=true`, which wins, or `enableHexCli = true` in the MieLib server config); it also needs hexParse installed. Nothing is registered while it is off.
+- **HexCLI env ids are now `mielib:staff` / `mielib:circle` / `mielib:packaged` / `mielib:auto`** (bare paths such as `staff` still default to the `mielib` namespace). `HexCliAPI.MOD_ID` is replaced by `HexCliAPI.NAMESPACE` (= `mielib`).
+- HexCLI moved from the standalone `hexcli` subproject into MieLib's `common` (loader-agnostic, Architectury events / `@ExpectPlatform` fake player) plus `fabric` / `forge` implementations; `hexcli/` and the `hexcli` mod id are gone, the example addon is the Fabric `example` source set.
+- The `> <code>` console shortcut mixin now lives in `cn.xm1221.MieLib.mixin.hexcli.DedicatedServerConsoleMixin` (registered under `server` in `mielib-common.mixins.json`) and only rewrites input while HexCLI is active.
+- hexParse is an optional (soft) dependency of MieLib: Fabric `suggests`, Forge non-mandatory dependency, compile-only in `common`.
 - **BREAKING**: `IotaDisplayWorker` is now tag-only: constructor is `IotaDisplayWorker(type: IotaType<*>, priority: Int)`, default hook gate is `open fun ifEffect(data: Tag): Boolean = true`, and effect entry is `abstract fun effect(data: Tag, prev: IotaDisplayCall): IotaDisplayCall`.
 - Migration: replace `effect(iota: Iota?)` with `effect(data, prev)`, read values from the `KEY_DATA` tag, write needed display info in your iota's `serialize()`, and keep fields of `prev` you don't change.
 - `IotaDisplayHook` now executes as `effect(full, initial)`, and workers only run for tags whose `type === worker.type`.

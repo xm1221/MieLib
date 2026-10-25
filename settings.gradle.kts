@@ -11,4 +11,4 @@ pluginManagement {
 }
 
 rootProject.name = "MieLib"
-include("common", "fabric", "forge")
+include("common", "fabric", "forge", "hexcli-client")

@@ -44,3 +44,11 @@ mandatory = true
 versionRange = "[${versions.hexcasting},)"
 ordering = "NONE"
 side = "BOTH"
+
+# optional: HexCLI (part of MieLib) needs hexParse when enabled
+[[dependencies.mielib]]
+modId = "hexparse"
+mandatory = false
+versionRange = "[0,)"
+ordering = "NONE"
+side = "SERVER"

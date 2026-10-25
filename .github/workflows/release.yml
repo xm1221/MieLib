@@ -15,27 +15,18 @@ on:
         description: Publish to Modrinth
         type: boolean
         default: true
-      publish_hexdoc:
-        description: Publish hexdoc book
-        type: boolean
-        default: true
       dry_run:
         description: Perform a dry run
         type: boolean
         default: false
-
-env:
-  PYPI_PACKAGE: hexdoc-mielib
 
 jobs:
   build:
     uses: ./.github/workflows/build.yml
     permissions:
       contents: write
-      pages: read
     with:
       mod_release: ${{ inputs.publish_curseforge || inputs.publish_modrinth || inputs.publish_github }}
-      hexdoc_release: ${{ inputs.publish_hexdoc }}
       dry_run: ${{ inputs.dry_run }}
       skip_tests: true
 
@@ -95,21 +86,3 @@ jobs:
           name: dry-run
           path: '*/build/publishMods'
           if-no-files-found: error
-
-  publish-pypi:
-    needs: build
-    if: inputs.publish_hexdoc && !inputs.dry_run
-    runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/${{ env.PYPI_PACKAGE }}
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: hexdoc-build
-          path: dist
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
