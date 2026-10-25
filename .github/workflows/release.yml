@@ -30,6 +30,13 @@ jobs:
       dry_run: ${{ inputs.dry_run }}
       skip_tests: true
 
+  publish-maven:
+    needs: build
+    if: (inputs.publish_github || inputs.publish_curseforge || inputs.publish_modrinth) && !inputs.dry_run
+    uses: ./.github/workflows/publish-maven.yml
+    secrets:
+      MAVEN_DEPLOY_KEY: ${{ secrets.MAVEN_DEPLOY_KEY }}
+
   publish-mod:
     needs: build
     if: inputs.publish_curseforge || inputs.publish_modrinth || inputs.publish_github

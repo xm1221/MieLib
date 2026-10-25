@@ -50,6 +50,16 @@ dependencies {
 }
 
 publishing {
+    repositories {
+        val repoDir = (findProperty("mavenRepo") as String?)?.takeIf { it.isNotBlank() }
+            ?: System.getenv("MAVEN_REPO")?.takeIf { it.isNotBlank() }
+        if (repoDir != null) {
+            maven {
+                name = "xm1221Maven"
+                url = uri(repoDir)
+            }
+        }
+    }
     publications {
         register<MavenPublication>("maven") {
             artifactId = base.archivesName.get()
