@@ -10,6 +10,16 @@ logoFile = "assets/mielib/icon.png"
 authors = "xm1221"
 description = "An lib for hex-addons"
 
+# FML 4 (NeoForge 1.21.1) does not read MixinConfigs from the manifest or fabric.mod.json;
+# mixin configs must be declared here or they are never loaded. Without these, CastingVMMixin
+# (the only @WrapMethod on CastingVM.executeInner) never applies and CastingVMHook -- and every
+# worker registered through it, in this mod and in its dependents -- never runs.
+[[mixins]]
+config = "mielib-common.mixins.json"
+
+[[mixins]]
+config = "mielib-neoforge.mixins.json"
+
 [[dependencies.mielib]]
 modId = "neoforge"
 type = "required"

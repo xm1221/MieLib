@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.0.3.2] - 2026-10-25
+
+Minecraft **1.21.1** line. Maven version is `0.0.3.2+1.21.1`.
+
+### Fixed
+
+- NeoForge: MieLib's mixins were never loaded. FML 4 only reads mixin configs from `[[mixins]]` entries in `META-INF/neoforge.mods.toml`, and MieLib declared none, so `CastingVMMixin` (the `@WrapMethod` on `CastingVM.executeInner`) never applied and `CastingVMHook` never ran. Every worker registered through it was silently skipped: MieHex:Revolution's import sets (刻印集) and remote-cast env, and MieHex's mishap catching. `mielib-common.mixins.json` and `mielib-neoforge.mixins.json` are now declared. The GUI/iota-display mixins are fixed the same way.
+
 ## [0.0.3.1] - 2026-10-25
 
 Minecraft **1.21.1** line. Maven version is `0.0.3.1+1.21.1` (`modVersion` + Minecraft version).
