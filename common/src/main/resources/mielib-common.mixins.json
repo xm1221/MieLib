@@ -13,8 +13,8 @@
   "server": [
   ],
   "plugin": "cn.xm1221.MieLib.mixin.MielibMixinConfigPlugin",
+  "refmap": "mielib-common.refmap.json",
   "injectors": {
     "defaultRequire": 1
-  },
-  "refmap": "mielib-common.refmap.json"
+  }
 }
