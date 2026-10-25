@@ -20,7 +20,9 @@ import net.minecraft.server.level.ServerLevel
  * 1. 快照所有 worker，按 [CastingVMWorker.priority] 升序排序，同优先级按 id 字符串稳定排序。
  * 2. 依次执行 Before worker（[CastingVMWorker.isAfter] == false），并把 `vm` 实例传给它们。
  *    某个 Before 调用 [CastingVMCall.cancel] 后停止后续 Before，此时必须已有 `result`。
- * 3. 若未取消，调用一次原 `executeInner`；若已取消，则绝不调用原方法。
+ * 3. 若未取消且还没有 `result`，调用一次原 `executeInner`。
+ *    Before 里已经 [CastingVMCall.setResult] 时不再调用原方法，保留该结果。
+ *    若已取消，则绝不调用原方法，且必须已有 `result`。
  * 4. 即使 Before 取消了，After worker（isAfter == true）仍会执行，便于清理 / 日志。
  *    进入 After 阶段时会清空 `cancelled`（保留 `result`），因此 Before 的取消不会截断 After 链；
  *    After 中的 `cancel` 表示采用当前 `result` 并停止后续 After，同样不会再次调用原方法。
@@ -58,9 +60,9 @@ object CastingVMHook : HookWorkerRegistry<CastingVMWorker>("CastingVMHook") {
         }
 
         // —— Original：整个流水线最多调用一次 ——
-        if (!call.cancelled) {
+        if (!call.cancelled && call.result == null) {
             call.setResult(original.call(iota, world, cont))
-        } else {
+        } else if (call.cancelled) {
             requireNotNull(call.result) {
                 "CastingVMHook: before-cancel without result; use CastingVMCall.cancel(result)"
             }

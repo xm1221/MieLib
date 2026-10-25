@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `CastingVM.replaceEnv(next: CastingEnvironment)` (`cn.xm1221.MieLib.vm`) replaces `env` on the existing VM and runs `triggerCreateEvent` with the current image user data, so later `executeInner`, `postExecution`, and `postCast` see the new environment. Callers should call it from a Before `CastingVMWorker` and must not cancel just to swap the env.
 - HexCLI (now part of MieLib, in `common` / `fabric` / `forge`; no separate mod id or jar): run Hex code in hexParse syntax on a headless dedicated server via `/hexcli run <code>` or raw `> <code>` console lines; persistent stack/ravenmind across commands, `/hexcli stack`, `/hexcli reset`, `/hexcli tick <n>`, `/hexcli wait [quiet] [timeout]`; observes every `CastingEnvironment` on the server (root vs spawned) and logs stack, mishaps and media used.
 - HexCLI public env registration API (`cn.xm1221.MieLib.hexcli.api`: `HexCliAPI.registerEnv`, `EnvSpec`, `CasterKind`, `HexCliEnvContext`/`HexCliEnvFactory`), built-in `mielib:packaged` env (cypher/trinket/artifact), `hexcli env list` / `hexcli env use <id|auto>`, profile `envData`, and an unshipped `hexcli_example` addon source set (`:fabric:runHexcliExampleServer`) demonstrating the soft-dependency pattern.
 - HexCLI on Forge (`:forge:runHexcliServer`); dev runs `:fabric:runHexcliServer` / `:fabric:runHexcliExampleServer` / `:forge:runHexcliServer`.
@@ -22,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - HexCLI terminal client: `run --step <code>` / `cast --step <code>` steps through the top-level iotas one at a time on the server (`step.begin` / `step.next` / `step.abort`; Enter = next, `c` = continue, `q` = abort, stops on a mishap); `run --file <path>` / `cast --file <path>` casts a UTF-8 `.hexparse` file (combinable with `--step`, path completion), top-level `-f, --file <path>` option, a general `--xxx` option convention for commands, and `docs/examples/hexcli/demo.hexparse`.
 
 ### Changed
+- Before `CastingVMWorker`s can skip the original `executeInner` with `CastingVMCall.setResult` and without `cancel`. A result already set by Before is kept; `cancel` still stops later Before workers and still requires a result.
 - HexCLI preloads base Hex `Mishap` first (then common subclasses, esp. `MishapEvalTooMuch`) on `SERVER_STARTED`. HexOP Delay's Gambit recovers from `StackOverflowError` (delay-0 recursion) by `new MishapEvalTooMuch()`; if `Mishap.<clinit>` first runs during that SOE recovery the JVM permanently poisons the base class (`NoClassDefFoundError: Could not initialize class …Mishap`) and every mishap dies. Preload on a healthy stack avoids that. (`Mishap.<clinit>` itself only constructs Companion — no dedicated-server / fake-player init bug.)
 - HexCLI crash messages call out mishap-class NCDFE / SOE from recursive delay-0 schedules and say to restart if already poisoned.
 
