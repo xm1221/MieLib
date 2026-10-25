@@ -338,9 +338,12 @@ public final class HexCliRemote {
                     case "env.use" -> {
                         // payload field must NOT be "id" — that is the request correlation number
                         String env = str(msg, "env");
-                        if (env == null) env = str(msg, "name"); // tolerate old/alternate clients
-                        String finalEnv = env;
-                        submit(() -> HexCliOps.envUse(server, finalEnv), out, id);
+                        if (env == null) {
+                            submit(() -> HexCliReply.fail(List.of(
+                                "[HexCLI] env.use missing field 'env' (client too old? rebuild hexcli-client)")), out, id);
+                        } else {
+                            submit(() -> HexCliOps.envUse(server, env), out, id);
+                        }
                     }
                     case "profile.list" -> submit(() -> HexCliOps.profileList(server), out, id);
                     case "profile.show" -> submit(() -> HexCliOps.profileShow(server), out, id);
