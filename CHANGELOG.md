@@ -23,7 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- HexCLI terminal client: each mishap is shown once, prefixed with its step (`! step N: ...`), instead of again as a caster chat `message:`; garbage iotas render as `<garbage>`; list trees use `·`/`╰` (no ACS line-drawing substitution); truecolor output when the terminal advertises it.
+- HexCLI terminal client: each mishap is shown once, prefixed with its step (`! step N: ...`), instead of again as a caster chat `message:`; garbage iotas render as `<garbage>`; list iotas render inline on one line (`[a, [b, c], d]`, per-type element colors, bright depth-colored brackets, `… (+N)` past 500 elements, no manual wrapping); colors too dark for a dark terminal are lightened; truecolor output when the terminal advertises it.
 - **HexCLI is off by default** and must be enabled explicitly (`-Dmielib.hexcli=true`, which wins, or `enableHexCli = true` in the MieLib server config); it also needs hexParse installed. Nothing is registered while it is off.
 - **HexCLI env ids are now `mielib:staff` / `mielib:circle` / `mielib:packaged` / `mielib:auto`** (bare paths such as `staff` still default to the `mielib` namespace). `HexCliAPI.MOD_ID` is replaced by `HexCliAPI.NAMESPACE` (= `mielib`).
 - HexCLI moved from the standalone `hexcli` subproject into MieLib's `common` (loader-agnostic, Architectury events / `@ExpectPlatform` fake player) plus `fabric` / `forge` implementations; `hexcli/` and the `hexcli` mod id are gone, the example addon is the Fabric `example` source set.

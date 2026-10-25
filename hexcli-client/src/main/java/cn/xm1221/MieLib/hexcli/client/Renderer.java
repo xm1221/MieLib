@@ -50,7 +50,11 @@ public final class Renderer {
     private AttributedStyle fgStyle(String hex) {
         if (!color) return s();
         int[] rgb = rgb(hex);
-        return rgb == null ? s() : s().foreground(rgb[0], rgb[1], rgb[2]);
+        if (rgb == null) return s();
+        // Minecraft 的深色（DARK_BLUE / DARK_PURPLE ...）在深色终端上看不清：太暗就往白色提亮
+        double lum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+        if (lum < 80) for (int k = 0; k < 3; k++) rgb[k] = rgb[k] + (255 - rgb[k]) * 45 / 100;
+        return s().foreground(rgb[0], rgb[1], rgb[2]);
     }
 
     private AttributedStyle dimStyle() {
@@ -174,28 +178,38 @@ public final class Renderer {
             b.append(top ? "▶ " : "  ");
             appendIota(b, iota);
             out.add(b.toAttributedString());
-            appendChildren(out, iota, "      ");
         }
         return out;
     }
 
-    /** 列表 iota 的子元素：每行一个，缩进 + · / ╰（避开 JLine 会转成 ACS 线框字符的 ├└│）。 */
-    private void appendChildren(List<AttributedString> out, JsonObject iota, String indent) {
-        if (!iota.has("children") || !iota.get("children").isJsonArray()) return;
-        JsonArray children = iota.getAsJsonArray("children");
-        for (int i = 0; i < children.size(); i++) {
-            JsonObject child = children.get(i).getAsJsonObject();
-            boolean last = i == children.size() - 1;
-            AttributedStringBuilder b = new AttributedStringBuilder();
-            b.append(indent + (last ? "╰ " : "· "), dimStyle());
-            appendIota(b, child);
-            out.add(b.toAttributedString());
-            appendChildren(out, child, indent + (last ? "  " : "┊ "));
+    /** 列表最多显示这么多个元素，再多就 {@code … (+N)}。 */
+    private static final int MAX_LIST = 500;
+    /** 括号按深度轮换的颜色（都够亮，深色背景上也看得清）。 */
+    private static final String[] BRACKETS = {"#cba6f7", "#89b4fa", "#f9e2af", "#fab387"};
+
+    /** 列表 iota 横排成一行：{@code [a, [b, c], d]}，元素按各自类型上色，括号按深度上色；不手动换行。 */
+    private void appendList(AttributedStringBuilder b, JsonArray children, int depth) {
+        AttributedStyle br = fgStyle(BRACKETS[depth % BRACKETS.length]);
+        b.append("[", br);
+        int n = Math.min(children.size(), MAX_LIST);
+        for (int i = 0; i < n; i++) {
+            if (i > 0) b.append(", ", dimStyle());
+            appendIota(b, children.get(i).getAsJsonObject(), depth + 1);
         }
+        if (children.size() > n) b.append(", … (+" + (children.size() - n) + ")", dimStyle());
+        b.append("]", br);
     }
 
     /** 按 rich 分段 / iota 颜色上色。 */
     private void appendIota(AttributedStringBuilder b, JsonObject iota) {
+        appendIota(b, iota, 0);
+    }
+
+    private void appendIota(AttributedStringBuilder b, JsonObject iota, int depth) {
+        if (iota.has("children") && iota.get("children").isJsonArray()) {
+            appendList(b, iota.getAsJsonArray("children"), depth);
+            return;
+        }
         String text = Connection.str(iota, "text");
         if (text == null) text = "";
         if (color && iota.has("rich") && iota.get("rich").isJsonArray()) {

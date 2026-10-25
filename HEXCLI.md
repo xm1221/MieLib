@@ -171,7 +171,7 @@ Tab 补全：行首补全命令名和图案名（服务器 action registry 里�
 回复同 `run`，另带 `data.step`，出 mishap 时 `step.stopped = "mishap"`）、`step.abort`。单步状态在服务器上只有一份，`reset` 会清掉它。
 
 运行结果：先一行 resolution（`EVALUATED` 绿色，`ERRORED` / `INVALID` 红色），然后栈从底到顶（顶上一个 `▶`），
-每个 iota 按它的类型颜色上色，列表元素缩进成 `·` / `╰`（嵌套用 `┊` 对齐）；垃圾 iota 显示为 `<garbage>`；
+每个 iota 按它的类型颜色上色；列表横排在一行里（`[1.00, [2.00, 3.00], (0.00, 1.00, 0.00)]`，括号按嵌套深度换色，不手动换行、由终端自己折行，超过 500 个元素时后面显示成 `… (+N)`）；太暗的颜色会自动提亮；垃圾 iota 显示为 `<garbage>`；
 接着渡鸦之思、mishap（红色 `! step N: ...`，N 是本次执行里第几个 iota，每条只显示一次）、`print:`、消息、impetus、
 用掉的媒质（灰色）。其它命令的文本行原样打印。终端声明真彩色（`COLORTERM=truecolor` 或 Windows Terminal）时用 24 位色，否则 256 色。
 
