@@ -17,8 +17,11 @@ import java.util.Set;
 public class GuiSpellcastingMixin {
     @WrapOperation(
             method = "render",
-            at = @At(value = "INVOKE", target = "Lat/petrak/hexcasting/client/render/RenderLib;drawPatternFromPoints(Lorg/joml/Matrix4f;Ljava/util/List;Ljava/util/Set;ZIIFFFD)V"),
-            remap = false
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lat/petrak/hexcasting/client/render/RenderLib;drawPatternFromPoints(Lorg/joml/Matrix4f;Ljava/util/List;Ljava/util/Set;ZIIFFFD)V",
+                    remap = false
+            )
     )
     private void mielib$wrapDrawPattern(
             Matrix4f mat, List<Vec2> points, Set<Integer> dupIndices,

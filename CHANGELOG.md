@@ -22,6 +22,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - HexCLI terminal client: `run --step <code>` / `cast --step <code>` steps through the top-level iotas one at a time on the server (`step.begin` / `step.next` / `step.abort`; Enter = next, `c` = continue, `q` = abort, stops on a mishap); `run --file <path>` / `cast --file <path>` casts a UTF-8 `.hexparse` file (combinable with `--step`, path completion), top-level `-f, --file <path>` option, a general `--xxx` option convention for commands, and `docs/examples/hexcli/demo.hexparse`.
 
+### Fixed
+- `GuiSpellcastingMixin` no longer marks the whole `@WrapOperation` as `remap = false`. `GuiSpellcasting.render` is `Screen.render` and must be remapped; only the `RenderLib.drawPatternFromPoints` invoke target stays unmapped. Fabric was looking up a method literally named `render` and failing to load.
+
 ### Changed
 - Before `CastingVMWorker`s can skip the original `executeInner` with `CastingVMCall.setResult` and without `cancel`. A result already set by Before is kept; `cancel` still stops later Before workers and still requires a result.
 - HexCLI preloads base Hex `Mishap` first (then common subclasses, esp. `MishapEvalTooMuch`) on `SERVER_STARTED`. HexOP Delay's Gambit recovers from `StackOverflowError` (delay-0 recursion) by `new MishapEvalTooMuch()`; if `Mishap.<clinit>` first runs during that SOE recovery the JVM permanently poisons the base class (`NoClassDefFoundError: Could not initialize class …Mishap`) and every mishap dies. Preload on a healthy stack avoids that. (`Mishap.<clinit>` itself only constructs Companion — no dedicated-server / fake-player init bug.)
