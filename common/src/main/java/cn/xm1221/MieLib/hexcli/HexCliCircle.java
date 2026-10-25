@@ -14,15 +14,18 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * {@code mielib:circle}：无施法者时用本体的 {@link CircleCastEnv}。
+ * {@code mielib:unowned_circle} / {@code mielib:circle}：本体的 {@link CircleCastEnv}。
  * <p>
  * 在锚点处搭一个最小的真实法术环（朝东的红石促动石 + 3 块平放的石板围成 2×2 的环），
  * 用本体的 {@link CircleExecutionState#createNew} 生成执行状态，再按本体的方式构造 CircleCastEnv。
+ * {@code mielib:circle}（casters=PLAYER）会把当前假玩家作为环的 caster/head 传进 {@code createNew}；
+ * {@code mielib:unowned_circle}（casters=NONE）传 {@code null}。
  * 环只搭一次，之后复用（被破坏了就重搭）。法术环不会被“启动”，HexCLI 直接拿这个环境跑命令里的代码。
  */
 public final class HexCliCircle {
@@ -32,13 +35,14 @@ public final class HexCliCircle {
     public static CastingEnvironment createEnv(HexCliEnvContext ctx) {
         ServerLevel level = ctx.level();
         BlockPos origin = BlockPos.containing(ctx.anchor());
+        ServerPlayer head = ctx.caster() instanceof ServerPlayer p ? p : null;
         BlockEntityAbstractImpetus impetus = ensureCircle(level, origin);
-        CircleExecutionState state = stateOf(impetus);
+        CircleExecutionState state = stateOf(impetus, head);
         if (state == null) {
             // 可能被改坏了：重搭一次
             build(level, origin);
             impetus = impetusAt(level, origin);
-            state = impetus == null ? null : stateOf(impetus);
+            state = impetus == null ? null : stateOf(impetus, head);
             if (state == null)
                 throw new IllegalArgumentException("could not build the HexCLI test circle at " + origin.toShortString()
                     + " in " + level.dimension().location());
@@ -49,8 +53,9 @@ public final class HexCliCircle {
         return new CircleCastEnv(level, state);
     }
 
-    private static @Nullable CircleExecutionState stateOf(BlockEntityAbstractImpetus impetus) {
-        Result<CircleExecutionState, BlockPos> r = CircleExecutionState.createNew(impetus, null);
+    private static @Nullable CircleExecutionState stateOf(BlockEntityAbstractImpetus impetus,
+            @Nullable ServerPlayer caster) {
+        Result<CircleExecutionState, BlockPos> r = CircleExecutionState.createNew(impetus, caster);
         return r instanceof Result.Ok<CircleExecutionState, BlockPos> ok ? ok.ok : null;
     }
 

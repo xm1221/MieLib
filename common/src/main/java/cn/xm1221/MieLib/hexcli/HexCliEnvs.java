@@ -57,7 +57,7 @@ public final class HexCliEnvs {
 
         registerEnv(CIRCLE, EnvSpec.builder(HexCliCircle::createEnv)
             .casters(CasterKind.NONE)
-            .description("Hex Casting CircleCastEnv on an auto-built impetus circle")
+            .description("Hex Casting CircleCastEnv on an auto-built impetus circle (no caster / no head)")
             .source(HexCliAPI.NAMESPACE)
             .build());
 
@@ -68,10 +68,10 @@ public final class HexCliEnvs {
             .build());
 
         registerEnv(HexCliAPI.CIRCLE, EnvSpec.builder(HexCliCircle::createEnv)
-                .casters(CasterKind.PLAYER)
-                .description("Hex Casting CircleCastEnv on an auto-built impetus circle")
-                .source(HexCliAPI.NAMESPACE).
-                build());
+            .casters(CasterKind.PLAYER)
+            .description("Hex Casting CircleCastEnv with the player as circle caster/head")
+            .source(HexCliAPI.NAMESPACE)
+            .build());
     }
 
     private HexCliEnvs() {
