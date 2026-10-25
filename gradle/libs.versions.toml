@@ -26,7 +26,7 @@ forge-dependency = "47" # for mods.toml
 
 # mods
 
-hexcasting = "0.11.3"
+hexcasting = "0.11.4"
 paucal = "0.6.0-pre-118"
 pkpcpbp = "0.2.0-pre-95"
 
@@ -41,7 +41,7 @@ serializationHooks = "0.4.99999"
 mixinExtras = "0.5.0"
 clothConfig = "11.1.106"
 modMenu = "7.1.0"
-inline = "1.20.1-1.0.1"
+inline = "1.20.1-1.2.2"
 
 # hexParse (HexCLI only, optional for MieLib): Modrinth version ids
 hexparse-fabric = "wt2k5ALr" # hexParse-fabric-1.20.1-1.12.0

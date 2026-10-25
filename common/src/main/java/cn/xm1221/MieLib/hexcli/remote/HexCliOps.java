@@ -280,10 +280,22 @@ public final class HexCliOps {
             return new HexCliReply(out, data, ok);
         } catch (Throwable t) {
             LOGGER.error("HexCLI run crashed", t);
-            String msg = "execution error: " + t.getClass().getSimpleName() + ": " + t.getMessage();
+            String msg = formatCrash(t);
             data.addProperty("error", msg);
             return HexCliReply.fail(List.of("[HexCLI] " + msg), data);
         }
+    }
+
+    /** 把施法崩溃收成客户端能读的一行；AbstractMethodError 常见于 Hex 附属模组的 Kotlin default ABI 不匹配。 */
+    private static String formatCrash(Throwable t) {
+        Throwable r = t;
+        while (r.getCause() != null && r.getCause() != r) r = r.getCause();
+        String detail = r.getClass().getSimpleName();
+        if (r.getMessage() != null && !r.getMessage().isBlank()) detail += ": " + r.getMessage();
+        if (r instanceof AbstractMethodError) {
+            detail += " (Hex addon Kotlin default-method ABI mismatch; MieLib patches ConstMediaAction — if this persists, update the addon)";
+        }
+        return "execution error: " + detail;
     }
 
     // ---- 会话状态 ----

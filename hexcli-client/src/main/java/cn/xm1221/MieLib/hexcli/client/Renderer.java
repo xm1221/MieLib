@@ -69,6 +69,17 @@ public final class Renderer {
         return color ? s().foreground(AttributedStyle.GREEN) : s();
     }
 
+    private AttributedStyle yellowStyle() {
+        return color ? s().foreground(AttributedStyle.YELLOW) : s();
+    }
+
+    /** EVALUATED=绿，ESCAPED=黄，其余（ERRORED / INVALID …）=红。 */
+    private AttributedStyle resolutionStyle(String res) {
+        if ("EVALUATED".equals(res)) return greenStyle();
+        if ("ESCAPED".equals(res)) return yellowStyle();
+        return redStyle();
+    }
+
     /** {@code #rrggbb} → {r,g,b}；不是合法颜色返回 null。 */
     public static int[] rgb(String hex) {
         if (hex == null || !hex.startsWith("#") || hex.length() != 7) return null;
@@ -139,7 +150,7 @@ public final class Renderer {
         if (res == null) {
             head.append("(no patterns)");
         } else {
-            head.append(res, "EVALUATED".equals(res) ? greenStyle() : redStyle());
+            head.append(res, resolutionStyle(res));
         }
         head.append(String.format("   steps %d  ops %d", steps, ops), dimStyle());
         out.add(head.toAttributedString());

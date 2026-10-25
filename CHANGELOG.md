@@ -22,6 +22,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - HexCLI terminal client: `run --step <code>` / `cast --step <code>` steps through the top-level iotas one at a time on the server (`step.begin` / `step.next` / `step.abort`; Enter = next, `c` = continue, `q` = abort, stops on a mishap); `run --file <path>` / `cast --file <path>` casts a UTF-8 `.hexparse` file (combinable with `--step`, path completion), top-level `-f, --file <path>` option, a general `--xxx` option convention for commands, and `docs/examples/hexcli/demo.hexparse`.
 
 ### Changed
+- HexCLI terminal client: cast resolution `ESCAPED` is yellow (EVALUATED green; ERRORED / others red).
+- **Hex Casting dependency bumped 0.11.3 → 0.11.4** (and its required **Inline 1.20.1-1.0.1 → 1.20.1-1.2.2**). 0.11.4 ships real JVM `default` methods on `ConstMediaAction` (`operate` / `getMediaCost` / `executeWithOpCount`), which fixes `AbstractMethodError` from addons compiled with newer Kotlin `jvm-default` (notably HexOverpowered Delay's Gambit / `OpScheduleCall`). No MieLib mixin needed.
+- HexCLI remote: broadcast of async cast/print events no longer NPEs when the write queue had a null stream (delayed HexOP casts can now reach a connected client).
+- HexCLI: cast crashes (including `AbstractMethodError`) return a clear error line to the client, not only a server log.
+
 
 - HexCLI terminal client: each mishap is shown once, prefixed with its step (`! step N: ...`), instead of again as a caster chat `message:`; garbage iotas render as `<garbage>`; list iotas render inline on one line (`[a, [b, c], d]`, per-type element colors, bright depth-colored brackets, `… (+N)` past 500 elements, no manual wrapping); colors too dark for a dark terminal are lightened; truecolor output when the terminal advertises it.
 - **HexCLI is off by default** and must be enabled explicitly (`-Dmielib.hexcli=true`, which wins, or `enableHexCli = true` in the MieLib server config); it also needs hexParse installed. Nothing is registered while it is off.

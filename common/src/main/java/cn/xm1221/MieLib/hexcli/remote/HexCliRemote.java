@@ -220,6 +220,8 @@ public final class HexCliRemote {
         private final java.util.ArrayDeque<Pending> queue = new java.util.ArrayDeque<>();
         private final AtomicBoolean authed = new AtomicBoolean(false);
         private final AtomicBoolean closed = new AtomicBoolean(false);
+        /** {@link #run} 里 try-with-resources 的输出流；广播事件用它（不能传 null）。 */
+        private volatile OutputStream outStream;
 
         Conn(Socket socket) {
             this.socket = socket;
@@ -250,6 +252,7 @@ public final class HexCliRemote {
         void run() {
             try (InputStream in = new BufferedInputStream(socket.getInputStream());
                  OutputStream out = socket.getOutputStream()) {
+                outStream = out;
                 while (running.get() && !closed.get()) {
                     String line = readLineLimited(in);
                     if (line == null) break;
@@ -411,7 +414,8 @@ public final class HexCliRemote {
         }
 
         private void write(OutputStream out, JsonObject msg) {
-            if (closed.get()) return;
+            if (out == null) out = outStream;
+            if (closed.get() || out == null) return;
             byte[] bytes = (GSON.toJson(msg) + "\n").getBytes(StandardCharsets.UTF_8);
             // 写操作走独立线程：广播是从服务器 tick 线程发起的，不能被慢客户端 / 阻塞的 socket 拖住。
             synchronized (writeQueue) {
@@ -422,7 +426,7 @@ public final class HexCliRemote {
         }
 
         private void writeNow(OutputStream out, byte[] bytes) {
-            if (closed.get()) return;
+            if (closed.get() || out == null) return;
             synchronized (writeLock) {
                 try {
                     out.write(bytes);
