@@ -132,7 +132,10 @@ jobs:
       
       - name: Prepare mod jar
         run: |
+          mkdir -p run/mods
           cp build/ciArtifacts/*${{ matrix.modloader }}*.jar run/mods
+          # mc-server-test sometimes fails with "EULA could not be found" on forge
+          printf 'eula=true\n' > run/eula.txt
 
       - name: Run MC test client
         if: matrix.env == 'client'
