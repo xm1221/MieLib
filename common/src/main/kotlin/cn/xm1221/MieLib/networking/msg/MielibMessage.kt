@@ -1,12 +1,12 @@
 package cn.xm1221.MieLib.networking.msg
 
-import dev.architectury.networking.NetworkChannel
 import dev.architectury.networking.NetworkManager.PacketContext
 import cn.xm1221.MieLib.Mielib
 import cn.xm1221.MieLib.networking.MielibNetworking
 import cn.xm1221.MieLib.networking.handler.applyOnClient
 import cn.xm1221.MieLib.networking.handler.applyOnServer
 import net.fabricmc.api.EnvType
+import net.fabricmc.api.Environment
 import net.minecraft.network.FriendlyByteBuf
 import net.minecraft.server.level.ServerPlayer
 import java.util.function.Supplier
@@ -14,18 +14,19 @@ import java.util.function.Supplier
 sealed interface MielibMessage
 
 sealed interface MielibMessageC2S : MielibMessage {
+    @Environment(EnvType.CLIENT)
     fun sendToServer() {
-        MielibNetworking.CHANNEL.sendToServer(this)
+        MielibNetworking.sendToServer(this)
     }
 }
 
 sealed interface MielibMessageS2C : MielibMessage {
     fun sendToPlayer(player: ServerPlayer) {
-        MielibNetworking.CHANNEL.sendToPlayer(player, this)
+        MielibNetworking.sendToPlayer(player, this)
     }
 
     fun sendToPlayers(players: Iterable<ServerPlayer>) {
-        MielibNetworking.CHANNEL.sendToPlayers(players, this)
+        MielibNetworking.sendToPlayers(players, this)
     }
 }
 
@@ -56,7 +57,17 @@ sealed interface MielibMessageCompanion<T : MielibMessage> {
         }
     }
 
-    fun register(channel: NetworkChannel) {
-        channel.register(type, { msg, buf -> msg.encode(buf) }, ::decode, ::apply)
+    fun register() {
+        when {
+            MielibMessageS2C::class.java.isAssignableFrom(type) ->
+                MielibNetworking.registerS2C(type, ::decode, { msg, buf -> msg.encode(buf) }) { msg, supplier ->
+                    apply(msg, supplier)
+                }
+            MielibMessageC2S::class.java.isAssignableFrom(type) ->
+                MielibNetworking.registerC2S(type, ::decode, { msg, buf -> msg.encode(buf) }) { msg, supplier ->
+                    apply(msg, supplier)
+                }
+            else -> Mielib.LOGGER.warn("Message has no side and was not registered: {}", type.name)
+        }
     }
 }
