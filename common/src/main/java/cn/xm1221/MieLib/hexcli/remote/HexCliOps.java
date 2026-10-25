@@ -286,14 +286,24 @@ public final class HexCliOps {
         }
     }
 
-    /** 把施法崩溃收成客户端能读的一行；AbstractMethodError 常见于 Hex 附属模组的 Kotlin default ABI 不匹配。 */
+    /** 把施法崩溃收成客户端能读的一行。 */
     private static String formatCrash(Throwable t) {
         Throwable r = t;
         while (r.getCause() != null && r.getCause() != r) r = r.getCause();
         String detail = r.getClass().getSimpleName();
         if (r.getMessage() != null && !r.getMessage().isBlank()) detail += ": " + r.getMessage();
         if (r instanceof AbstractMethodError) {
-            detail += " (Hex addon Kotlin default-method ABI mismatch; MieLib patches ConstMediaAction — if this persists, update the addon)";
+            detail += " (Hex addon Kotlin default-method ABI mismatch; update Hex Casting / the addon)";
+        } else if (r instanceof NoClassDefFoundError || r instanceof ExceptionInInitializerError
+                || detail.contains("Could not initialize class")) {
+            String msg = r.getMessage() == null ? "" : r.getMessage();
+            if (msg.contains("Mishap") || detail.contains("Mishap")) {
+                detail += " (base Mishap or a subclass failed <clinit> — usually the first "
+                    + "StackOverflowError from HexOP Delay's Gambit delay-0 recursion hit class init. "
+                    + "Restart the server; HexCLI preloads Mishap on start so this should not recur)";
+            }
+        } else if (r instanceof StackOverflowError) {
+            detail += " (eval recursion too deep — e.g. HexOP mind_env/schedule with delay 0 calling itself)";
         }
         return "execution error: " + detail;
     }

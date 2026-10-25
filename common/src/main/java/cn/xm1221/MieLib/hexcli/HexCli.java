@@ -74,6 +74,7 @@ public final class HexCli {
         CommandRegistrationEvent.EVENT.register((dispatcher, registry, selection) -> register(dispatcher, registry));
         LifecycleEvent.SERVER_STARTED.register(server -> {
             CastObserver.bindServer(server);
+            MishapPreload.preload();
             HexCliProfiles.writeExamples(server);
             HexCliSession session = HexCliSession.get(server);
             try {

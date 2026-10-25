@@ -22,6 +22,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - HexCLI terminal client: `run --step <code>` / `cast --step <code>` steps through the top-level iotas one at a time on the server (`step.begin` / `step.next` / `step.abort`; Enter = next, `c` = continue, `q` = abort, stops on a mishap); `run --file <path>` / `cast --file <path>` casts a UTF-8 `.hexparse` file (combinable with `--step`, path completion), top-level `-f, --file <path>` option, a general `--xxx` option convention for commands, and `docs/examples/hexcli/demo.hexparse`.
 
 ### Changed
+- HexCLI preloads base Hex `Mishap` first (then common subclasses, esp. `MishapEvalTooMuch`) on `SERVER_STARTED`. HexOP Delay's Gambit recovers from `StackOverflowError` (delay-0 recursion) by `new MishapEvalTooMuch()`; if `Mishap.<clinit>` first runs during that SOE recovery the JVM permanently poisons the base class (`NoClassDefFoundError: Could not initialize class …Mishap`) and every mishap dies. Preload on a healthy stack avoids that. (`Mishap.<clinit>` itself only constructs Companion — no dedicated-server / fake-player init bug.)
+- HexCLI crash messages call out mishap-class NCDFE / SOE from recursive delay-0 schedules and say to restart if already poisoned.
+
 - HexCLI terminal client: cast resolution `ESCAPED` is yellow (EVALUATED green; ERRORED / others red).
 - **Hex Casting dependency bumped 0.11.3 → 0.11.4** (and its required **Inline 1.20.1-1.0.1 → 1.20.1-1.2.2**). 0.11.4 ships real JVM `default` methods on `ConstMediaAction` (`operate` / `getMediaCost` / `executeWithOpCount`), which fixes `AbstractMethodError` from addons compiled with newer Kotlin `jvm-default` (notably HexOverpowered Delay's Gambit / `OpScheduleCall`). No MieLib mixin needed.
 - HexCLI remote: broadcast of async cast/print events no longer NPEs when the write queue had a null stream (delayed HexOP casts can now reach a connected client).
