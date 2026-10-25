@@ -12,7 +12,7 @@ interface CastingVMEnvAccess {
 
 /**
  * Replaces `env` on this existing [CastingVM] and runs
- * [CastingEnvironment.triggerCreateEvent] with the current image user data.
+ * [CastingEnvironment.triggerCreateEvent] with the current [at.petrak.hexcasting.api.casting.eval.vm.CastingImage].
  *
  * Call this from a Before [cn.xm1221.MieLib.worker.CastingVMWorker]. Do not
  * cancel the cast only to swap the environment: later `executeInner`,

@@ -20,13 +20,13 @@ architectury {
 tasks {
     register("runAllDatagen") {
         dependsOn(":fabric:runDatagen")
-        dependsOn(":forge:runCommonDatagen")
-        dependsOn(":forge:runForgeDatagen")
+        dependsOn(":neoforge:runCommonDatagen")
+        dependsOn(":neoforge:runNeoforgeDatagen")
     }
 
-    // common / fabric / forge only. Requires -PmavenRepo=<dir> or MAVEN_REPO.
+    // common / fabric / neoforge only. Requires -PmavenRepo=<dir> or MAVEN_REPO.
     register("publishMaven") {
-        dependsOn(":common:publish", ":fabric:publish", ":forge:publish")
+        dependsOn(":common:publish", ":fabric:publish", ":neoforge:publish")
     }
 }
 

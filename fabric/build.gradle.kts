@@ -1,5 +1,3 @@
-import mielib.utils.extractNestedJar
-
 plugins {
     id("mielib.platform")
 }
@@ -65,22 +63,10 @@ loom {
 }
 
 tasks {
-    // Console input for the HexCLI dev servers, plus EULA / offline-mode server.properties.
-    listOf("runHexcliServer", "runHexcliExampleServer").forEach { name ->
-        named<JavaExec>(name) {
-            standardInput = System.`in`
-            doFirst {
-                val run = file("run/hexcli")
-                run.mkdirs()
-                run.resolve("eula.txt").takeIf { !it.exists() }?.writeText("eula=true\n")
-                run.resolve("server.properties").takeIf { !it.exists() }?.writeText(
-                    "online-mode=false\nspawn-protection=0\nlevel-name=hexcli-world\nmotd=HexCLI\nenable-rcon=false\n"
-                )
-            }
-        }
+    // HexCLI dev runs stay registered, but HexCLI and the example addon are not compiled on 1.21.
+    matching { it.name == "compileExampleJava" || it.name == "compileExampleKotlin" || it.name == "exampleClasses" }.configureEach {
+        enabled = false
     }
-    // `:fabric:build` also compiles the example source set (it is not put into any jar).
-    named("build") { dependsOn("exampleClasses") }
 }
 
 mielibModDependencies {
@@ -105,7 +91,6 @@ mielibModDependencies {
     requires("fabric-api")
     requires("fabric-language-kotlin")
     optional("modmenu")
-    optional("hexparse")
 }
 
 dependencies {
@@ -119,17 +104,10 @@ dependencies {
         exclude(group = "net.fabricmc", module = "fabric-loader")
     }
 
-    modApi(libs.hexcasting.fabric) {
-        // If not excluded here, calls a nonexistent method and crashes the dev client
-        exclude(module = "phosphor")
-    }
-    // Hex Casting dependencies
-    // we use modLocalRuntime to add these to the development runtime, but not at compile time or for consumers of this project
+    // Intermediary Hex jar; Loom remaps it. Same 0.12.0-devel-pre-64 bytes as the sibling 1.21 repos.
+    modApi(files(rootProject.file("libs/hexcasting-fabric-1.21.1-0.12.0-devel-pre-64.jar")))
     modLocalRuntime(libs.paucal.fabric)
     modLocalRuntime(libs.patchouli.fabric)
-    modLocalRuntime(libs.cardinalComponents)
-    modLocalRuntime(libs.serializationHooks)
-    modLocalRuntime(libs.trinkets)
     modLocalRuntime(libs.inline.fabric) { isTransitive = false }
 
     libs.mixinExtras.fabric.also {
@@ -142,13 +120,14 @@ dependencies {
         exclude(group = "net.fabricmc.fabric-api")
     }
     modImplementation(libs.modMenu)
+}
 
-    // HexCLI dev runtime: hexParse is optional for MieLib but required when HexCLI is enabled.
-    // Its yclib dependency is jar-in-jar, which Loom does not load in dev; extract it separately.
-    modLocalRuntime(libs.hexparse.fabric)
-    modLocalRuntime(files(extractNestedJar(
-        libs.hexparse.fabric.get().toString(),
-        Regex("""META-INF/jars/yclib-.*\.jar"""),
-        "yclib-fabric.jar",
-    )))
+// HexCLI is not part of the 1.21 compile (Hex 0.12 dropped the NBT iota helpers it calls).
+sourceSets.main {
+    java {
+        exclude("cn/xm1221/MieLib/hexcli/**")
+    }
+    kotlin {
+        exclude("cn/xm1221/MieLib/hexcli/**")
+    }
 }

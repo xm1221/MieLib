@@ -3,51 +3,43 @@
 # https://docs.gradle.org/current/userguide/platforms.html#sub::toml-dependencies-format
 
 [versions]
-java = "17" # must be an integer
+java = "21" # must be an integer
 
 kotlin = "2.2.21"
 kotlin-fabric = "1.13.7+kotlin.2.2.21"
-kotlin-forge = "4.12.0"
+# KotlinForForge 5.8.0 bundles Kotlin 2.1.20 at runtime. Sources are compiled with `kotlin` above.
+kotlin-neoforge = "5.8.0"
 
 # Minecraft
 
-minecraft = "1.20.1"
-parchment = "2023.09.03"
+minecraft = "1.21.1"
+parchment = "2024.11.17"
 
-architectury = "9.2.14"
-architectury-plugin = { require="[3.4, 3.5[" }
-architectury-loom = { require="[1.9, 1.10[" }
+architectury = "13.0.8"
+architectury-plugin = "3.4-SNAPSHOT"
+architectury-loom = "1.13-SNAPSHOT"
 
-fabric-loader = "0.16.9"
-fabric-api = "0.87.0+1.20.1"
+fabric-loader = "0.19.2"
+fabric-api = "0.116.12+1.21.1"
 
-forge = "1.20.1-47.2.0"
-forge-dependency = "47" # for mods.toml
+neoforge = "21.1.215"
 
 # mods
+# Hex Casting 0.12.0-devel-pre-64 is not published to BlameJared. Jars live in libs/.
+hexcasting = "0.12.0-devel-pre-64"
+paucal = "0.7.1-pre-27+1.21.1"
 
-hexcasting = "0.11.4"
-paucal = "0.6.0-pre-118"
-pkpcpbp = "0.2.0-pre-95"
+patchouli-xplat = "1.21-88-SNAPSHOT"
+patchouli-fabric = "1.21-88-FABRIC-SNAPSHOT"
+patchouli-neoforge = "1.21-88-NEOFORGE-SNAPSHOT"
 
-patchouli = "1.20.1-84"
-patchouli-fabric = "1.20.1-84-FABRIC"
-patchouli-forge = "1.20.1-84-FORGE"
-
-trinkets = "3.7.0"
-
-cardinalComponents = "5.2.1"
-serializationHooks = "0.4.99999"
+cardinalComponents = "6.1.3"
 mixinExtras = "0.5.0"
-clothConfig = "11.1.106"
-modMenu = "7.1.0"
-inline = "1.20.1-1.2.2"
+clothConfig = "15.0.140"
+modMenu = "11.0.4"
+inline = "1.21.1-1.2.2-74"
 
-# hexParse (HexCLI only, optional for MieLib): Modrinth version ids
-hexparse-fabric = "wt2k5ALr" # hexParse-fabric-1.20.1-1.12.0
-hexparse-forge = "EcCjvGFr"  # hexParse-forge-1.20.1-1.12.0
-
-caelus = "3.1.0+1.20"
+caelus = "7.0.1+1.21.1"
 
 # other dependencies
 
@@ -55,8 +47,11 @@ jline = "3.26.3"
 gson = "2.10.1"
 
 asm = "9.5"
-shadow = "7.1.2"
+shadow = "8.3.6"
 modPublish = "1.0.0"
+# pre-112 pulls CurseForgeGradle 1.3-hex, which is only a file in HexMod's libs/.
+# pre-95 is the last version whose CurseForgeGradle dep (1.0.10) resolves from Maven.
+pkpcpbp = "0.2.0-pre-95"
 
 [bundles]
 asm = ["asm", "asm-analysis", "asm-commons", "asm-tree", "asm-util"]
@@ -64,53 +59,44 @@ asm = ["asm", "asm-analysis", "asm-commons", "asm-tree", "asm-util"]
 [libraries]
 kotlin-stdlib = { module="org.jetbrains.kotlin:kotlin-stdlib-jdk8", version.ref="kotlin" }
 kotlin-fabric = { module="net.fabricmc:fabric-language-kotlin", version.ref="kotlin-fabric" }
-kotlin-forge  = { module="thedarkcolour:kotlinforforge", version.ref="kotlin-forge" }
+kotlin-neoforge = { module="thedarkcolour:kotlinforforge-neoforge", version.ref="kotlin-neoforge" }
 
 minecraft = { module="com.mojang:minecraft", version.ref="minecraft" }
 
-parchment = { module="org.parchmentmc.data:parchment-1.20.1", version.ref="parchment" }
+parchment = { module="org.parchmentmc.data:parchment-1.21.1", version.ref="parchment" }
 
-architectury        = { module="dev.architectury:architectury", version.ref="architectury" }
-architectury-forge  = { module="dev.architectury:architectury-forge", version.ref="architectury" }
-architectury-fabric = { module="dev.architectury:architectury-fabric", version.ref="architectury" }
+architectury          = { module="dev.architectury:architectury", version.ref="architectury" }
+architectury-neoforge = { module="dev.architectury:architectury-neoforge", version.ref="architectury" }
+architectury-fabric   = { module="dev.architectury:architectury-fabric", version.ref="architectury" }
 
 fabric-loader = { module="net.fabricmc:fabric-loader", version.ref="fabric-loader" }
 fabric-api    = { module="net.fabricmc.fabric-api:fabric-api", version.ref="fabric-api" }
 
-forge = { module="net.minecraftforge:forge", version.ref="forge" }
+neoforge = { module="net.neoforged:neoforge", version.ref="neoforge" }
 
-hexcasting-common = { module="at.petra-k.hexcasting:hexcasting-common-1.20.1", version.ref="hexcasting" }
-hexcasting-fabric = { module="at.petra-k.hexcasting:hexcasting-fabric-1.20.1", version.ref="hexcasting" }
-hexcasting-forge  = { module="at.petra-k.hexcasting:hexcasting-forge-1.20.1", version.ref="hexcasting" }
+# PAUCAL 1.21 publishes as at.petra-k:paucal:<version>+1.21.1-<platform>, not the 1.20.1 artifact ids.
+paucal-common  = { module="at.petra-k:paucal", version="0.7.1-pre-27+1.21.1-common" }
+paucal-fabric  = { module="at.petra-k:paucal", version="0.7.1-pre-27+1.21.1-fabric" }
+paucal-neoforge = { module="at.petra-k:paucal", version="0.7.1-pre-27+1.21.1-neoforge" }
 
-paucal-common = { module="at.petra-k.paucal:paucal-common-1.20.1", version.ref="paucal" }
-paucal-fabric = { module="at.petra-k.paucal:paucal-fabric-1.20.1", version.ref="paucal" }
-paucal-forge  = { module="at.petra-k.paucal:paucal-forge-1.20.1", version.ref="paucal" }
+patchouli-xplat    = { module="vazkii.patchouli:Patchouli-xplat", version.ref="patchouli-xplat" }
+patchouli-fabric   = { module="vazkii.patchouli:Patchouli", version.ref="patchouli-fabric" }
+patchouli-neoforge = { module="vazkii.patchouli:Patchouli", version.ref="patchouli-neoforge" }
 
-patchouli-xplat  = { module="vazkii.patchouli:Patchouli-xplat", version.ref="patchouli" }
-patchouli-fabric = { module="vazkii.patchouli:Patchouli", version.ref="patchouli-fabric" }
-patchouli-forge  = { module="vazkii.patchouli:Patchouli", version.ref="patchouli-forge" }
-
-trinkets = { module="dev.emi:trinkets", version.ref="trinkets" }
-
-cardinalComponents = { module="dev.onyxstudios.cardinal-components-api:cardinal-components-api", version.ref="cardinalComponents" }
-modMenu            = { module="com.terraformersmc:modmenu", version.ref="modMenu" }
+modMenu = { module="com.terraformersmc:modmenu", version.ref="modMenu" }
 
 mixinExtras-common = { module="io.github.llamalad7:mixinextras-common", version.ref="mixinExtras" }
 mixinExtras-fabric = { module="io.github.llamalad7:mixinextras-fabric", version.ref="mixinExtras" }
-mixinExtras-forge  = { module="io.github.llamalad7:mixinextras-forge", version.ref="mixinExtras" }
 
-clothConfig-common = { module="me.shedaniel.cloth:cloth-config", version.ref="clothConfig" }
-clothConfig-fabric = { module="me.shedaniel.cloth:cloth-config-fabric", version.ref="clothConfig" }
-clothConfig-forge  = { module="me.shedaniel.cloth:cloth-config-forge", version.ref="clothConfig" }
+clothConfig-common   = { module="me.shedaniel.cloth:cloth-config", version.ref="clothConfig" }
+clothConfig-fabric   = { module="me.shedaniel.cloth:cloth-config-fabric", version.ref="clothConfig" }
+clothConfig-neoforge = { module="me.shedaniel.cloth:cloth-config-neoforge", version.ref="clothConfig" }
 
-caelus = { module="top.theillusivec4.caelus:caelus-forge", version.ref="caelus" }
+caelus = { module="com.illusivesoulworks.caelus:caelus-neoforge", version.ref="caelus" }
 
-inline-fabric = { module="com.samsthenerd.inline:inline-fabric", version.ref="inline" }
-inline-forge  = { module="com.samsthenerd.inline:inline-forge", version.ref="inline" }
-
-hexparse-fabric = { module="maven.modrinth:WjFyIzFj", version.ref="hexparse-fabric" }
-hexparse-forge  = { module="maven.modrinth:WjFyIzFj", version.ref="hexparse-forge" }
+inline-fabric   = { module="com.samsthenerd.inline:inline-fabric", version.ref="inline" }
+inline-neoforge = { module="com.samsthenerd.inline:inline-neoforge", version.ref="inline" }
+inline-common   = { module="com.samsthenerd.inline:inline-common", version.ref="inline" }
 
 jline = { module="org.jline:jline", version.ref="jline" }
 gson = { module="com.google.code.gson:gson", version.ref="gson" }
@@ -121,15 +107,12 @@ asm-commons  = { module="org.ow2.asm:asm-commons", version.ref="asm" }
 asm-tree     = { module="org.ow2.asm:asm-tree", version.ref="asm" }
 asm-util     = { module="org.ow2.asm:asm-util", version.ref="asm" }
 
-
-serializationHooks = { module="io.github.tropheusj:serialization-hooks", version.ref="serializationHooks" }
-
 [plugins]
 kotlin-jvm = { id="org.jetbrains.kotlin.jvm", version.ref="kotlin" }
 
 architectury      = { id="architectury-plugin", version.ref="architectury-plugin" }
 architectury-loom = { id="dev.architectury.loom", version.ref="architectury-loom" }
 
-shadow     = { id="com.github.johnrengelman.shadow", version.ref="shadow" }
+shadow     = { id="com.gradleup.shadow", version.ref="shadow" }
 modPublish = { id="me.modmuss50.mod-publish-plugin", version.ref="modPublish" }
 pkJson5    = { id="at.petra-k.pkpcpbp.PKJson5Plugin", version.ref="pkpcpbp" }

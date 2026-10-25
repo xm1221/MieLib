@@ -3,7 +3,7 @@ plugins {
 }
 
 architectury {
-    common("fabric", "forge")
+    common("fabric", "neoforge")
 }
 
 dependencies {
@@ -15,16 +15,29 @@ dependencies {
     modImplementation(libs.fabric.loader)
     modApi(libs.architectury)
 
-    modApi(libs.hexcasting.common)
+    // Fabric Hex jar is intermediary. Loom remaps it for the common compile.
+    // There is no hexcasting-*-1.21.1 artifact on maven.blamejared.com.
+    modApi(files(rootProject.file("libs/hexcasting-fabric-1.21.1-0.12.0-devel-pre-64.jar")))
+
+    modCompileOnly(libs.paucal.common)
 
     modApi(libs.clothConfig.common)
-
-    // HexCLI (part of MieLib) compiles against hexParse but it is NOT a hard dependency of MieLib:
-    // compile only, and the code that touches hexParse classes only runs when HexCLI is enabled.
-    modCompileOnly(libs.hexparse.fabric) { isTransitive = false }
 
     libs.mixinExtras.common.also {
         implementation(it)
         annotationProcessor(it)
+    }
+}
+
+// HexCLI still targets Hex 0.11 NBT iota APIs (IotaType.deserialize / CastingImage.getUserData).
+// Those were removed in Hex 0.12. Keep the sources in-tree, but do not compile them on 1.21.
+sourceSets.main {
+    java {
+        exclude("cn/xm1221/MieLib/hexcli/**")
+        exclude("cn/xm1221/MieLib/mixin/hexcli/**")
+    }
+    kotlin {
+        exclude("cn/xm1221/MieLib/hexcli/**")
+        exclude("cn/xm1221/MieLib/mixin/hexcli/**")
     }
 }

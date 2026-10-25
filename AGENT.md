@@ -25,15 +25,15 @@
 | 路径 | 职责 |
 |------|------|
 | `common/` | 跨加载器逻辑与资源（钩子、Registrar、网络抽象等） |
-| `fabric/` / `forge/` | 加载器入口与平台实现（`MielibAbstractionsImpl` 等） |
-| `common/.../hexcli` | HexCLI：无头服务器上的 Hex 命令行（MieLib 的一部分，默认关闭，见 `HEXCLI.md`；Fabric / Forge 都有，`fabric/src/example` 是示例附属） |
+| `fabric/` / `neoforge/` | 加载器入口与平台实现（`MielibAbstractionsImpl` 等）。1.21 线没有 Forge |
+| `common/.../hexcli` | HexCLI 源码仍在，但 **1.21 分支不编译**（Hex 0.12 删了它依赖的 NBT iota API）。见 `HEXCLI.md` |
 | `buildSrc/` | Gradle 约定插件 |
 | `doc/` | hexdoc 文档工程 |
 | `gradle/libs.versions.toml` | 版本目录；改依赖先改这里 |
 | `CHANGELOG.md` | Keep a Changelog；**有用户可见行为/API 变更必须写** |
 | `AGENT.md` | 本文；改协作约定时同步更新 |
 
-当前游戏目标版本以 `gradle.properties` / `libs.versions.toml` 为准（撰写时为 **1.20.1** + Hex 0.11.x + Architectury）。升 1.21 / NeoForge 是单独里程碑，不要在无关 PR 里顺手升版本。
+`1.21` 分支的游戏目标是 **Minecraft 1.21.1** + Hex Casting `0.12.0-devel-pre-64`（`libs/` 里的 jar，BlameJared 没有 1.21 坐标）+ PAUCAL `0.7.1-pre-27+1.21.1` + Architectury 13 + Fabric/NeoForge。`main` 仍是 1.20.1，不要把这条线合并进 `main`。
 
 ---
 
@@ -145,10 +145,10 @@
 
 ## 11. Iota display hook
 
-- **仅客户端显示钩子**：`IotaDisplayHook` / `IotaTypeMixin` 只负责展示层；不要在这里做服务端逻辑。
-- **tag-only 契约**：worker 只处理 `KEY_DATA` 的 `Tag`，**不要在 hook 内反序列化 iota**。
-- **当前只包裹静态入口**：只 wrap `IotaType.getDisplay` / `IotaType.getDisplayWithMaxWidth` / `IotaType.getColor`，不再对抽象 `display(Tag)` 下手。
-- **避免递归**：在 hook/worker 内不要再调用上述被 wrap 的公开 `IotaType` 方法，否则会回到 hook 造成递归。
-- **服务端反序列化统一走**：确需反序列化时，仅在服务端通过 `MieIotas.tryDeserialize(...)` 处理。
+- **仅客户端显示钩子**：`IotaDisplayHook` / `IotaDisplayMixin` 只负责展示层；不要在这里做服务端逻辑。
+- **1.21 契约**：worker 接收 `Iota` 实例。Hex 0.12 没有 `KEY_DATA` tag，也不要在 hook 里再反序列化。
+- **只包裹具体方法** `Iota.displayWithMaxWidth`。不要 mixin 抽象的 `Iota.display()` / `IotaType.color()`，那些是子类覆写，包父类方法拦不到。
+- **避免递归**：worker 里不要再调用 `displayWithMaxWidth`。读原文用 `iota.display()`（没有被 wrap）。
+- **服务端反序列化统一走**：`MieIotas.tryDeserialize(tag, level)`，tag 必须是 `IotaType.TYPED_CODEC` 的 NBT。
 
 有疑问时先停下来问维护者，不要猜测着扩大范围。

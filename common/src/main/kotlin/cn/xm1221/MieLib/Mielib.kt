@@ -14,7 +14,7 @@ object Mielib {
     val LOGGER: Logger = LogManager.getLogger(MODID)
 
     @JvmStatic
-    fun id(path: String) = ResourceLocation(MODID, path)
+    fun id(path: String) = ResourceLocation.fromNamespaceAndPath(MODID, path)
 
     fun init() {
         MielibServerConfig.init()
@@ -23,8 +23,7 @@ object Mielib {
 
         )
         MielibNetworking.init()
-        // HexCLI 默认关闭；开关只看系统属性 / 服务端配置（见 HEXCLI.md）
-        cn.xm1221.MieLib.hexcli.HexCli.init()
+        // HexCLI is not compiled on the 1.21 line yet. See HEXCLI.md.
     }
 
     fun initServer() {

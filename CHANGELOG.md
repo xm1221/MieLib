@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.0.3] - 2026-10-25
+
+Minecraft **1.21.1** line (Fabric + NeoForge). Maven version is `0.0.3+1.21.1` (`modVersion` + Minecraft version, same scheme as 1.20.1). This branch does not replace `main`.
+
+### Changed
+
+- Target Minecraft 1.21.1, Java 21, Architectury 13.0.8, Architectury Loom 1.13-SNAPSHOT, Fabric Loader 0.19.2, Fabric API 0.116.12+1.21.1, NeoForge 21.1.215.
+- Loaders are **Fabric and NeoForge**. The Forge module is gone.
+- Hex Casting **0.12.0-devel-pre-64** (jars in `libs/`, because BlameJared has no 1.21 Hex artifacts) and PAUCAL **0.7.1-pre-27+1.21.1** (`at.petra-k:paucal`).
+- `CastingVM.replaceEnv` still replaces `env` on the existing VM. Hex 0.12's `triggerCreateEvent` takes the current `CastingImage` (the old user-data tag argument is gone).
+- `IotaDisplayWorker` now takes the `Iota` instance. Hex 0.12 removed `IotaType.getDisplay` / `getColor` / `KEY_DATA`. The mixin wraps concrete `Iota.displayWithMaxWidth` (what `GuiSpellcasting` calls). `Iota.display()` and `IotaType.color()` are per-subtype overrides and are not wrapped.
+- `MieIotas.tryDeserialize(tag, level)` parses `IotaType.TYPED_CODEC` NBT. The old `(type, data, level)` helper is gone with `KEY_TYPE` / `KEY_DATA`.
+- `Iota.toSpell()` returns Hex's `TreeList` (`SpellList` was removed).
+
+### Fixed
+
+- `GuiSpellcastingMixin` still leaves `Screen.render` remapped and only marks `RenderLib.drawPatternFromPoints` as `remap = false`, so the pattern-color hook loads on Fabric.
+
+### Removed
+
+- HexCLI is not compiled on this branch. Hex 0.12 dropped the NBT iota and `CastingImage` user-data APIs it calls (`IotaType.deserialize` / `serialize` / `getDisplay`, `CastingImage.getUserData` / `serializeToNbt`). Sources remain under `cn.xm1221.MieLib.hexcli` and are excluded from the compile. See `HEXCLI.md`.
+
 ## [Unreleased]
 
 ### Added

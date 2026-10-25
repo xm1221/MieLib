@@ -1,5 +1,5 @@
 modLoader = "kotlinforforge"
-loaderVersion = "[${versions.kotlin_forge},)"
+loaderVersion = "[${versions.kotlin_neoforge},)"
 license = "MIT"
 
 [[mods]]
@@ -11,44 +11,43 @@ authors = "xm1221"
 description = "An lib for hex-addons"
 
 [[dependencies.mielib]]
-modId = "forge"
-mandatory = true
-versionRange = "[${versions.forge_dependency},)"
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.mielib]]
 modId = "minecraft"
-mandatory = true
+type = "required"
 versionRange = "[${versions.minecraft},)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.mielib]]
+modId = "kotlinforforge"
+type = "required"
+versionRange = "[${versions.kotlin_neoforge},)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.mielib]]
 modId = "architectury"
-mandatory = true
+type = "required"
 versionRange = "[${versions.architectury},)"
-ordering = "NONE"
+ordering = "AFTER"
 side = "BOTH"
 
 [[dependencies.mielib]]
 modId = "cloth_config"
-mandatory = true
-versionRange = "[${versions.cloth_config},)"
-ordering = "NONE"
+type = "required"
+versionRange = "[${versions.clothConfig},)"
+ordering = "AFTER"
 side = "BOTH"
 
 [[dependencies.mielib]]
 modId = "hexcasting"
-mandatory = true
+type = "required"
 versionRange = "[${versions.hexcasting},)"
-ordering = "NONE"
+ordering = "AFTER"
 side = "BOTH"
-
-# optional: HexCLI (part of MieLib) needs hexParse when enabled
-[[dependencies.mielib]]
-modId = "hexparse"
-mandatory = false
-versionRange = "[0,)"
-ordering = "NONE"
-side = "SERVER"

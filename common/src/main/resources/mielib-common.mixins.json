@@ -1,17 +1,16 @@
 {
   "required": true,
   "package": "cn.xm1221.MieLib.mixin",
-  "compatibilityLevel": "JAVA_17",
+  "compatibilityLevel": "JAVA_21",
   "minVersion": "0.8",
   "client": [
     "GuiSpellcastingMixin",
-    "IotaTypeMixin"
+    "IotaDisplayMixin"
   ],
   "mixins": [
     "CastingVMMixin"
   ],
   "server": [
-    "hexcli.DedicatedServerConsoleMixin"
   ],
   "plugin": "cn.xm1221.MieLib.mixin.MielibMixinConfigPlugin",
   "injectors": {

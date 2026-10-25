@@ -1,4 +1,4 @@
-// Standalone HexCLI terminal client. Plain Java 17: not a mod, not in any mod jar.
+// Standalone HexCLI terminal client. Plain Java (toolchain follows libs.versions.java): not a mod, not in any mod jar.
 plugins {
     java
     application

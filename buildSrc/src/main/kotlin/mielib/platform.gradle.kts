@@ -12,7 +12,7 @@ plugins {
     id("mielib.mod-publish")
     id("mielib.utils.mod-dependencies")
 
-    id("com.github.johnrengelman.shadow")
+    id("com.gradleup.shadow")
 }
 
 val platform: String by project
@@ -22,6 +22,12 @@ val modrinthId: String by project
 val minecraftVersion = libs.versions.minecraft.get()
 
 val platformCapitalized = platform.capitalize()
+
+// Architectury names the NeoForge Loom configs `developmentNeoForge` / `transformProductionNeoForge`.
+fun loomConfig(prefix: String) = when (platform) {
+    "neoforge" -> prefix + "NeoForge"
+    else -> prefix + platformCapitalized
+}
 
 architectury {
     platformSetupLoomIde()
@@ -38,7 +44,7 @@ configurations {
     }
     // this needs to wait until Loom has been configured
     afterEvaluate {
-        named("development$platformCapitalized") {
+        named(loomConfig("development")) {
             extendsFrom(get("common"))
         }
     }
@@ -46,7 +52,7 @@ configurations {
 
 dependencies {
     "common"(project(":common", "namedElements")) { isTransitive = false }
-    "shadowCommon"(project(":common", "transformProduction$platformCapitalized")) { isTransitive = false }
+    "shadowCommon"(project(":common", loomConfig("transformProduction"))) { isTransitive = false }
 }
 
 sourceSets {

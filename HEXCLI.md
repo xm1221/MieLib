@@ -1,5 +1,12 @@
 # HexCLI
 
+> **1.21.1 branch:** HexCLI is **not compiled** into the mod. Hex Casting 0.12 removed
+> `IotaType.deserialize` / `IotaType.serialize` / `IotaType.getDisplay` and `CastingImage.getUserData` /
+> `serializeToNbt` (codecs and image components instead). The sources are still in
+> `common/src/main/java/cn/xm1221/MieLib/hexcli` and the loader `hexcli` packages, and Gradle
+> excludes that tree. `Mielib.init` does not call `HexCli.init`. Porting it is a follow-up;
+> it does not block `CastingVMHook` or `DrawPatternHook`.
+
 在**无头专用服务器**上用 [hexParse](https://modrinth.com/mod/hexparse) 语法敲 Hex 代码，直接在控制台看到执行结果。
 
 HexCLI 现在是 **MieLib 的一部分**（`common` / `fabric` / `forge` 三个模块都有），不再是独立子项目、没有自己的

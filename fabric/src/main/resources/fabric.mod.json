@@ -50,7 +50,6 @@
     "cloth-config": ">=${versions.clothConfig}"
   },
   "suggests": {
-    "modmenu": ">=${versions.modMenu}",
-    "hexparse": "*"
+    "modmenu": ">=${versions.modMenu}"
   }
 }

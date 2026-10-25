@@ -26,6 +26,9 @@ loom {
     accessWidenerPath = project(":common").file("src/main/resources/mielib.accesswidener")
 
     mixin {
+        // Loom 1.7+ disables the mixin AP by default. GuiSpellcasting.render must be remapped
+        // (see f69bc70); without a refmap Fabric looks up a method literally named `render`.
+        useLegacyMixinAp.set(true)
         // the default name includes both archivesName and the subproject, resulting in the platform showing up twice
         // default: mielib-common-common-refmap.json
         // fixed:   mielib-common.refmap.json

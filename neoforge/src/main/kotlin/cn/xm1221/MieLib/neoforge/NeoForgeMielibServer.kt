@@ -1,9 +1,9 @@
-package cn.xm1221.MieLib.forge
+package cn.xm1221.MieLib.neoforge
 
 import cn.xm1221.MieLib.Mielib
-import net.minecraftforge.fml.event.lifecycle.FMLDedicatedServerSetupEvent
+import net.neoforged.fml.event.lifecycle.FMLDedicatedServerSetupEvent
 
-object ForgeMielibServer {
+object NeoForgeMielibServer {
     @Suppress("UNUSED_PARAMETER")
     fun init(event: FMLDedicatedServerSetupEvent) {
         Mielib.initServer()

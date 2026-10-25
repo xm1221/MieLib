@@ -35,6 +35,7 @@ public class CastingVMMixin implements CastingVMEnvAccess {
             throw new IllegalArgumentException("CastingVM.replaceEnv: next environment must not be null");
         }
         this.env = next;
-        next.triggerCreateEvent(((CastingVM) (Object) this).getImage().getUserData());
+        // Hex 0.12: triggerCreateEvent takes the CastingImage, not the old user-data tag.
+        next.triggerCreateEvent(((CastingVM) (Object) this).getImage());
     }
 }
