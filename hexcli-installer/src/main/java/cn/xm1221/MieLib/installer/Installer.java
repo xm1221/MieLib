@@ -45,9 +45,31 @@ public final class Installer {
                                  use a local jar for one mod instead of downloading it; the file is
                                  still checked against the manifest hashes
                                  (env HEXCLI_MIELIB_JAR is shorthand for --mod-override mielib=<path>)
-          --java <path>          record this Java executable in <dir>/java-path.txt for the
-                                 generated scripts (install.sh does this automatically)
+          --java <path>          Java 17+ for the generated start / connect scripts, written to
+                                 <dir>/java-path.txt; a java executable or a JDK/JRE home
+                                 directory (env HEXCLI_JAVA; the install scripts pass the Java
+                                 they picked automatically)
           -h, --help             show this help
+
+        Download source (mirror):
+          --mirror <name>        official (default) | bmclapi (aliases: cn, mcim)
+                                 bmclapi: cdn.modrinth.com -> mod.mcimirror.top,
+                                          meta.fabricmc.net -> bmclapi2.bangbang93.com/fabric-meta,
+                                          maven.fabricmc.net -> bmclapi2.bangbang93.com/maven
+                                 (env HEXCLI_MIRROR; --download-source is an alias)
+          --url-rewrite from=to  custom mirror: replace the URL prefix "from" with "to"; repeatable,
+                                 checked before the preset (env HEXCLI_URL_REWRITE, ';'-separated)
+                                 e.g. --url-rewrite https://cdn.modrinth.com/=https://my.mirror/modrinth/
+          --github-proxy <url>   prefix GitHub URLs (the MieLib release jar), e.g.
+                                 --github-proxy https://ghfast.top/  (env HEXCLI_GITHUB_PROXY)
+          --no-fallback          do not retry the official URL when a mirror fails
+                                 Mods are always checked against the manifest sha512, whatever the
+                                 source; the server launcher must be a valid jar.
+
+        Environment:
+          HEXCLI_PROGRESS=0|1    0 hides download progress, 1 forces the in-place bar even when
+                                 stdout is not a terminal (default: bar on a terminal, 25% steps
+                                 otherwise)
         """;
 
     private Installer() {
@@ -109,6 +131,12 @@ public final class Installer {
         System.out.println("HexCLI installer " + manifest.installerVersion
             + " (Minecraft " + manifest.minecraft + ", Fabric loader " + manifest.fabricLoader + ")");
         System.out.println("server directory: " + serverDir);
+        Mirrors mirrors = Mirrors.create(args.mirror, args.urlRewrites, args.githubProxy, args.noFallback);
+        System.out.println("download source: " + mirrors.description());
+        String javaPath = JavaCheck.resolve(args.javaPath);
+        if (javaPath != null) {
+            System.out.println("java for scripts: " + javaPath);
+        }
         Fs.createDirectories(serverDir);
         Fs.createDirectories(serverDir.resolve("mods"));
 
@@ -118,16 +146,12 @@ public final class Installer {
         if (isUsableFile(launcher)) {
             System.out.println("  ok       " + launcher.getFileName() + " (already present)");
         } else {
-            System.out.println("  fetch    " + launcher.getFileName() + " <- " + manifest.serverLauncher.url());
-            if (!Http.download(client, manifest.serverLauncher.url(), launcher, "serverLauncher")) {
-                throw new InstallerException("the Fabric server launcher is not available at "
-                    + manifest.serverLauncher.url() + " (HTTP 404/410); check fabricLoader / fabricInstaller in the manifest");
-            }
+            downloadLauncher(client, mirrors, manifest.serverLauncher.url(), launcher);
         }
 
         // 2. Mods.
         Map<String, Path> overrides = ModDownloader.parseOverrides(args.modOverrides);
-        ModDownloader.Stats stats = new ModDownloader(client, serverDir).install(manifest.mods, overrides);
+        ModDownloader.Stats stats = new ModDownloader(client, serverDir, mirrors).install(manifest.mods, overrides);
         System.out.println("mods: " + stats.downloaded + " downloaded, " + stats.skipped + " already present, "
             + stats.overridden + " local");
 
@@ -139,7 +163,7 @@ public final class Installer {
         ServerFiles files = new ServerFiles(manifest.installerVersion);
         boolean eula = files.writeEula(serverDir);
         boolean properties = files.writeServerProperties(serverDir);
-        files.writeJavaPath(serverDir, args.javaPath);
+        files.writeJavaPath(serverDir, javaPath);
         files.writeScripts(serverDir);
         System.out.println("  " + (eula ? "wrote  " : "kept   ") + "eula.txt");
         System.out.println("  " + (properties ? "wrote  " : "kept   ") + "server.properties");
@@ -197,6 +221,46 @@ public final class Installer {
         return ok ? 0 : 1;
     }
 
+    /** Fabric server launcher: mirror first (if any), then the official URL; must look like a jar. */
+    private static void downloadLauncher(HttpClient client, Mirrors mirrors, String url, Path launcher) {
+        List<String> failures = new ArrayList<>();
+        for (String candidate : mirrors.candidates(List.of(url))) {
+            System.out.println("  fetch    " + launcher.getFileName() + " <- " + candidate);
+            try {
+                if (!Http.download(client, candidate, launcher, "serverLauncher")) {
+                    failures.add(candidate + ": HTTP 404/410");
+                    System.out.println("  skip     HTTP 404/410; trying the next source");
+                    continue;
+                }
+            } catch (InstallerException e) {
+                failures.add(candidate + ": " + e.getMessage());
+                System.out.println("  skip     " + e.getMessage() + "; trying the next source");
+                continue;
+            }
+            if (looksLikeJar(launcher)) {
+                return;
+            }
+            failures.add(candidate + ": not a jar");
+            System.out.println("  skip     not a jar; trying the next source");
+            try {
+                Files.deleteIfExists(launcher);
+            } catch (java.io.IOException ignored) {
+                // best effort
+            }
+        }
+        throw new InstallerException("could not download the Fabric server launcher; check fabricLoader /"
+            + " fabricInstaller in the manifest or the download source:\n    " + String.join("\n    ", failures));
+    }
+
+    private static boolean looksLikeJar(Path file) {
+        try (java.io.InputStream in = Files.newInputStream(file)) {
+            byte[] magic = in.readNBytes(2);
+            return magic.length == 2 && magic[0] == 'P' && magic[1] == 'K';
+        } catch (java.io.IOException e) {
+            return false;
+        }
+    }
+
     /** {@code true} for an existing, non-empty regular file (a failed earlier download leaves an empty jar). */
     private static boolean isUsableFile(Path file) {
         try {
@@ -222,6 +286,10 @@ public final class Installer {
         String manifest;
         Path clientJar;
         String javaPath;
+        String mirror;
+        String githubProxy;
+        boolean noFallback;
+        final List<String> urlRewrites = new ArrayList<>();
         final List<String> modOverrides = new ArrayList<>();
         boolean help;
 
@@ -230,9 +298,14 @@ public final class Installer {
             // Scripts pass the Java they installed so the generated scripts work even without
             // a private runtime in <root>/runtime.
             args.javaPath = System.getProperty("hexcli.java");
+            String javaEnv = System.getenv("HEXCLI_JAVA");
+            if (args.javaPath == null && javaEnv != null && !javaEnv.isBlank()) {
+                args.javaPath = javaEnv;
+            }
             String eulaEnv = System.getenv("HEXCLI_ACCEPT_EULA");
             args.acceptEula = "1".equals(eulaEnv) || "true".equalsIgnoreCase(eulaEnv);
 
+            argv = splitEquals(argv);
             for (int i = 0; i < argv.length; i++) {
                 String arg = argv[i];
                 switch (arg) {
@@ -248,11 +321,30 @@ public final class Installer {
                     case "--client-jar" -> args.clientJar = Path.of(value(argv, ++i, "--client-jar"));
                     case "--mod-override" -> args.modOverrides.add(value(argv, ++i, "--mod-override"));
                     case "--java" -> args.javaPath = value(argv, ++i, "--java");
+                    case "--mirror", "--download-source" -> args.mirror = value(argv, ++i, arg);
+                    case "--url-rewrite" -> args.urlRewrites.add(value(argv, ++i, "--url-rewrite"));
+                    case "--github-proxy" -> args.githubProxy = value(argv, ++i, "--github-proxy");
+                    case "--no-fallback" -> args.noFallback = true;
                     case "-h", "--help", "help" -> args.help = true;
                     default -> throw new InstallerException("unknown argument \"" + arg + "\" (try --help)");
                 }
             }
             return args;
+        }
+
+        /** Accepts {@code --opt=value} as well as {@code --opt value}. */
+        private static String[] splitEquals(String[] argv) {
+            List<String> out = new ArrayList<>();
+            for (String arg : argv) {
+                int eq = arg.indexOf('=');
+                if (arg.startsWith("--") && eq > 2) {
+                    out.add(arg.substring(0, eq));
+                    out.add(arg.substring(eq + 1));
+                } else {
+                    out.add(arg);
+                }
+            }
+            return out.toArray(new String[0]);
         }
 
         private static String value(String[] argv, int index, String option) {

@@ -116,10 +116,11 @@ jobs:
           echo "SMOKE_DIR=$smoke" >> "$GITHUB_ENV"
 
           # install.sh downloads the private Temurin JRE into ./runtime and runs the installer.
+          # JAVA_HOME (from setup-java) is unset so that download path is what gets tested.
           # The local MieLib jar is passed via HEXCLI_MIELIB_JAR and is still hash-checked.
-          ( cd "$smoke" && ./install.sh -y )
+          ( cd "$smoke" && env -u JAVA_HOME ./install.sh -y )
+          test -x "$smoke/runtime/bin/java"
 
-          # No private runtime was requested by the smoke test? install.sh always creates one.
           server="$smoke/server"
           log="$server/logs/smoke-server.log"
           mkdir -p "$server/logs"

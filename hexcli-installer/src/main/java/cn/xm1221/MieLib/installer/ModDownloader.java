@@ -33,10 +33,16 @@ final class ModDownloader {
 
     private final HttpClient client;
     private final Path modsDir;
+    private final Mirrors mirrors;
 
     ModDownloader(HttpClient client, Path serverDir) {
+        this(client, serverDir, Mirrors.official());
+    }
+
+    ModDownloader(HttpClient client, Path serverDir, Mirrors mirrors) {
         this.client = client;
         this.modsDir = serverDir.resolve("mods");
+        this.mirrors = mirrors;
     }
 
     Stats install(List<Manifest.Mod> mods, Map<String, Path> overrides) {
@@ -108,7 +114,7 @@ final class ModDownloader {
     }
 
     private void downloadVerified(Manifest.Mod mod, Path target) {
-        List<String> urls = mod.allUrls();
+        List<String> urls = mirrors.candidates(mod.allUrls());
         List<String> failures = new ArrayList<>();
         Path temp = target.resolveSibling(target.getFileName() + ".part");
         try {
@@ -117,10 +123,12 @@ final class ModDownloader {
                 try {
                     if (!Http.download(client, url, temp, mod.name())) {
                         failures.add(url + ": HTTP 404/410");
+                        System.out.println("  skip     HTTP 404/410; trying the next source");
                         continue;
                     }
                 } catch (InstallerException e) {
                     failures.add(url + ": " + e.getMessage());
+                    System.out.println("  skip     " + e.getMessage() + "; trying the next source");
                     continue;
                 }
                 String problem = check(mod, temp);

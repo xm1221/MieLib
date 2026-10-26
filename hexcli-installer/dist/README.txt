@@ -44,10 +44,24 @@ Windows
 
 说明 / Notes
 ------------
-* Java：脚本只使用 ./runtime 里的私有 Temurin JRE 17（首次运行自动下载并校验 sha256），
-  不会修改系统 Java，也不会改 PATH。用 HEXCLI_JAVA=/path/to/java 或 -Java 指定其它 Java。
-  Java is only taken from the private ./runtime (Temurin JRE 17, downloaded and sha256-verified
-  on first run); the system Java and PATH are never touched. Override with HEXCLI_JAVA=... .
+* Java：没有指定 Java、JAVA_HOME 也不是 17+ 时，脚本把私有 Temurin JRE 17 下载到 ./runtime
+  （校验 sha256），不会修改系统 Java，也不会改 PATH。
+  Without --java and without a Java 17+ JAVA_HOME, a private Temurin JRE 17 is downloaded into
+  ./runtime (sha256-verified); the system Java and PATH are never touched.
+* 指定 Java：./install.sh --java <java 或 JDK 目录>（Windows: -Java），或 HEXCLI_JAVA；
+  JAVA_HOME 是 17+ 时也会直接用。必须是 Java 17+。
+  Pick a Java with --java / -Java / HEXCLI_JAVA (executable or JDK home, 17+); JAVA_HOME is
+  used when it is 17+.
+* 下载源 / Download source：
+    ./install.sh --mirror bmclapi                 # 国内镜像：Modrinth->MCIM, Fabric->BMCLAPI
+    ./install.sh --github-proxy https://ghfast.top/   # GitHub（MieLib、Java）走代理
+    ./install.sh --url-rewrite https://cdn.modrinth.com/=https://my.mirror/   # 自定义
+  Windows: -Mirror bmclapi / -GithubProxy <url> / -UrlRewrite from=to。
+  也可用环境变量 HEXCLI_MIRROR / HEXCLI_GITHUB_PROXY / HEXCLI_URL_REWRITE / HEXCLI_ADOPTIUM_API。
+  镜像失败会自动回退官方地址（--no-fallback 关闭）；mod 始终按清单 sha512 校验。
+  Mirrors fall back to the official URLs; mods are always sha512-checked. ./install.sh --help
+  lists everything.
+* 下载会显示进度条（HEXCLI_PROGRESS=0 关闭）。Downloads show a progress bar.
 * 默认只监听 127.0.0.1:25565，正版验证关闭（online-mode=false）。要让别人连进来请改
   server/server.properties，并自行承担风险。
   The server listens on 127.0.0.1:25565 with online-mode=false. Edit server/server.properties

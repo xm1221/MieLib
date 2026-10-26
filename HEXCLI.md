@@ -377,7 +377,36 @@ hexcli run num_1 num_2 add              # 用示例的生物环境施法；环�
 - 第一次开服需要联网：Fabric 启动器会自己从 Mojang 下载原版服务端。
 - 重复运行 `install.sh` 是安全的：哈希正确的文件跳过，`eula.txt` / `server.properties` 不会被覆盖。
 - 校验已下载的文件：`runtime/bin/java -jar hexcli-installer.jar verify --dir server`。
-- 用 `HEXCLI_JAVA=/path/to/java` 指定其它 Java；`--dir <目录>` 换服务端目录。
+- `--dir <目录>` 换服务端目录。下载时会显示进度条（重定向到日志时每 25% 打一行；`HEXCLI_PROGRESS=0` 关闭）。
+
+**指定 Java**（按顺序取第一个可用的，必须是 Java 17+，否则报错/跳过）：
+
+| 方式 | 说明 |
+|------|------|
+| `--java <路径>`（Windows `-Java`）/ `HEXCLI_JAVA` | java 可执行文件或 JDK/JRE 根目录；不存在或低于 17 直接报错 |
+| `JAVA_HOME` | 是 Java 17+ 才用，否则忽略 |
+| `./runtime` | 之前装过的私有运行时 |
+| （都没有） | 下载 Temurin JRE 17 到 `./runtime` |
+
+选中的 Java 会写进 `server/java-path.txt`，开服 / 连接脚本都用它。
+
+**指定下载源**（mod 文件始终按清单 sha512 校验，换源不影响安全性；镜像失败默认回退官方地址）：
+
+| 方式 | 说明 |
+|------|------|
+| `--mirror official`（默认）/ `--mirror bmclapi`（别名 `cn`、`mcim`），Windows `-Mirror`，env `HEXCLI_MIRROR` | `bmclapi`：Modrinth → `mod.mcimirror.top`（MCIM），Fabric meta / maven → `bmclapi2.bangbang93.com`；`--download-source` 是同义参数 |
+| `--url-rewrite 源前缀=新前缀`（可重复）/ env `HEXCLI_URL_REWRITE`（`;` 分隔） | 自定义镜像，优先于预设，例如 `--url-rewrite https://cdn.modrinth.com/=https://my.mirror/modrinth/` |
+| `--github-proxy <前缀>` / env `HEXCLI_GITHUB_PROXY` | GitHub 下载（MieLib jar、Temurin JRE）加前缀代理，例如 `--github-proxy https://ghfast.top/` |
+| `--adoptium-api <url>` / env `HEXCLI_ADOPTIUM_API` | 换 Adoptium API（BMCLAPI 没有 Java 镜像） |
+| `--no-fallback` | 镜像失败时不回退官方地址 |
+
+```bash
+./install.sh -y --mirror bmclapi --github-proxy https://ghfast.top/
+./install.sh -y --java /usr/lib/jvm/java-17-openjdk          # 用已有 JDK，不下载 runtime
+install.bat -y -Mirror bmclapi -Java "C:\Program Files\Java\jdk-17"
+```
+
+注意：首次开服时 Fabric 启动器从 Mojang / Fabric maven 下载原版服务端和库，这一步不走镜像。
 
 ### 安装器与清单（维护者）
 

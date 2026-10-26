@@ -1,6 +1,8 @@
 package cn.xm1221.MieLib.installer;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
@@ -46,7 +48,7 @@ final class Http {
     }
 
     /**
-     * Downloads {@code url} into {@code target} (overwriting).
+     * Downloads {@code url} into {@code target} (overwriting), showing a progress bar.
      *
      * @return {@code false} for a 404/410 (callers try the next fallback URL), {@code true} on success.
      */
@@ -57,23 +59,143 @@ final class Http {
             .GET()
             .build();
         try {
-            HttpResponse<Path> response = client.send(request, HttpResponse.BodyHandlers.ofFile(
-                target, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING));
+            HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
             int status = response.statusCode();
-            if (status == 404 || status == 410) {
-                Files.deleteIfExists(target); // don't leave the error page behind
-                return false;
-            }
             if (status < 200 || status >= 300) {
-                Files.deleteIfExists(target);
+                response.body().close();
+                Files.deleteIfExists(target); // don't leave a stale / partial file behind
+                if (status == 404 || status == 410) {
+                    return false;
+                }
                 throw new InstallerException("download failed: HTTP " + status + " for " + url);
             }
+            long total = response.headers().firstValueAsLong("Content-Length").orElse(-1L);
+            Progress progress = new Progress(target.getFileName().toString(), total);
+            try (InputStream in = response.body();
+                 OutputStream out = Files.newOutputStream(target,
+                     StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
+                byte[] buffer = new byte[64 * 1024];
+                int n;
+                while ((n = in.read(buffer)) >= 0) {
+                    out.write(buffer, 0, n);
+                    progress.advance(n);
+                }
+            } catch (IOException e) {
+                progress.abort();
+                Files.deleteIfExists(target);
+                throw e;
+            }
+            progress.finish();
             return true;
         } catch (IOException e) {
             throw new InstallerException("download failed: " + url + " (" + e.getMessage() + ")", e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new InstallerException("interrupted while downloading " + url, e);
+        }
+    }
+
+    /**
+     * Console progress bar: {@code   [=========>          ]  45%  12.3/27.1 MB  3.2 MB/s  name}.
+     *
+     * <p>On a terminal the line is redrawn in place (about 10x per second) and cleared when done; when
+     * output is redirected (CI, logs) a line is printed every 25% instead. {@code HEXCLI_PROGRESS=0}
+     * turns it off, {@code HEXCLI_PROGRESS=1} forces the in-place bar.
+     */
+    static final class Progress {
+        private static final int WIDTH = 30;
+        private final String name;
+        private final long total;
+        private final boolean tty;
+        private final boolean enabled;
+        private final long startNanos = System.nanoTime();
+        private long done;
+        private long lastDraw;
+        private int lastQuarter;
+        private int lastLength;
+
+        Progress(String name, long total) {
+            this.name = name.endsWith(".part") ? name.substring(0, name.length() - 5) : name;
+            this.total = total;
+            String mode = System.getenv("HEXCLI_PROGRESS");
+            this.enabled = !"0".equals(mode) && !"false".equalsIgnoreCase(mode);
+            this.tty = "1".equals(mode) || "true".equalsIgnoreCase(mode) || System.console() != null;
+        }
+
+        void advance(int bytes) {
+            done += bytes;
+            if (!enabled) {
+                return;
+            }
+            if (tty) {
+                long now = System.nanoTime();
+                if (now - lastDraw >= 100_000_000L) {
+                    lastDraw = now;
+                    draw();
+                }
+            } else if (total >= 2L * 1024 * 1024) { // small files: just "done"
+                int quarter = (int) (done * 4 / total);
+                if (quarter > lastQuarter && quarter < 4) {
+                    lastQuarter = quarter;
+                    System.out.println("           " + (quarter * 25) + "%  " + mb(done) + "/" + mb(total) + " MB  " + name);
+                }
+            }
+        }
+
+        void finish() {
+            if (!enabled) {
+                return;
+            }
+            if (tty) {
+                clear();
+            }
+            double seconds = Math.max((System.nanoTime() - startNanos) / 1e9, 0.001);
+            System.out.println("           done " + mb(done) + " MB in " + String.format(Locale.ROOT, "%.1f", seconds)
+                + " s (" + mb((long) (done / seconds)) + " MB/s)");
+        }
+
+        void abort() {
+            if (enabled && tty) {
+                clear();
+            }
+        }
+
+        private void draw() {
+            StringBuilder line = new StringBuilder("  [");
+            if (total > 0) {
+                int filled = (int) Math.min(WIDTH, done * WIDTH / total);
+                for (int i = 0; i < WIDTH; i++) {
+                    line.append(i < filled ? '=' : i == filled ? '>' : ' ');
+                }
+                line.append("] ").append(String.format(Locale.ROOT, "%3d%%", (int) Math.min(100, done * 100 / total)))
+                    .append("  ").append(mb(done)).append('/').append(mb(total)).append(" MB");
+            } else {
+                // Unknown size: bouncing marker.
+                int pos = (int) ((System.nanoTime() - startNanos) / 100_000_000L % WIDTH);
+                for (int i = 0; i < WIDTH; i++) {
+                    line.append(i == pos ? '=' : ' ');
+                }
+                line.append("]  ").append(mb(done)).append(" MB");
+            }
+            double seconds = Math.max((System.nanoTime() - startNanos) / 1e9, 0.001);
+            line.append("  ").append(mb((long) (done / seconds))).append(" MB/s  ").append(name);
+            String text = line.toString();
+            int pad = Math.max(0, lastLength - text.length());
+            System.out.print("\r" + text + " ".repeat(pad));
+            System.out.flush();
+            lastLength = text.length();
+        }
+
+        private void clear() {
+            if (lastLength > 0) {
+                System.out.print("\r" + " ".repeat(lastLength) + "\r");
+                System.out.flush();
+                lastLength = 0;
+            }
+        }
+
+        static String mb(long bytes) {
+            return String.format(Locale.ROOT, "%.1f", bytes / (1024.0 * 1024.0));
         }
     }
 
