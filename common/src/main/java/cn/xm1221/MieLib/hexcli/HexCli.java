@@ -92,7 +92,7 @@ public final class HexCli {
         });
         TickEvent.SERVER_POST.register(HexCliOps::tickWaiters);
         active = true;
-        LOGGER.info("HexCLI loaded. Try: hexcli run 1 2 add   (or: > 1 2 add)");
+        LOGGER.info("HexCLI loaded. Try: hexcli run num_1 num_2 add   (or: > num_1 num_2 add)");
     }
 
     /** HexCLI 是否已启用并注册了命令 / 事件（控制台 {@code >} 改写等据此判断）。 */

@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 /**
  * 控制台快捷输入：以 {@code >} 开头的一行直接当作 {@code hexcli run <其余部分>}。
- * 例：{@code > 1 2 add}。只改写控制台输入，不影响玩家聊天和其它命令。
+ * 例：{@code > num_1 num_2 add}。只改写控制台输入，不影响玩家聊天和其它命令。
  * <p>
  * 只在 HexCLI 真正启用时改写（{@link HexCli#isActive()}）；默认关闭时原样返回。
  */
