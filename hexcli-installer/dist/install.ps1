@@ -74,11 +74,18 @@ foreach ($item in $UrlRewrite) { $Rewrites += ($item -split '[;,]' | Where-Objec
 $Accept = $y.IsPresent -or $env:HEXCLI_ACCEPT_EULA -eq "1" -or $env:HEXCLI_ACCEPT_EULA -eq "true"
 
 function Get-JavaMajor([string]$Exe) {
+    # java -version prints to stderr. Under Windows PowerShell 5.1 with
+    # $ErrorActionPreference = "Stop", redirected native stderr becomes a terminating
+    # NativeCommandError, so relax it locally and stringify every line.
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     try {
-        $line = (& $Exe -version 2>&1 | Select-Object -First 1) -join ""
-        if ($line -match 'version "(\d+)') { return [int]$Matches[1] }
+        $text = (& $Exe -version 2>&1 | ForEach-Object { "$_" }) -join "`n"
+        if ($text -match 'version "(\d+)') { return [int]$Matches[1] }
     } catch {
         return 0
+    } finally {
+        $ErrorActionPreference = $previous
     }
     return 0
 }
@@ -286,8 +293,14 @@ foreach ($rw in $Rewrites) { $installerArgs += @("--url-rewrite", $rw.Trim()) }
 
 Write-Host ""
 Write-Host "running the HexCLI installer..."
+# The installer reports errors on stderr; keep PowerShell 5.1 from turning them into a
+# terminating error before we can read the exit code.
+$previous = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
 & $JavaExe -jar $installerJar @installerArgs
-if ($LASTEXITCODE -ne 0) { throw "the HexCLI installer failed (exit code $LASTEXITCODE)" }
+$installerExit = $LASTEXITCODE
+$ErrorActionPreference = $previous
+if ($installerExit -ne 0) { throw "the HexCLI installer failed (exit code $installerExit)" }
 
 $serverAbs = (Resolve-Path $Dir).Path
 Write-Host ""
