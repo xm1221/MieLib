@@ -4,6 +4,7 @@ import net.minecraft.resources.ResourceLocation
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import cn.xm1221.MieLib.config.MielibServerConfig
+import cn.xm1221.MieLib.hexcli.HexCli
 import cn.xm1221.MieLib.networking.MielibNetworking
 
 
@@ -23,7 +24,7 @@ object Mielib {
 
         )
         MielibNetworking.init()
-        // HexCLI is not compiled on the 1.21 line yet. See HEXCLI.md.
+        HexCli.init()
     }
 
     fun initServer() {

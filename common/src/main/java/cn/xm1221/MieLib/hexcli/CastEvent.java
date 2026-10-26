@@ -1,18 +1,15 @@
 package cn.xm1221.MieLib.hexcli;
 
-import at.petrak.hexcasting.api.HexAPI;
 import at.petrak.hexcasting.api.casting.eval.CastingEnvironment;
 import at.petrak.hexcasting.api.casting.eval.ResolvedPatternType;
 import at.petrak.hexcasting.api.casting.eval.vm.CastingImage;
 import at.petrak.hexcasting.api.casting.iota.Iota;
-import at.petrak.hexcasting.api.casting.iota.IotaType;
 import at.petrak.hexcasting.api.misc.MediaConstants;
+import at.petrak.hexcasting.common.lib.hex.HexImageComponents;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
@@ -88,8 +85,8 @@ public final class CastEvent {
         List<String> s = new ArrayList<>();
         List<JsonObject> sj = new ArrayList<>();
         for (Iota iota : image.getStack()) {
-            s.add(HexCliIotas.text(iota));
-            sj.add(HexCliIotas.toJson(iota));
+            s.add(HexCliIotas.text(iota, world));
+            sj.add(HexCliIotas.toJson(iota, world));
         }
         stack = s;
         stackJson = sj;
@@ -104,43 +101,15 @@ public final class CastEvent {
 
     /** 渡鸦之思文本；给了维度就反序列化成 iota 走 {@link HexCliIotas#text}（实体显示已修正）。 */
     public static String ravenmindOf(CastingImage image, @Nullable ServerLevel world) {
-        CompoundTag ud = image.getUserData();
-        if (!ud.contains(HexAPI.RAVENMIND_USERDATA, Tag.TAG_COMPOUND)) return null;
-        CompoundTag tag = ud.getCompound(HexAPI.RAVENMIND_USERDATA);
-        if (world != null) {
-            try {
-                Iota iota = IotaType.deserialize(tag, world);
-                if (iota != null) return HexCliIotas.text(iota);
-            } catch (Throwable ignored) {
-                // 退回 tag 显示
-            }
-        }
-        return safe(() -> IotaType.getDisplay(tag).getString());
+        Iota iota = image.getComponent(HexImageComponents.RAVENMIND.get());
+        if (iota == null) return null;
+        return HexCliIotas.text(iota, world);
     }
 
     /** 渡鸦之思的结构化表示（实体 / 列表已修正）；没有时为 null。 */
     private @Nullable JsonObject ravenmindJsonOf(CastingImage image) {
-        CompoundTag ud = image.getUserData();
-        if (!ud.contains(HexAPI.RAVENMIND_USERDATA, Tag.TAG_COMPOUND)) return null;
-        CompoundTag tag = ud.getCompound(HexAPI.RAVENMIND_USERDATA);
-        if (world != null) {
-            try {
-                Iota iota = IotaType.deserialize(tag, world);
-                if (iota != null) return HexCliIotas.toJson(iota);
-            } catch (Throwable ignored) {
-                // 退回 tag 显示
-            }
-        }
-        try {
-            JsonObject out = new JsonObject();
-            IotaType<?> type = IotaType.getTypeFromTag(tag);
-            out.addProperty("type", type == null ? "unknown" : String.valueOf(
-                at.petrak.hexcasting.xplat.IXplatAbstractions.INSTANCE.getIotaTypeRegistry().getKey(type)));
-            out.addProperty("text", IotaType.getDisplay(tag).getString());
-            return out;
-        } catch (Throwable t) {
-            return null;
-        }
+        Iota iota = image.getComponent(HexImageComponents.RAVENMIND.get());
+        return iota == null ? null : HexCliIotas.toJson(iota, world);
     }
 
     public static void renderStack(List<String> out, List<String> stack) {

@@ -1,15 +1,13 @@
 # HexCLI
 
-> **1.21.1 branch:** HexCLI is **not compiled** into the mod. Hex Casting 0.12 removed
-> `IotaType.deserialize` / `IotaType.serialize` / `IotaType.getDisplay` and `CastingImage.getUserData` /
-> `serializeToNbt` (codecs and image components instead). The sources are still in
-> `common/src/main/java/cn/xm1221/MieLib/hexcli` and the loader `hexcli` packages, and Gradle
-> excludes that tree. `Mielib.init` does not call `HexCli.init`. Porting it is a follow-up;
-> it does not block `CastingVMHook` or `DrawPatternHook`.
+> **1.21.1 branch:** HexCLI is compiled into MieLib again. The old Hex 0.11-only calls
+> (`IotaType.deserialize` / `IotaType.serialize` / `IotaType.getDisplay`,
+> `CastingImage.getUserData` / `serializeToNbt`) are migrated to Hex 0.12 codecs and
+> image components APIs.
 
 在**无头专用服务器**上用 [hexParse](https://modrinth.com/mod/hexparse) 语法敲 Hex 代码，直接在控制台看到执行结果。
 
-HexCLI 现在是 **MieLib 的一部分**（`common` / `fabric` / `forge` 三个模块都有），不再是独立子项目、没有自己的
+HexCLI 现在是 **MieLib 的一部分**（`common` / `fabric` / `neoforge` 三个模块都有），不再是独立子项目、没有自己的
 mod id、也不会另外出一个 jar——它随 MieLib 的 jar 一起发布。命令根仍然是 `hexcli`，profile 目录仍然是
 `<run dir>/hexcli/profiles`，日志前缀仍然是 `[HexCLI]`；这些都是功能名，不是 mod id。
 
@@ -37,12 +35,11 @@ HexCLI 需要 [hexParse](https://modrinth.com/mod/hexparse)（MieLib 对它是**
 
 ```bash
 # 仓库根目录；gradlew 没有可执行位时用 bash gradlew
-bash gradlew -Dorg.gradle.java.home=/path/to/jdk17 :fabric:runHexcliServer
-bash gradlew -Dorg.gradle.java.home=/path/to/jdk17 :fabric:runHexcliExampleServer   # 额外带示例附属
-bash gradlew -Dorg.gradle.java.home=/path/to/jdk17 :forge:runHexcliServer
+bash gradlew -Dorg.gradle.java.home=/path/to/jdk21 :fabric:runHexcliServer
+bash gradlew -Dorg.gradle.java.home=/path/to/jdk21 :fabric:runHexcliExampleServer   # 额外带示例附属
 ```
 
-三个运行目录都是对应模块下的 `run/hexcli`（`fabric/run/hexcli`、`forge/run/hexcli`），并且已经带上
+三个运行目录都是对应模块下的 `run/hexcli`（`fabric/run/hexcli`），并且已经带上
 `-Dmielib.hexcli=true`。首次运行会自动写 `eula.txt` 和 `server.properties`（离线模式、无出生点保护、`level-name=hexcli-world`）。
 看到 `Done (...)! For help, type "help"` 后直接在终端输入命令。
 
@@ -123,7 +120,7 @@ hexParse 的“未知符号”提示会打印成 `[HexCLI] hexParse: ...`。
    ```
 
    `--dir` 指向服务器目录（里面要有 `hexcli/client.json`；直接指向 `hexcli/` 也行）。不给 `--dir` 时依次找
-   当前目录、`./run/hexcli`、`./fabric/run/hexcli`、`./forge/run/hexcli`。
+   当前目录、`./run/hexcli`、`./fabric/run/hexcli`。
 
    `./gradlew :hexcli-client:run` 也能跑，但它没有真正的终端（没有行编辑 / 历史 / 补全），日常用 `java -jar`。
 
@@ -333,14 +330,14 @@ HexCliAPI.registerEnv(
 ```java
 public final class MyMod implements ModInitializer {
     public void onInitialize() {
-        // Forge: ModList.get().isLoaded("mielib")；跨加载器：dev.architectury.platform.Platform.isModLoaded("mielib")
+        // NeoForge: ModList.get().isLoaded("mielib")；跨加载器：dev.architectury.platform.Platform.isModLoaded("mielib")
         if (FabricLoader.getInstance().isModLoaded("mielib")) MyModHexCliCompat.register();
     }
 }
 ```
 
 完整示例在 `fabric/src/example/`（mod id `hexcli_example`，不随 MieLib 发布），用
-`bash gradlew -Dorg.gradle.java.home=/path/to/jdk17 :fabric:runHexcliExampleServer` 启动开发服务器 + 示例 mod；
+`bash gradlew -Dorg.gradle.java.home=/path/to/jdk21 :fabric:runHexcliExampleServer` 启动开发服务器 + 示例 mod；
 普通 `:fabric:runHexcliServer` 不带它。示例注册了 `hexcli_example:mob`（`LIVING`），会打印收到的 `envData`，
 并演示重复注册会被拒绝。测试：
 
@@ -357,7 +354,7 @@ hexcli run num_1 num_2 add              # 用示例的生物环境施法；环�
 
 ## 原理
 
-- 假玩家由平台模块提供（Fabric 的 `FakePlayer` / Forge 的 `FakePlayer` 子类，都实现 `HexCliFakePlayer`），
+- 假玩家由平台模块提供（Fabric 的 `FakePlayer` / NeoForge 的 `FakePlayer` 子类，都实现 `HexCliFakePlayer`），
   UUID `4e3c11ac-...-000000000001`；它也始终用来跑 hexParse 解析。收集系统消息以便打印到控制台。
 - 平台相关的东西只有三处：假玩家（`HexCliPlatform` + 各平台的 `HexCliPlatformImpl`）、mod 名查询
   （Architectury `Platform.getOptionalMod`）、控制台 `> code` 改写的 mixin（`common/.../mixin/hexcli/DedicatedServerConsoleMixin`，
@@ -376,4 +373,4 @@ hexcli run num_1 num_2 add              # 用示例的生物环境施法；环�
 - `mielib:circle` 恒为已启迪；`media: inventory` 时由促动石付费（自动搭的环默认 0 媒质）。
 - `mielib:staff` 的方块编辑权限是本体的真实规则（开发运行的 `server.properties` 默认 spawn-protection=0）。
 - 没有真实客户端连上测过 `caster select` 选中真实玩家的路径（启迪进度授予 / 撤销、`media: inventory`）。
-- Forge 侧的假玩家 / 命令 / 观察器与 Fabric 共用同一套 common 代码，但 Forge 开发运行未做过完整的手工回归。
+- NeoForge 侧的假玩家 / 命令 / 观察器与 Fabric 共用同一套 common 代码，但 NeoForge 开发运行未做过完整的手工回归。

@@ -188,5 +188,10 @@ public final class ExampleMobCastEnv extends CastingEnvironment {
         public void blind(int ticks) {
             // 生物没有客户端效果：无操作
         }
+
+        @Override
+        public void nauseate(int ticks) {
+            // 1.21 起 MishapEnvironment 多了这一项；生物没有客户端屏幕效果：无操作
+        }
     }
 }

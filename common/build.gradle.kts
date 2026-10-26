@@ -21,23 +21,15 @@ dependencies {
 
     modCompileOnly(libs.paucal.common)
 
+    // HexParse is a soft dependency: HexCLI reaches it by reflection, so this only has to be on
+    // the compile classpath for the sources that mention it. The 1.21.1 build is not on any maven
+    // we can reach, so it lives in libs/.
+    modCompileOnly(files(rootProject.file("libs/hexParse-fabric-1.21.1-1.12.0.pre64.jar")))
+
     modApi(libs.clothConfig.common)
 
     libs.mixinExtras.common.also {
         implementation(it)
         annotationProcessor(it)
-    }
-}
-
-// HexCLI still targets Hex 0.11 NBT iota APIs (IotaType.deserialize / CastingImage.getUserData).
-// Those were removed in Hex 0.12. Keep the sources in-tree, but do not compile them on 1.21.
-sourceSets.main {
-    java {
-        exclude("cn/xm1221/MieLib/hexcli/**")
-        exclude("cn/xm1221/MieLib/mixin/hexcli/**")
-    }
-    kotlin {
-        exclude("cn/xm1221/MieLib/hexcli/**")
-        exclude("cn/xm1221/MieLib/mixin/hexcli/**")
     }
 }

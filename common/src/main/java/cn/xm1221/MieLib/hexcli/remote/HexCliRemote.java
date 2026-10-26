@@ -170,7 +170,7 @@ public final class HexCliRemote {
     }
 
     private static Path clientFile(MinecraftServer server) {
-        return server.getServerDirectory().toPath().resolve("hexcli").resolve("client.json");
+        return server.getServerDirectory().resolve("hexcli").resolve("client.json");
     }
 
     private void shutdown() {

@@ -76,9 +76,9 @@ public final class HexCliCircle {
     /** 促动石朝东；石板平放在地上（法线朝上），东 → 东南 → 南 → 回到促动石（从南往北进入）。 */
     private static void build(ServerLevel level, BlockPos origin) {
         int flags = 2 | 16;
-        level.setBlock(origin, HexBlocks.IMPETUS_REDSTONE.defaultBlockState()
+        level.setBlock(origin, HexBlocks.IMPETUS_REDSTONE.get().defaultBlockState()
             .setValue(BlockAbstractImpetus.FACING, Direction.EAST), flags);
-        BlockState slate = HexBlocks.SLATE.defaultBlockState().setValue(BlockSlate.ATTACH_FACE, AttachFace.FLOOR);
+        BlockState slate = HexBlocks.SLATE.get().defaultBlockState().setValue(BlockSlate.ATTACH_FACE, AttachFace.FLOOR);
         level.setBlock(origin.east(), slate, flags);
         level.setBlock(origin.east().south(), slate, flags);
         level.setBlock(origin.south(), slate, flags);

@@ -78,6 +78,11 @@ dependencies {
 
     modApi(libs.clothConfig.neoforge)
 
+    // Optional: HexCLI reaches HexParse by reflection. Dev-runtime only; the mods.toml entry is optional.
+    modLocalRuntime(files(rootProject.file("libs/hexParse-neoforge-1.21.1-1.12.0.pre64.jar")))
+    // Loom/NeoForge remaps drop hexParse jar-in-jar; ship extracted YCLib for HexCLI smoke.
+    modLocalRuntime(files(rootProject.file("libs/yclib-neoforge-1.21.1-0.2.jar")))
+
     libs.mixinExtras.common.also {
         compileOnly(it)
         annotationProcessor(it)
@@ -112,15 +117,5 @@ tasks {
                 check("\"refmap\"" !in cfg) { "$jar: mielib-common.mixins.json must not declare a refmap on NeoForge" }
             }
         }
-    }
-}
-
-// HexCLI is not part of the 1.21 compile. Sources stay for the follow-up port.
-sourceSets.main {
-    java {
-        exclude("cn/xm1221/MieLib/hexcli/**")
-    }
-    kotlin {
-        exclude("cn/xm1221/MieLib/hexcli/**")
     }
 }

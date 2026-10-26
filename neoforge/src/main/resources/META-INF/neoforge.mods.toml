@@ -61,3 +61,11 @@ type = "required"
 versionRange = "[${versions.hexcasting},)"
 ordering = "AFTER"
 side = "BOTH"
+
+# Optional: HexCLI (inside MieLib) uses HexParse to turn its text code into iotas.
+[[dependencies.mielib]]
+modId = "hexparse"
+type = "optional"
+versionRange = "[0,)"
+ordering = "AFTER"
+side = "BOTH"

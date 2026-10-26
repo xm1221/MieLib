@@ -5,6 +5,7 @@ import at.petrak.hexcasting.api.casting.iota.GarbageIota;
 import at.petrak.hexcasting.api.casting.iota.Iota;
 import at.petrak.hexcasting.api.casting.iota.ListIota;
 import at.petrak.hexcasting.xplat.IXplatAbstractions;
+import cn.xm1221.MieLib.MieIotas;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -12,8 +13,11 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
 import java.util.Optional;
@@ -30,9 +34,14 @@ public final class HexCliIotas {
     private HexCliIotas() {
     }
 
-    /** 人类可读的一行文本（实体 / 列表已修正）。 */
+    /** 人类可读的一行文本（实体 / 列表已修正）。没有世界时用已记录的服务器 overworld 解析实体。 */
     public static String text(Iota iota) {
-        if (iota instanceof EntityIota ei) return entityText(ei.getEntity());
+        return text(iota, fallbackLevel());
+    }
+
+    /** 人类可读的一行文本（实体 / 列表已修正）。 */
+    public static String text(Iota iota, @Nullable ServerLevel level) {
+        if (iota instanceof EntityIota ei) return entityText(ei, level);
         // 本体的垃圾 iota 显示是乱码（obfuscated）文本，终端里看着像真数据
         if (iota instanceof GarbageIota) return "<garbage>";
         if (iota instanceof ListIota li) {
@@ -40,12 +49,30 @@ public final class HexCliIotas {
             boolean first = true;
             for (Iota child : li.getList()) {
                 if (!first) sb.append(", ");
-                sb.append(text(child));
+                sb.append(text(child, level));
                 first = false;
             }
             return sb.append(']').toString();
         }
         return safe(() -> iota.display().getString());
+    }
+
+    /**
+     * 实体 iota 的文本：1.21 的 {@link EntityIota#getEntity(ServerLevel)} 需要世界，
+     * 拿不到实体时退化成 {@code entity "<名字>" #<uuid 前 8 位>}。
+     */
+    public static String entityText(EntityIota ei, @Nullable ServerLevel level) {
+        Entity e = level == null ? null : safeEntity(() -> ei.getEntity(level));
+        if (e != null) return entityText(e);
+        String name = safe(() -> ei.getRawName());
+        String uuid = safe(() -> ei.getEntityId().toString());
+        if (uuid.length() > 8) uuid = uuid.substring(0, 8);
+        return String.format(Locale.ROOT, "entity \"%s\" #%s", name, uuid);
+    }
+
+    private static @Nullable ServerLevel fallbackLevel() {
+        MinecraftServer server = MieIotas.getServer();
+        return server == null ? null : server.overworld();
     }
 
     public static String entityText(Entity e) {
@@ -77,15 +104,20 @@ public final class HexCliIotas {
      * {@code rich} 是 display() 的带样式分段（实体用修正后的纯文本代替）。
      */
     public static JsonObject toJson(Iota iota) {
+        return toJson(iota, fallbackLevel());
+    }
+
+    /** 结构化表示；{@code level} 用于解析实体 iota（拿不到实体时省略 {@code entity} 字段）。 */
+    public static JsonObject toJson(Iota iota, @Nullable ServerLevel level) {
         JsonObject out = new JsonObject();
         out.addProperty("type", typeId(iota));
-        out.addProperty("text", text(iota));
+        out.addProperty("text", text(iota, level));
         out.addProperty("color", color(iota));
 
         Component display;
         if (iota instanceof EntityIota || iota instanceof GarbageIota) {
             // 同本体：实体 AQUA；垃圾用暗灰（本体是乱码样式）
-            display = Component.literal(text(iota)).withStyle(iota instanceof EntityIota
+            display = Component.literal(text(iota, level)).withStyle(iota instanceof EntityIota
                 ? net.minecraft.ChatFormatting.AQUA : net.minecraft.ChatFormatting.DARK_GRAY);
         } else {
             display = safeComponent(iota::display);
@@ -93,22 +125,30 @@ public final class HexCliIotas {
         out.add("rich", rich(display));
 
         if (iota instanceof EntityIota ei) {
-            Entity e = ei.getEntity();
-            JsonObject ent = new JsonObject();
-            ent.addProperty("type", safe(() -> BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString()));
-            ent.addProperty("name", safe(() -> e.getName().getString()));
-            JsonArray pos = new JsonArray();
-            Vec3 p = e.position();
-            pos.add(p.x);
-            pos.add(p.y);
-            pos.add(p.z);
-            ent.add("pos", pos);
-            ent.addProperty("uuid", safe(() -> e.getUUID().toString()));
-            out.add("entity", ent);
+            Entity e = level == null ? null : safeEntity(() -> ei.getEntity(level));
+            if (e != null) {
+                JsonObject ent = new JsonObject();
+                ent.addProperty("type", safe(() -> BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString()));
+                ent.addProperty("name", safe(() -> e.getName().getString()));
+                JsonArray pos = new JsonArray();
+                Vec3 p = e.position();
+                pos.add(p.x);
+                pos.add(p.y);
+                pos.add(p.z);
+                ent.add("pos", pos);
+                ent.addProperty("uuid", safe(() -> e.getUUID().toString()));
+                out.add("entity", ent);
+            } else {
+                // 实体不在当前世界：给 uuid / 名字，客户端仍能显示
+                JsonObject ent = new JsonObject();
+                ent.addProperty("name", safe(() -> ei.getRawName()));
+                ent.addProperty("uuid", safe(() -> ei.getEntityId().toString()));
+                out.add("entity", ent);
+            }
         }
         if (iota instanceof ListIota li) {
             JsonArray children = new JsonArray();
-            for (Iota child : li.getList()) children.add(toJson(child));
+            for (Iota child : li.getList()) children.add(toJson(child, level));
             out.add("children", children);
         }
         return out;
@@ -148,6 +188,14 @@ public final class HexCliIotas {
             return String.valueOf(f.get());
         } catch (Throwable t) {
             return "<" + t.getClass().getSimpleName() + ">";
+        }
+    }
+
+    private static @Nullable Entity safeEntity(Supplier<Entity> f) {
+        try {
+            return f.get();
+        } catch (Throwable t) {
+            return null;
         }
     }
 

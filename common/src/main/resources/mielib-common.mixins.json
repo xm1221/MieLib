@@ -11,6 +11,7 @@
     "CastingVMMixin"
   ],
   "server": [
+    "hexcli.DedicatedServerConsoleMixin"
   ],
   "plugin": "cn.xm1221.MieLib.mixin.MielibMixinConfigPlugin",
   "refmap": "mielib-common.refmap.json",

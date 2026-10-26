@@ -15,7 +15,7 @@ final class HexCliExampleCompat {
     }
 
     static void register() {
-        ResourceLocation id = new ResourceLocation("hexcli_example", "mob");
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("hexcli_example", "mob");
         HexCliAPI.registerEnv(id, EnvSpec.builder(ctx ->
                 new ExampleMobCastEnv(ctx.level(), (LivingEntity) ctx.caster(), ctx.envData()))
             .casters(CasterKind.LIVING)

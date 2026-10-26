@@ -266,7 +266,7 @@ public final class HexCli {
     static LivingEntity selectOne(MinecraftServer server, ServerLevel level, String selector) {
         EntitySelector sel;
         try {
-            sel = new EntitySelectorParser(new StringReader(selector)).parse();
+            sel = new EntitySelectorParser(new StringReader(selector), true).parse();
         } catch (CommandSyntaxException e) {
             throw new ProfileException("bad selector '" + selector + "': " + e.getMessage());
         }

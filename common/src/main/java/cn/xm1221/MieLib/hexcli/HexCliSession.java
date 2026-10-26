@@ -1,6 +1,5 @@
 package cn.xm1221.MieLib.hexcli;
 
-import at.petrak.hexcasting.api.HexAPI;
 import at.petrak.hexcasting.api.casting.eval.CastingEnvironment;
 import at.petrak.hexcasting.api.casting.eval.vm.CastingImage;
 import at.petrak.hexcasting.api.casting.eval.vm.CastingVM;
@@ -10,19 +9,19 @@ import at.petrak.hexcasting.api.casting.iota.ListIota;
 import at.petrak.hexcasting.api.pigment.FrozenPigment;
 import at.petrak.hexcasting.api.player.Sentinel;
 import at.petrak.hexcasting.common.lib.HexItems;
+import at.petrak.hexcasting.common.lib.hex.HexImageComponents;
 import at.petrak.hexcasting.xplat.IXplatAbstractions;
 import cn.xm1221.MieLib.hexcli.api.HexCliEnvContext;
 import cn.xm1221.MieLib.hexcli.HexCliProfiles.ProfileException;
 import cn.xm1221.MieLib.hexcli.remote.HexCliRemote;
 import com.mojang.authlib.GameProfile;
-import io.yukkuric.hexparse.hooks.GreatPatternUnlocker;
-import io.yukkuric.hexparse.parsers.ParserMain;
-import net.minecraft.advancements.Advancement;
+import com.mojang.serialization.DynamicOps;
+import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementProgress;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -71,7 +70,7 @@ public final class HexCliSession {
 
     private String profileName = "(builtin)";
     private HexCliProfile profile = new HexCliProfile();
-    private CompoundTag initialImage = new CastingImage().serializeToNbt();
+    private CastingImage initialImage = new CastingImage();
     private CastingImage image = new CastingImage();
 
     private HexCliProfile.Mode mediaMode = HexCliProfile.Mode.INFINITE;
@@ -89,7 +88,7 @@ public final class HexCliSession {
         this.level = server.overworld();
         this.anchor = Vec3.atBottomCenterOf(level.getSharedSpawnPos());
         this.player = newPlayer(level, anchor, GameType.SURVIVAL);
-        this.player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(HexItems.STAFF_OAK));
+        this.player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(HexItems.STAFF_OAK.get()));
         this.caster = player;
     }
 
@@ -240,7 +239,23 @@ public final class HexCliSession {
     }
 
     public void reset() {
-        image = CastingImage.loadFromNbt(initialImage.copy(), level());
+        image = copyImage(initialImage, level());
+    }
+
+    /** Hex 0.12 里用 codec 深拷贝 CastingImage（含 image components）。 */
+    private static CastingImage copyImage(CastingImage image, ServerLevel level) {
+        CompoundTag tag = CastingImage.getCODEC().encodeStart(nbtOps(level), image)
+            .resultOrPartial(msg -> HexCli.LOGGER.warn("[HexCLI] failed to encode casting image: {}", msg))
+            .filter(CompoundTag.class::isInstance)
+            .map(CompoundTag.class::cast)
+            .orElseThrow(() -> new IllegalStateException("could not encode casting image to NBT"));
+        return CastingImage.getCODEC().parse(nbtOps(level), tag)
+            .resultOrPartial(msg -> HexCli.LOGGER.warn("[HexCLI] failed to decode casting image: {}", msg))
+            .orElseThrow(() -> new IllegalStateException("could not decode casting image from NBT"));
+    }
+
+    private static DynamicOps<net.minecraft.nbt.Tag> nbtOps(ServerLevel level) {
+        return level.registryAccess().createSerializationContext(NbtOps.INSTANCE);
     }
 
     // ---- profile ----
@@ -262,7 +277,7 @@ public final class HexCliSession {
         GameType gm = GameType.byName(c.gamemode == null ? "survival" : c.gamemode.toLowerCase(Locale.ROOT), null);
         if (gm == null) throw new ProfileException("caster.gamemode must be survival/creative/adventure/spectator, got '" + c.gamemode + "'");
         ItemStack main = c.mainhand != null ? HexCliProfiles.stack(c.mainhand, "caster.mainhand")
-            : type.equals("player") ? new ItemStack(HexItems.STAFF_OAK) : ItemStack.EMPTY;
+            : type.equals("player") ? new ItemStack(HexItems.STAFF_OAK.get()) : ItemStack.EMPTY;
         ItemStack off = HexCliProfiles.stack(c.offhand, "caster.offhand");
         List<ItemStack> inv = new ArrayList<>();
         for (HexCliProfile.Stack s : c.inventory) inv.add(HexCliProfiles.stack(s, "caster.inventory"));
@@ -311,7 +326,7 @@ public final class HexCliSession {
                 else fp.getInventory().setItem(slot, inv.get(i));
             }
         } else {
-            fp.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(HexItems.STAFF_OAK));
+            fp.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(HexItems.STAFF_OAK.get()));
         }
         player = fp;
         level = lvl;
@@ -350,15 +365,7 @@ public final class HexCliSession {
 
         // hexParse 大型法术解锁
         if (c.learnedGreatPatterns != null) {
-            GreatPatternUnlocker un = GreatPatternUnlocker.get(server.overworld());
-            un.clear();
-            int n = 0;
-            for (String g : c.learnedGreatPatterns) {
-                if (g.equalsIgnoreCase("all")) n = un.unlockAll();
-                else if (un.unlock(g)) n++;
-                else out.add("[HexCLI] warning: hexParse does not know great pattern '" + g + "'");
-            }
-            un.setDirty();
+            int n = unlockGreatPatterns(c.learnedGreatPatterns, out);
             out.add("[HexCLI] hexParse great patterns unlocked: " + (c.learnedGreatPatterns.isEmpty() ? "none" : n));
         }
 
@@ -392,15 +399,12 @@ public final class HexCliSession {
         envOverride = null; // `profile use` 之后回到 profile.env
         CastingImage start = new CastingImage();
         if (p.initialStack != null && !p.initialStack.isBlank()) start = evalScratch(p.initialStack, "initialStack", start);
-        CompoundTag img = start.serializeToNbt();
-        CompoundTag userdata = img.getCompound(CastingImage.TAG_USERDATA);
         if (p.ravenmind != null && !p.ravenmind.isBlank()) {
             List<Iota> rm = evalScratch(p.ravenmind, "ravenmind", new CastingImage()).getStack();
             if (rm.isEmpty()) throw new ProfileException("ravenmind code left an empty stack");
-            userdata.put(HexAPI.RAVENMIND_USERDATA, IotaType.serialize(rm.get(rm.size() - 1)));
+            start = start.withComponent(HexImageComponents.RAVENMIND.get(), rm.get(rm.size() - 1));
         }
-        img.put(CastingImage.TAG_USERDATA, userdata);
-        initialImage = img;
+        initialImage = copyImage(start, level());
         reset();
 
         String envId = effectiveEnvIdString();
@@ -449,9 +453,59 @@ public final class HexCliSession {
         }
     }
 
+    /**
+     * 通过反射调用 hexParse（可选依赖）：
+     * - io.yukkuric.hexparse.parsers.ParserMain.ParseCode(String, ServerPlayer)
+     * - io.yukkuric.hexparse.hooks.GreatPatternUnlocker.get(ServerLevel)/clear/unlock/unlockAll/setDirty
+     */
+    @SuppressWarnings("unchecked")
+    private int unlockGreatPatterns(List<String> patterns, List<String> out) {
+        try {
+            Class<?> cls = Class.forName("io.yukkuric.hexparse.hooks.GreatPatternUnlocker");
+            Object un = cls.getMethod("get", ServerLevel.class).invoke(null, server.overworld());
+            cls.getMethod("clear").invoke(un);
+            int n = 0;
+            for (String g : patterns) {
+                if (g.equalsIgnoreCase("all")) {
+                    n = (int) cls.getMethod("unlockAll").invoke(un);
+                } else {
+                    boolean ok = (boolean) cls.getMethod("unlock", String.class).invoke(un, g);
+                    if (ok) n++;
+                    else out.add("[HexCLI] warning: hexParse does not know great pattern '" + g + "'");
+                }
+            }
+            cls.getMethod("setDirty").invoke(un);
+            return n;
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("hexParse API unavailable", e);
+        }
+    }
+
+    /**
+     * 通过反射调用 hexParse（可选依赖）的 {@code ParserMain.ParseCode(String, ServerPlayer)}。
+     * <p>
+     * HexParse 1.20.1 返回序列化好的 {@link CompoundTag}，1.21 起直接返回 {@link Iota}；两种都接受。
+     */
+    private Iota parseHexIota(String code) {
+        Object parsed;
+        try {
+            Class<?> parser = Class.forName("io.yukkuric.hexparse.parsers.ParserMain");
+            parsed = parser.getMethod("ParseCode", String.class, ServerPlayer.class).invoke(null, code, player);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("hexParse parser API unavailable", e);
+        }
+        if (parsed instanceof Iota iota) return iota;
+        if (parsed instanceof CompoundTag tag) {
+            return IotaType.TYPED_CODEC.parse(nbtOps(level()), tag)
+                .resultOrPartial(msg -> HexCli.LOGGER.warn("[HexCLI] failed to decode parser iota: {}", msg))
+                .orElseThrow(() -> new IllegalArgumentException("hexParse produced an invalid iota payload"));
+        }
+        throw new IllegalStateException("hexParse returned neither Iota nor CompoundTag: " + parsed);
+    }
+
     /** 授予 / 撤销某个 hexcasting 进度的全部条件；失败返回原因。 */
     private @Nullable String setAdvancement(ServerPlayer sp, String path, boolean grant) {
-        Advancement adv = server.getAdvancements().getAdvancement(new ResourceLocation("hexcasting", path));
+        AdvancementHolder adv = server.getAdvancements().get(ResourceLocation.fromNamespaceAndPath("hexcasting", path));
         if (adv == null) return "advancement hexcasting:" + path + " not found";
         try {
             AdvancementProgress prog = sp.getAdvancements().getOrStartProgress(adv);
@@ -515,8 +569,7 @@ public final class HexCliSession {
 
     /** hexParse 文本 -> iota 列表。解析失败抛异常，由命令层兜住。 */
     public List<Iota> parse(String code) {
-        CompoundTag tag = ParserMain.ParseCode(code, player);
-        Iota iota = IotaType.deserialize(tag, level());
+        Iota iota = parseHexIota(code);
         List<Iota> out = new ArrayList<>();
         if (iota instanceof ListIota list) {
             for (Iota i : list.getList()) out.add(i);

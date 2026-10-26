@@ -132,7 +132,7 @@ public final class HexCliEnvs {
         ResourceLocation rl = ResourceLocation.tryParse(s);
         if (rl == null) throw new IllegalArgumentException("invalid HexCLI env id '" + s + "'");
         // 裸路径（"staff"）默认 mielib 命名空间，而不是 ResourceLocation 的 minecraft
-        if (!s.contains(":")) rl = new ResourceLocation(HexCliAPI.NAMESPACE, s);
+        if (!s.contains(":")) rl = ResourceLocation.fromNamespaceAndPath(HexCliAPI.NAMESPACE, s);
         return rl;
     }
 

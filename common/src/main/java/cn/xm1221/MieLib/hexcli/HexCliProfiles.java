@@ -7,6 +7,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import net.minecraft.commands.CommandSource;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;
@@ -20,6 +21,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
@@ -53,7 +55,7 @@ public final class HexCliProfiles {
     }
 
     public static Path dir(MinecraftServer server) {
-        return server.getServerDirectory().toPath().resolve("hexcli").resolve("profiles");
+        return server.getServerDirectory().resolve("hexcli").resolve("profiles");
     }
 
     public static List<String> list(MinecraftServer server) {
@@ -185,7 +187,7 @@ public final class HexCliProfiles {
         Item item = BuiltInRegistries.ITEM.getOptional(rl)
             .orElseThrow(() -> new ProfileException("unknown item '" + s.id + "' in " + what));
         ItemStack st = new ItemStack(item, Math.max(1, s.count));
-        if (s.nbt != null && !s.nbt.isBlank()) st.setTag(snbt(s.nbt, what));
+        if (s.nbt != null && !s.nbt.isBlank()) st.set(DataComponents.CUSTOM_DATA, CustomData.of(snbt(s.nbt, what)));
         return st;
     }
 
@@ -209,7 +211,7 @@ public final class HexCliProfiles {
         });
         if (e == null) throw new ProfileException("failed to create entity '" + entityId + "' with nbt " + tag);
         if (e instanceof Mob mob && (nbt == null || nbt.isBlank()))
-            mob.finalizeSpawn(level, level.getCurrentDifficultyAt(e.blockPosition()), MobSpawnType.COMMAND, null, null);
+            mob.finalizeSpawn(level, level.getCurrentDifficultyAt(e.blockPosition()), MobSpawnType.COMMAND, null);
         e.addTag(SPAWNED_TAG);
         for (String t : tags) e.addTag(t);
         if (!level.tryAddFreshEntityWithPassengers(e))

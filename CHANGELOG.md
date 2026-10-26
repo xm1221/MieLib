@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.0.3.4] - 2026-10-26
+
+Minecraft **1.21.1** line. Maven version is `0.0.3.4+1.21.1`.
+
+### Fixed
+
+- HexCLI is compiled again on 1.21.1 (Fabric + NeoForge). The Gradle source excludes for `cn/xm1221/MieLib/hexcli/**` and `cn/xm1221/MieLib/mixin/hexcli/**` are removed, `Mielib.init()` calls `HexCli.init()` again, and `DedicatedServerConsoleMixin` is re-enabled in `mielib-common.mixins.json` (`server` section), so `> <code>` console rewriting works when HexCLI is active.
+- HexCLI's Hex 0.11-only NBT calls are ported to Hex 0.12 codecs/components: parser output now decodes via `IotaType.TYPED_CODEC`, ravenmind uses `HexImageComponents.RAVENMIND` on `CastingImage` components, and image snapshot/reset deep-copy uses `CastingImage.CODEC` instead of removed `serializeToNbt` / `loadFromNbt` / `getUserData` / `IotaType.serialize` / `IotaType.deserialize` / `IotaType.getDisplay` helpers.
+- HexCLI's optional hexParse soft-dep is wired for the Fabric/NeoForge dev runtimes (`libs/hexParse-*-1.21.1-1.12.0.pre64.jar`). Loom drops hexParse's jar-in-jar YCLib when remapping, so `libs/yclib-*.jar` (extracted from those jars) is also listed as `modLocalRuntime`. `fabric-loader` is 0.19.5 to satisfy YCLib's declared requirement. Smoke: `> num_1 num_2 add` → stack `[0] 3.00`.
+- `HEXCLI.md` now documents 1.21.1 HexCLI support on Fabric + NeoForge (Java 21 dev commands), instead of saying this branch does not compile HexCLI.
+
 ## [0.0.3.3] - 2026-10-26
 
 Minecraft **1.21.1** line. Maven version is `0.0.3.3+1.21.1`.

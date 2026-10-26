@@ -136,7 +136,7 @@ public final class HexCliOps {
         o.addProperty("done", done);
         if (!done && st.next < st.iotas.size()) {
             Iota nx = st.iotas.get(st.next);
-            JsonObject pv = HexCliIotas.toJson(nx);
+            JsonObject pv = HexCliIotas.toJson(nx, session.level());
             pv.addProperty("text", previewText(session, nx));
             pv.remove("rich");      // 图案的 display() 是 Inline 占位，用预览文本代替
             pv.remove("children");
@@ -150,13 +150,13 @@ public final class HexCliOps {
         if (iota instanceof at.petrak.hexcasting.api.casting.iota.PatternIota pi) {
             try {
                 var m = at.petrak.hexcasting.common.casting.PatternRegistryManifest.matchPattern(
-                    pi.getPattern(), session.createEnv(), false);
+                    pi.getPattern(), session.createEnv());
                 if (m instanceof at.petrak.hexcasting.api.casting.PatternShapeMatch.Normal n) return n.key.location().getPath();
                 if (m instanceof at.petrak.hexcasting.api.casting.PatternShapeMatch.PerWorld w) return w.key.location().getPath();
                 if (m instanceof at.petrak.hexcasting.api.casting.PatternShapeMatch.Special sp) return sp.handler.getName().getString();
             } catch (Throwable ignored) {
             }
-            return "pattern " + pi.getPattern().getStartDir() + " " + pi.getPattern().anglesSignature();
+            return "pattern " + pi.getPattern().getOrientation() + " " + pi.getPattern().getSignature().toAnglesString();
         }
         if (iota instanceof at.petrak.hexcasting.api.casting.iota.ListIota li) {
             StringBuilder sb = new StringBuilder("[");
@@ -168,7 +168,7 @@ public final class HexCliOps {
             }
             return sb.append("]").toString();
         }
-        return HexCliIotas.text(iota);
+        return HexCliIotas.text(iota, session.level());
     }
 
     /** 起步提示里的来源：客户端给的标签（如文件名），否则把代码压成一行并截断。 */
@@ -316,9 +316,10 @@ public final class HexCliOps {
         out.add("[HexCLI] session state");
         List<String> stack = new ArrayList<>();
         JsonArray stackJson = new JsonArray();
+        ServerLevel sessionLevel = HexCliSession.get(server).level();
         for (Iota i : img.getStack()) {
-            stack.add(HexCliIotas.text(i));
-            stackJson.add(HexCliIotas.toJson(i));
+            stack.add(HexCliIotas.text(i, sessionLevel));
+            stackJson.add(HexCliIotas.toJson(i, sessionLevel));
         }
         CastEvent.renderStack(out, stack);
         String rm = CastEvent.ravenmindOf(img, HexCliSession.get(server).level());
@@ -529,9 +530,11 @@ public final class HexCliOps {
         ServerLevel level = server.overworld();
         CommandSourceStack src = new CommandSourceStack(sink, Vec3.atLowerCornerOf(level.getSharedSpawnPos()), Vec2.ZERO,
             level, 4, "HexCLI", Component.literal("HexCLI"), server, null);
-        int result;
+        // 1.21 的 performPrefixedCommand 返回 void，命令自己的成功 / 失败消息已进 msgs，
+        // 这里固定记 1（已执行）而不是 Brigadier 的返回值。
+        int result = 1;
         try {
-            result = server.getCommands().performPrefixedCommand(src, "hexcli " + l);
+            server.getCommands().performPrefixedCommand(src, "hexcli " + l);
         } catch (Throwable t) {
             return HexCliReply.fail(List.of("[HexCLI] command error: " + t.getClass().getSimpleName() + ": " + t.getMessage()));
         }

@@ -33,12 +33,12 @@ public final class HexCliAPI {
     /** 内置环境 id 的命名空间（= MieLib 的 mod id）。 */
     public static final String NAMESPACE = Mielib.MODID;
     /** 保留 id：profile 里写 {@code "env": "auto"} 表示按施法者类型动态解析，不能注册。 */
-    public static final ResourceLocation AUTO = new ResourceLocation(NAMESPACE, "auto");
-    public static final ResourceLocation STAFF = new ResourceLocation(NAMESPACE, "staff");
-    public static final ResourceLocation UNOWNED_CIRCLE = new ResourceLocation(NAMESPACE, "unowned_circle");
-    public static final ResourceLocation PACKAGED = new ResourceLocation(NAMESPACE, "packaged");
+    public static final ResourceLocation AUTO = ResourceLocation.fromNamespaceAndPath(NAMESPACE, "auto");
+    public static final ResourceLocation STAFF = ResourceLocation.fromNamespaceAndPath(NAMESPACE, "staff");
+    public static final ResourceLocation UNOWNED_CIRCLE = ResourceLocation.fromNamespaceAndPath(NAMESPACE, "unowned_circle");
+    public static final ResourceLocation PACKAGED = ResourceLocation.fromNamespaceAndPath(NAMESPACE, "packaged");
 
-    public static final ResourceLocation CIRCLE = new ResourceLocation(NAMESPACE, "circle");
+    public static final ResourceLocation CIRCLE = ResourceLocation.fromNamespaceAndPath(NAMESPACE, "circle");
 
     /**
      * 注册一个环境。重复 id 直接抛异常（带“已被谁注册”信息）；{@code mielib:auto} 是保留 id，不可注册。
