@@ -1,0 +1,133 @@
+{
+  "installerVersion": "1.0.0",
+  "minecraft": "1.20.1",
+  "fabricLoader": "0.16.9",
+  "fabricInstaller": "1.1.2",
+  "serverLauncher": {
+    "url": "https://meta.fabricmc.net/v2/versions/loader/1.20.1/0.16.9/1.1.2/server/jar",
+    "fileName": "fabric-server-launch.jar"
+  },
+  "mods": [
+    {
+      "name": "mielib",
+      "source": "github",
+      "project": "xm1221/MieLib",
+      "fileName": "mielib-fabric-0.0.2.1+1.20.1-SNAPSHOT.jar",
+      "url": "https://github.com/xm1221/MieLib/releases/download/hexcli-v1.0.0/mielib-fabric-0.0.2.1+1.20.1-SNAPSHOT.jar",
+      "sha512": "822f490cb509a90b7cc24629d8cb7af0c33f1ad982a7daac818bf2694f25a1cb55615edcd985dc67b54a670826d2e3971fc56908699e19301a6cd894194e9569",
+      "sha1": "b842b6e5a35f311b9cf3acc193a5f4a76d0879a6",
+      "size": 852988,
+      "fallbackUrls": []
+    },
+    {
+      "name": "fabric-api",
+      "source": "modrinth",
+      "project": "fabric-api",
+      "versionId": "lcnQpW9C",
+      "fileName": "fabric-api-0.87.0+1.20.1.jar",
+      "url": "https://cdn.modrinth.com/data/P7dR8mSH/versions/lcnQpW9C/fabric-api-0.87.0%2B1.20.1.jar",
+      "sha512": "72e4c2abee838139ae3ba87615273deb8386791c43cf1e423f2a44d2b36ef845f6f967fd370a39d17498adb2fb7a9661b9352fc9f1070571b93db8579f383a24",
+      "size": 2041542,
+      "sha1": "95fec63d338a8fbe5133a9a5054eca364c9017ba"
+    },
+    {
+      "name": "fabric-language-kotlin",
+      "source": "modrinth",
+      "project": "fabric-language-kotlin",
+      "versionId": "LcgnDDmT",
+      "fileName": "fabric-language-kotlin-1.13.7+kotlin.2.2.21.jar",
+      "url": "https://cdn.modrinth.com/data/Ha28R6CL/versions/LcgnDDmT/fabric-language-kotlin-1.13.7%2Bkotlin.2.2.21.jar",
+      "sha512": "0453a8a4eb8d791b5f0097a6628fae6f13b6dfba1e2bd1f91218769123808c4396a88bcdfc785f1d6bca348f267b32afc2aa9e0d5ec93a7b35bcfe295268c7bc",
+      "size": 7479608,
+      "sha1": "ab71e8daf9a2d529204b5c28b3801713d22f3d46"
+    },
+    {
+      "name": "architectury",
+      "source": "modrinth",
+      "project": "architectury-api",
+      "versionId": "WbL7MStR",
+      "fileName": "architectury-9.2.14-fabric.jar",
+      "url": "https://cdn.modrinth.com/data/lhGA9TYQ/versions/WbL7MStR/architectury-9.2.14-fabric.jar",
+      "sha512": "4cb8f009fd522d68a795d2cf5a657bdbe248b32ba7c33cd968f5ab521e9d60e198f8a3f6c50e7d960a2b8f50375116be0db1fd44b5710ea758697d8ea70d15de",
+      "size": 585207,
+      "sha1": "4fa65e32dbf63a871a30fe8ec6fbff9a4b8d007d"
+    },
+    {
+      "name": "hexcasting",
+      "source": "modrinth",
+      "project": "hex-casting",
+      "versionId": "d1pTywTc",
+      "fileName": "hexcasting-fabric-1.20.1-0.11.4.jar",
+      "url": "https://cdn.modrinth.com/data/nTW3yKrm/versions/d1pTywTc/hexcasting-fabric-1.20.1-0.11.4.jar",
+      "sha512": "5cdc241966cdd17f5ffc16b8dc1903f5cbe9676d5132989da7f9a391b0f1a98d087b81fe66bc2066efea5feb2ef195b12519ae99e08c70b05f96ef5a53ec0907",
+      "size": 4176814,
+      "sha1": "634c821d42848e7708ff0875758a7c15d280aa47"
+    },
+    {
+      "name": "paucal",
+      "source": "modrinth",
+      "project": "paucal",
+      "versionId": "dabyDTwJ",
+      "fileName": "paucal-0.6.0+1.20.1-fabric.jar",
+      "url": "https://cdn.modrinth.com/data/TZo2wHFe/versions/dabyDTwJ/paucal-0.6.0%2B1.20.1-fabric.jar",
+      "sha512": "5ab76a177c66113a1a1a6aaf738077c711d4b73807814d530f753961967398d5908ef1857b3290e633a3917bf7a93f9dc8cf2fb9767b26b8efbe8e295922d571",
+      "size": 280252,
+      "sha1": "bd44f55fe67c6743171637a9e57812aae189ec5d"
+    },
+    {
+      "name": "patchouli",
+      "source": "modrinth",
+      "project": "patchouli",
+      "versionId": "Y6tuH1cn",
+      "fileName": "Patchouli-1.20.1-84-FABRIC.jar",
+      "url": "https://cdn.modrinth.com/data/nU0bVIaL/versions/Y6tuH1cn/Patchouli-1.20.1-84-FABRIC.jar",
+      "sha512": "b20cebaab0972443ccc7f3b10b2038d32cfa7baa953a1cc8de6333fa711f63fd51b1b5933e0f2757445385b98e132ef295bd7c17f67ebb44bc8481295329d8bf",
+      "size": 856882,
+      "sha1": "acbbeaae2f57052058a8444439f93d9a2d3efaf2"
+    },
+    {
+      "name": "inline",
+      "source": "modrinth",
+      "project": "inline",
+      "versionId": "n7VmkBLu",
+      "fileName": "inline-fabric-1.20.1-1.2.2.jar",
+      "url": "https://cdn.modrinth.com/data/fin1PX4m/versions/n7VmkBLu/inline-fabric-1.20.1-1.2.2.jar",
+      "sha512": "f2aecf5f8de3d6ff32d810b8d358450579ab3215d19ff5c228ab874f781d45ab35dfdbc0948d76150617e283140f0e8a0275c56d01d1a0991863e11952b27812",
+      "size": 367628,
+      "sha1": "50ddde30688ec858bcb792bc0c93765167a32e92"
+    },
+    {
+      "name": "cardinal-components-api",
+      "source": "modrinth",
+      "project": "cardinal-components-api",
+      "versionId": "HykM2Qyv",
+      "fileName": "cardinal-components-api-5.2.1.jar",
+      "url": "https://cdn.modrinth.com/data/K01OU20C/versions/HykM2Qyv/cardinal-components-api-5.2.1.jar",
+      "sha512": "8457049dd5d232dd2e9220b5881e79ac5c31a6c051c55025f633276142a1954dd3bf8506511c887ca58fee398853434db39dcbee80b098ab4674109d36b5fe4a",
+      "size": 221247,
+      "sha1": "bec8ed33b64d6985a0e7daabf8c5f6d2ba1c3c13"
+    },
+    {
+      "name": "cloth-config",
+      "source": "modrinth",
+      "project": "cloth-config",
+      "versionId": "s7VTKfLA",
+      "fileName": "cloth-config-11.1.106-fabric.jar",
+      "url": "https://cdn.modrinth.com/data/9s6osm5g/versions/s7VTKfLA/cloth-config-11.1.106-fabric.jar",
+      "sha512": "bce3d04905f49a331ade089332f0bb5f2329a81451f2acdd4d95590cb090dbc88f0192a85de342e705f4aea9f4cdf2add8b5ef842d0014e29f0a2a9c281984a2",
+      "size": 1159179,
+      "sha1": "a05e176326365f2b8e377a35be52a5671491bcfd"
+    },
+    {
+      "name": "hexparse",
+      "source": "modrinth",
+      "project": "hexparse",
+      "versionId": "wt2k5ALr",
+      "fileName": "hexParse-fabric-1.20.1-1.12.0.jar",
+      "url": "https://cdn.modrinth.com/data/WjFyIzFj/versions/wt2k5ALr/hexParse-fabric-1.20.1-1.12.0.jar",
+      "sha512": "5d671026fcc7c749e0eb5ecc4de3c533eff75032870b58c8cdd5e6a82117011c49a7b8a16ab402d2e56b89a495805c3f86de6f15732388ec7f75426b724ff20f",
+      "size": 296674,
+      "sha1": "c641dab73f053a79ad011e5e69c9f53a1c83f68f"
+    }
+  ]
+}

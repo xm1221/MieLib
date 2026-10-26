@@ -35,6 +35,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
@@ -358,7 +359,10 @@ public final class HexCliSession {
                 else if (un.unlock(g)) n++;
                 else out.add("[HexCLI] warning: hexParse does not know great pattern '" + g + "'");
             }
-            un.setDirty();
+            // 必须显式转成 SavedData 再调用：hexParse 的 GreatPatternUnlocker 继承 SavedData 的 setDirty()，
+            // 但某些 hexParse 版本把该方法继承得不再可解析（编译期可见、运行期 NoSuchMethodError）。
+            // 走父类签名后目标就是原版 SavedData.setDirty()，对任何 hexParse 版本都成立。
+            ((SavedData) un).setDirty();
             out.add("[HexCLI] hexParse great patterns unlocked: " + (c.learnedGreatPatterns.isEmpty() ? "none" : n));
         }
 

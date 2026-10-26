@@ -1,0 +1,52 @@
+[
+  {
+    "name": "fabric-api",
+    "project": "fabric-api",
+    "versionId": "lcnQpW9C"
+  },
+  {
+    "name": "fabric-language-kotlin",
+    "project": "fabric-language-kotlin",
+    "versionId": "LcgnDDmT"
+  },
+  {
+    "name": "architectury",
+    "project": "architectury-api",
+    "versionId": "WbL7MStR"
+  },
+  {
+    "name": "hexcasting",
+    "project": "hex-casting",
+    "versionId": "d1pTywTc"
+  },
+  {
+    "name": "paucal",
+    "project": "paucal",
+    "versionId": "dabyDTwJ"
+  },
+  {
+    "name": "patchouli",
+    "project": "patchouli",
+    "versionId": "Y6tuH1cn"
+  },
+  {
+    "name": "inline",
+    "project": "inline",
+    "versionId": "n7VmkBLu"
+  },
+  {
+    "name": "cardinal-components-api",
+    "project": "cardinal-components-api",
+    "versionId": "HykM2Qyv"
+  },
+  {
+    "name": "cloth-config",
+    "project": "cloth-config",
+    "versionId": "s7VTKfLA"
+  },
+  {
+    "name": "hexparse",
+    "project": "hexparse",
+    "versionId": "wt2k5ALr"
+  }
+]

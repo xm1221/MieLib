@@ -348,6 +348,66 @@ hexcli run num_1 num_2 add              # 用示例的生物环境施法；环�
 （`LivingEntityAttributesMixin`，给 `LivingEntity.createLivingAttributes` 补上这个属性）绕过；在 MieLib 本体里给生物
 补这个属性是后续单独的任务，附属自己的生物环境在那之前也需要同样处理。
 
+## 一键安装包
+
+不想自己装 Java / Fabric / 一堆 mod 的话，用发布页上的**一键安装包**（Fabric 1.20.1，仅 Fabric）：
+
+1. 下载对应平台的压缩包并解压：
+   `hexcli-<版本>-linux.tar.gz` / `-macos.tar.gz` / `-windows.zip`。里面只有安装器、脚本和终端客户端，
+   **没有** Minecraft 服务端，也没有任何 mod jar。
+2. 运行引导脚本：
+   - Linux / macOS：`chmod +x install.sh && ./install.sh`
+   - Windows：双击 `install.bat`（或 `powershell -ExecutionPolicy Bypass -File install.ps1`）
+3. 按提示确认 [Minecraft EULA](https://aka.ms/MinecraftEULA)（非交互用 `-y` 或 `HEXCLI_ACCEPT_EULA=1`）。
+   脚本会先把 **Temurin JRE 17 私有运行时**下载到 `./runtime`（校验 sha256，不改系统 Java / PATH），
+   然后下载并逐个校验（sha512）Fabric 服务端启动器和所有 mod。
+4. 开服并连接：
+
+   ```bash
+   cd server
+   ./start-and-connect.sh        # Windows: start-and-connect.bat
+   ```
+
+   `start-server.sh` 只开服（控制台可直接输入 `hexcli ...` 或 `> 代码`），`connect.sh` 只连客户端。
+   客户端里直接输入 hexParse 代码，例如 `num_1 num_2 add`。
+
+说明：
+
+- 服务端默认只监听 `127.0.0.1:25565`、`online-mode=false`（改 `server/server.properties` 才会对外开放）。
+- 第一次开服需要联网：Fabric 启动器会自己从 Mojang 下载原版服务端。
+- 重复运行 `install.sh` 是安全的：哈希正确的文件跳过，`eula.txt` / `server.properties` 不会被覆盖。
+- 校验已下载的文件：`runtime/bin/java -jar hexcli-installer.jar verify --dir server`。
+- 用 `HEXCLI_JAVA=/path/to/java` 指定其它 Java；`--dir <目录>` 换服务端目录。
+
+### 安装器与清单（维护者）
+
+`hexcli-installer/` 是安装器子项目（纯 Java 17、无第三方依赖）：
+
+| 路径 | 作用 |
+|------|------|
+| `src/main/java/.../installer/` | `install` / `verify` 命令、手写 JSON 解析、sha512/sha1 校验 |
+| `manifest/mods.lock.json` | 各 mod 的 Modrinth version id（改版本只改这里） |
+| `manifest/hexcli-manifest.json` | 嵌进安装器 jar 的清单（url / 哈希 / 文件名），由工具生成 |
+| `tools/gen-manifest.py` | 从 Modrinth 生成清单；`--check` 检查清单是否漂移 |
+| `tools/PackageDist.java` | 打包三个压缩包（JDK 单文件，固定时间戳，输出可复现） |
+| `dist/` | 引导脚本 `install.sh` / `install.ps1` / `install.bat` 与 `README.txt` |
+
+```bash
+# 改完 mods.lock.json / 升级 MieLib 后重新生成（--mielib-jar 为 :fabric:build 出来的 remap jar）
+python3 hexcli-installer/tools/gen-manifest.py \
+    --mielib-jar fabric/build/libs/mielib-fabric-<modVersion>+1.20.1.jar \
+    --mielib-url https://github.com/xm1221/MieLib/releases/download/hexcli-v<installerVersion>/<jar 文件名>
+python3 hexcli-installer/tools/gen-manifest.py --check   # CI 也会跑
+
+./gradlew :hexcli-installer:jar            # build/libs/hexcli-installer-<hexcliInstallerVersion>.jar
+./gradlew :hexcli-installer:packageDist    # build/distributions/hexcli-<ver>-{linux,macos,windows}.*
+```
+
+安装器版本是 `gradle.properties` 里的 `hexcliInstallerVersion`，与 `modVersion` 无关。发布用
+`.github/workflows/hexcli-release.yml`：推 `hexcli-v*` 标签（正式发布）或手动触发（默认 draft + prerelease）；
+工作流会构建、重新生成清单、打包、跑冒烟测试（装 Linux 包 → 开服 → `--exec "num_1 num_2 add"` 应输出 `3.00`），
+然后上传三个压缩包、MieLib jar、清单和 `SHA256SUMS`。
+
 ## 原理
 
 - 假玩家由平台模块提供（Fabric 的 `FakePlayer` / Forge 的 `FakePlayer` 子类，都实现 `HexCliFakePlayer`），

@@ -1,0 +1,227 @@
+name: HexCLI installer release
+
+# Builds the one-click HexCLI installer and publishes:
+#   hexcli-<installerVersion>-{linux.tar.gz,macos.tar.gz,windows.zip}
+#   the MieLib Fabric jar referenced by the manifest, hexcli-manifest.json and SHA256SUMS
+#
+# Triggered by `hexcli-v*` tags (a normal, non-draft release) or manually (draft by default).
+# Tag convention: hexcli-v<hexcliInstallerVersion>[-anything], e.g. hexcli-v1.0.0.
+
+on:
+  push:
+    tags:
+      - 'hexcli-v*'
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: Create the GitHub release as a draft
+        type: boolean
+        default: true
+      prerelease:
+        description: Mark the GitHub release as a prerelease
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hexcli-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The embedded manifest must match the checked-in one; fail fast if Modrinth drifted.
+      - name: Check manifest against Modrinth
+        run: python3 hexcli-installer/tools/gen-manifest.py --check
+
+      # Loom verification is disabled so the build works on a clean runner without the
+      # usual Fabric/Mojang metadata caches.
+      - name: Build mod, client and installer
+        run: ./gradlew -Pfabric.loom.disableMinecraftVerification=true :fabric:build :hexcli-client:fatJar :hexcli-installer:jar
+
+      - name: Resolve versions and file names
+        id: vars
+        run: |
+          set -euo pipefail
+          installer_version=$(sed -n 's/^hexcliInstallerVersion=//p' gradle.properties | tr -d '\r')
+          mod_version=$(sed -n 's/^modVersion=//p' gradle.properties | tr -d '\r')
+          minecraft_version=$(sed -n 's/^minecraftVersion=//p' gradle.properties | tr -d '\r')
+          echo "installer_version=$installer_version" >> "$GITHUB_OUTPUT"
+          echo "mod_version=$mod_version" >> "$GITHUB_OUTPUT"
+
+          # Remapped Fabric jar only: not -dev, -dev-shadow, -sources or -javadoc.
+          mielib_jar=$(find fabric/build/libs -maxdepth 1 -name "*-fabric-*.jar" \
+            ! -name "*-dev*" ! -name "*-sources*" ! -name "*-javadoc*" | head -n 1)
+          if [ -z "$mielib_jar" ]; then
+            echo "::error::no remapped Fabric jar in fabric/build/libs"; ls -l fabric/build/libs; exit 1
+          fi
+          echo "mielib_jar=$mielib_jar" >> "$GITHUB_OUTPUT"
+          echo "mielib_name=$(basename "$mielib_jar")" >> "$GITHUB_OUTPUT"
+
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            # Tag push -> stable, non-draft release under the pushed tag.
+            tag="$GITHUB_REF_NAME"
+            draft=false
+            prerelease=false
+          else
+            # Manual run -> a tag that cannot collide with real releases.
+            tag="hexcli-v${installer_version}-draft-${GITHUB_RUN_NUMBER}"
+            draft="${{ inputs.draft }}"
+            prerelease="${{ inputs.prerelease }}"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "draft=$draft" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          echo "mielib_url=https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/$(basename "$mielib_jar")" >> "$GITHUB_OUTPUT"
+          echo "Minecraft ${minecraft_version}, MieLib ${mod_version}, installer ${installer_version}, tag ${tag}"
+
+      # Regenerate the manifest with the exact jar we are about to upload, then rebuild the
+      # installer jar so the embedded copy points at this release's asset.
+      - name: Generate manifest
+        run: |
+          python3 hexcli-installer/tools/gen-manifest.py \
+            --mielib-jar "${{ steps.vars.outputs.mielib_jar }}" \
+            --mielib-url "${{ steps.vars.outputs.mielib_url }}"
+
+      - name: Rebuild installer and package archives
+        run: ./gradlew -Pfabric.loom.disableMinecraftVerification=true :hexcli-installer:jar :hexcli-installer:packageDist
+
+      # Smoke test: extract the Linux archive into a scratch directory, install with the local
+      # MieLib jar (the release asset does not exist yet), boot the server, cast a snippet through
+      # the terminal client, then stop the server. Logs are uploaded if anything fails.
+      - name: Smoke test (Linux archive)
+        id: smoke
+        timeout-minutes: 25
+        env:
+          HEXCLI_ACCEPT_EULA: "1"
+          HEXCLI_MIELIB_JAR: ${{ github.workspace }}/${{ steps.vars.outputs.mielib_jar }}
+        run: |
+          set -euo pipefail
+          smoke="$RUNNER_TEMP/hexcli-smoke"
+          rm -rf "$smoke"; mkdir -p "$smoke"
+          tar -xzf hexcli-installer/build/distributions/hexcli-${{ steps.vars.outputs.installer_version }}-linux.tar.gz -C "$smoke"
+          echo "SMOKE_DIR=$smoke" >> "$GITHUB_ENV"
+
+          # install.sh downloads the private Temurin JRE into ./runtime and runs the installer.
+          # The local MieLib jar is passed via HEXCLI_MIELIB_JAR and is still hash-checked.
+          ( cd "$smoke" && ./install.sh -y )
+
+          # No private runtime was requested by the smoke test? install.sh always creates one.
+          server="$smoke/server"
+          log="$server/logs/smoke-server.log"
+          mkdir -p "$server/logs"
+
+          echo "starting the server ..."
+          ( cd "$server" && ./start-server.sh >"$log" 2>&1 ) &
+          server_pid=$!
+          echo "SERVER_PID=$server_pid" >> "$GITHUB_ENV"
+
+          echo "waiting for hexcli/client.json (max 300s) ..."
+          for i in $(seq 1 300); do
+            if [ -f "$server/hexcli/client.json" ]; then break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "::error::server exited during startup"; tail -n 100 "$log"; exit 1
+            fi
+            sleep 1
+          done
+          if [ ! -f "$server/hexcli/client.json" ]; then
+            echo "::error::timed out waiting for hexcli/client.json"; tail -n 100 "$log"; exit 1
+          fi
+
+          # Give the remote endpoint a moment to accept connections after writing client.json.
+          sleep 3
+          java_out="$RUNNER_TEMP/hexcli-exec.out"
+          set +e
+          java -jar "$server/hexcli-client.jar" --dir "$server" --no-color --exec "num_1 num_2 add" >"$java_out" 2>&1
+          exec_status=$?
+          set -e
+          cat "$java_out"
+          if [ "$exec_status" -ne 0 ]; then
+            echo "::error::hexcli-client --exec exited with $exec_status"; tail -n 100 "$log"; exit 1
+          fi
+          if ! grep -q "3.00" "$java_out"; then
+            echo "::error::client output does not contain 3.00"; tail -n 100 "$log"; exit 1
+          fi
+          echo "smoke test passed"
+
+      - name: Stop smoke server
+        if: always()
+        run: |
+          set +e
+          # SIGTERM lets Minecraft save and stop; fall back to SIGKILL after 60s.
+          # The bracket in "[f]abric" keeps pkill from matching unrelated command lines.
+          if [ -n "${SERVER_PID:-}" ]; then
+            kill "$SERVER_PID" 2>/dev/null
+            for i in $(seq 1 60); do
+              kill -0 "$SERVER_PID" 2>/dev/null || break
+              sleep 1
+            done
+            kill -9 "$SERVER_PID" 2>/dev/null
+          fi
+          pkill -f "[f]abric-server-launch.jar" 2>/dev/null
+          true
+
+      - name: Upload smoke logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hexcli-smoke-logs
+          path: |
+            ${{ env.SMOKE_DIR }}/server/logs
+            ${{ env.SMOKE_DIR }}/server/hexcli
+          if-no-files-found: ignore
+
+      - name: Assemble release files
+        run: |
+          set -euo pipefail
+          dist=hexcli-installer/build/distributions
+          release="$RUNNER_TEMP/hexcli-release"
+          rm -rf "$release"; mkdir -p "$release"
+          cp "$dist"/hexcli-${{ steps.vars.outputs.installer_version }}-*.tar.gz "$release"/
+          cp "$dist"/hexcli-${{ steps.vars.outputs.installer_version }}-windows.zip "$release"/
+          cp hexcli-installer/manifest/hexcli-manifest.json "$release"/
+          cp "${{ steps.vars.outputs.mielib_jar }}" "$release"/
+          ( cd "$release" && sha256sum ./* > SHA256SUMS && cat SHA256SUMS )
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: HexCLI installer ${{ steps.vars.outputs.installer_version }} (MieLib ${{ steps.vars.outputs.mod_version }})
+          draft: ${{ steps.vars.outputs.draft == 'true' }}
+          prerelease: ${{ steps.vars.outputs.prerelease == 'true' }}
+          fail_on_unmatched_files: true
+          files: |
+            ${{ runner.temp }}/hexcli-release/*.tar.gz
+            ${{ runner.temp }}/hexcli-release/*.zip
+            ${{ runner.temp }}/hexcli-release/hexcli-manifest.json
+            ${{ runner.temp }}/hexcli-release/${{ steps.vars.outputs.mielib_name }}
+            ${{ runner.temp }}/hexcli-release/SHA256SUMS
+          body: |
+            One-click HexCLI installer for Minecraft 1.20.1 (Fabric only).
+
+            | Platform | Archive |
+            |----------|---------|
+            | Linux    | `hexcli-${{ steps.vars.outputs.installer_version }}-linux.tar.gz` |
+            | macOS    | `hexcli-${{ steps.vars.outputs.installer_version }}-macos.tar.gz` |
+            | Windows  | `hexcli-${{ steps.vars.outputs.installer_version }}-windows.zip` |
+
+            Extract, then run `./install.sh` (Linux/macOS) or `install.bat` (Windows). The scripts
+            download a private Temurin JRE 17 into `runtime/` (nothing system-wide), show the
+            Minecraft EULA, then download and sha512-verify every mod plus the Fabric server
+            launcher. Start with `server/start-and-connect.sh` / `server/start-and-connect.bat`.
+
+            See `HEXCLI.md` in the repository for details.

@@ -202,3 +202,6 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# HexCLI installer bootstrap scripts (tracked; the Python template rule above ignores dist/)
+!hexcli-installer/dist/
