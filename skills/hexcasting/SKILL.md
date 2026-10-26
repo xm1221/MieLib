@@ -511,7 +511,7 @@ hex> const/max const/min                -> 1.7976931348623157e308 / 其相反数
 ## 6. 常见坑
 
 - **裸数字不是数字图案**：`1 2 add` → `Expected to evaluate a pattern, but evaluated 1.00 instead`。写 `num_1 num_2 add`。
-  （服务器启动日志里 “Try: hexcli run 1 2 add” 这句提示本身就是错的。）
+  （1.0.0 安装包里服务器启动日志的旧提示 “Try: hexcli run 1 2 add” 是错的，已在 c673420 修正为 `hexcli run num_1 num_2 add`。）
 - **`Unknown symbol` 是 hexParse 的解析失败，不是执行了一条错误指令**：那个 token 在解析阶段就被丢掉、根本没进施法，所以不会有 mishap；其余 token 照常执行，`-e` 退出码仍是 0（整段都无法解析时才是 1，提示变成 `produced no iotas`）。脚本里要自己 grep `^hexParse:`。详见“三类错误”。
 - **持久栈**：`-e` 之间栈不清空；mishap 会留下 `<garbage>`。测试前用 stdin 喂 `reset`。持久栈上跑 Thoth 时，每轮迭代都会带上整个旧栈，
   结果列表里会混进 `<garbage>` 等旧元素（实测 `-f loop.hexparse` 在脏栈上得到 `[<garbage>, …, 1.00, 1.00, …, 16.00]`）。
