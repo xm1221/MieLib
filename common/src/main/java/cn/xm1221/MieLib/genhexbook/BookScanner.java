@@ -4,10 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.server.packs.resources.ResourceManager;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -18,9 +15,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Server-safe thehexbook loader: walks ResourceManager JSON under
- * assets/.../patchouli_books/thehexbook/&lt;lang&gt;/{categories,entries}/**.
- * Does not use Patchouli's client BookContentsBuilder.
+ * Server-safe thehexbook loader. Dedicated servers do not expose client {@code assets/}
+ * through ResourceManager, so we read Patchouli JSON straight from mod jars under {@code mods/}.
  */
 public final class BookScanner {
     public static final String BOOK = "thehexbook";
@@ -33,16 +29,14 @@ public final class BookScanner {
     ) {}
 
     public static BookData scan(MinecraftServer server, String lang) {
-        ResourceManager rm = server.getResourceManager();
         Map<String, BookModels.Category> cats = new LinkedHashMap<>();
         Map<String, BookModels.Entry> ents = new LinkedHashMap<>();
 
-        // Prefer requested lang, then fall back to en_us for missing ids
-        loadLangTree(rm, lang, cats, ents);
+        loadLangTree(server, lang, cats, ents);
         if (!"en_us".equals(lang)) {
             Map<String, BookModels.Category> fbCats = new LinkedHashMap<>();
             Map<String, BookModels.Entry> fbEnts = new LinkedHashMap<>();
-            loadLangTree(rm, "en_us", fbCats, fbEnts);
+            loadLangTree(server, "en_us", fbCats, fbEnts);
             for (var e : fbCats.entrySet()) cats.putIfAbsent(e.getKey(), e.getValue());
             for (var e : fbEnts.entrySet()) ents.putIfAbsent(e.getKey(), e.getValue());
         }
@@ -51,89 +45,74 @@ public final class BookScanner {
         catList.sort(Comparator.comparingInt(BookModels.Category::sortnum).thenComparing(BookModels.Category::id));
         List<BookModels.Entry> entList = new ArrayList<>(ents.values());
         entList.sort(Comparator.comparingInt(BookModels.Entry::sortnum).thenComparing(BookModels.Entry::id));
+        GenHexBook.LOGGER.info("[GenHexBook] scanned lang={} → {} categories, {} entries", lang, catList.size(), entList.size());
         return new BookData(catList, entList);
     }
 
-    private static void loadLangTree(ResourceManager rm, String lang,
+    private static void loadLangTree(MinecraftServer server, String lang,
                                      Map<String, BookModels.Category> cats,
                                      Map<String, BookModels.Entry> ents) {
-        String prefixCat = "patchouli_books/" + BOOK + "/" + lang + "/categories";
-        String prefixEnt = "patchouli_books/" + BOOK + "/" + lang + "/entries";
-        try {
-            Map<ResourceLocation, Resource> catRes = rm.listResources(prefixCat, rl -> rl.getPath().endsWith(".json"));
-            for (var e : catRes.entrySet()) {
-                try {
-                    BookModels.Category c = parseCategory(e.getKey(), e.getValue());
-                    if (c != null) cats.putIfAbsent(c.id(), c);
-                } catch (Exception ex) {
-                    GenHexBook.LOGGER.warn("[GenHexBook] category {}: {}", e.getKey(), ex.toString());
-                }
+        String catPrefix = "patchouli_books/" + BOOK + "/" + lang + "/categories/";
+        String entPrefix = "patchouli_books/" + BOOK + "/" + lang + "/entries/";
+        ModAssetWalker.walk(server, under -> under.startsWith(catPrefix) && under.endsWith(".json"), (file, in) -> {
+            try {
+                String id = idFromUnder(file.namespace(), underAfter(file.pathUnderAssets(), catPrefix));
+                JsonObject o = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+                BookModels.Category c = parseCategory(id, o);
+                cats.putIfAbsent(c.id(), c);
+            } catch (Exception ex) {
+                GenHexBook.LOGGER.warn("[GenHexBook] category {}: {}", file.pathUnderAssets(), ex.toString());
             }
-        } catch (Exception ex) {
-            GenHexBook.LOGGER.warn("[GenHexBook] list categories ({}): {}", lang, ex.toString());
-        }
-        try {
-            Map<ResourceLocation, Resource> entRes = rm.listResources(prefixEnt, rl -> rl.getPath().endsWith(".json"));
-            for (var e : entRes.entrySet()) {
-                try {
-                    BookModels.Entry ent = parseEntry(e.getKey(), e.getValue());
-                    if (ent != null) ents.putIfAbsent(ent.id(), ent);
-                } catch (Exception ex) {
-                    GenHexBook.LOGGER.warn("[GenHexBook] entry {}: {}", e.getKey(), ex.toString());
-                }
+        });
+        ModAssetWalker.walk(server, under -> under.startsWith(entPrefix) && under.endsWith(".json"), (file, in) -> {
+            try {
+                String id = idFromUnder(file.namespace(), underAfter(file.pathUnderAssets(), entPrefix));
+                JsonObject o = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+                BookModels.Entry e = parseEntry(id, o);
+                ents.putIfAbsent(e.id(), e);
+            } catch (Exception ex) {
+                GenHexBook.LOGGER.warn("[GenHexBook] entry {}: {}", file.pathUnderAssets(), ex.toString());
             }
-        } catch (Exception ex) {
-            GenHexBook.LOGGER.warn("[GenHexBook] list entries ({}): {}", lang, ex.toString());
-        }
+        });
     }
 
-    private static String idFromPath(ResourceLocation rl, String kind) {
-        // assets/<ns>/patchouli_books/thehexbook/<lang>/<kind>/foo/bar.json
-        // → <ns>:foo/bar
-        String path = rl.getPath();
-        String marker = "/" + kind + "/";
-        int i = path.indexOf(marker);
-        String rest = i >= 0 ? path.substring(i + marker.length()) : path;
+    private static String underAfter(String under, String prefix) {
+        return under.substring(prefix.length());
+    }
+
+    private static String idFromUnder(String ns, String rest) {
         if (rest.endsWith(".json")) rest = rest.substring(0, rest.length() - 5);
-        return rl.getNamespace() + ":" + rest;
+        return ns + ":" + rest;
     }
 
-    private static BookModels.Category parseCategory(ResourceLocation rl, Resource res) throws Exception {
-        try (var reader = new InputStreamReader(res.open(), StandardCharsets.UTF_8)) {
-            JsonObject o = JsonParser.parseReader(reader).getAsJsonObject();
-            String id = idFromPath(rl, "categories");
-            return new BookModels.Category(
-                id,
-                str(o, "name"),
-                str(o, "description"),
-                str(o, "parent"),
-                o.has("sortnum") ? o.get("sortnum").getAsInt() : 0,
-                str(o, "icon")
-            );
-        }
+    private static BookModels.Category parseCategory(String id, JsonObject o) {
+        return new BookModels.Category(
+            id,
+            str(o, "name"),
+            str(o, "description"),
+            str(o, "parent"),
+            o.has("sortnum") ? o.get("sortnum").getAsInt() : 0,
+            str(o, "icon")
+        );
     }
 
-    private static BookModels.Entry parseEntry(ResourceLocation rl, Resource res) throws Exception {
-        try (var reader = new InputStreamReader(res.open(), StandardCharsets.UTF_8)) {
-            JsonObject o = JsonParser.parseReader(reader).getAsJsonObject();
-            String id = idFromPath(rl, "entries");
-            List<BookModels.Page> pages = BookModels.emptyPages();
-            if (o.has("pages") && o.get("pages").isJsonArray()) {
-                for (JsonElement el : o.getAsJsonArray("pages")) {
-                    if (el.isJsonObject()) pages.add(parsePage(el.getAsJsonObject()));
-                    else if (el.isJsonPrimitive()) pages.add(new BookModels.TextPage(el.getAsString()));
-                }
+    private static BookModels.Entry parseEntry(String id, JsonObject o) {
+        List<BookModels.Page> pages = BookModels.emptyPages();
+        if (o.has("pages") && o.get("pages").isJsonArray()) {
+            for (JsonElement el : o.getAsJsonArray("pages")) {
+                if (el.isJsonObject()) pages.add(parsePage(el.getAsJsonObject()));
+                else if (el.isJsonPrimitive()) pages.add(new BookModels.TextPage(el.getAsString()));
             }
-            return new BookModels.Entry(
-                id,
-                str(o, "name"),
-                str(o, "category"),
-                str(o, "icon"),
-                o.has("sortnum") ? o.get("sortnum").getAsInt() : 0,
-                str(o, "advancement"),
-                pages
-            );
         }
+        return new BookModels.Entry(
+            id,
+            str(o, "name"),
+            str(o, "category"),
+            str(o, "icon"),
+            o.has("sortnum") ? o.get("sortnum").getAsInt() : 0,
+            str(o, "advancement"),
+            pages
+        );
     }
 
     private static BookModels.Page parsePage(JsonObject o) {
