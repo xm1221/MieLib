@@ -2,6 +2,7 @@ package cn.xm1221.MieLib.hexcli;
 
 import cn.xm1221.MieLib.hexcli.HexCliProfiles.ProfileException;
 import cn.xm1221.MieLib.hexcli.api.HexCliAPI;
+import cn.xm1221.MieLib.hexcli.remote.HexCliHttp;
 import cn.xm1221.MieLib.hexcli.remote.HexCliOps;
 import cn.xm1221.MieLib.hexcli.remote.HexCliRemote;
 import cn.xm1221.MieLib.hexcli.remote.HexCliReply;
@@ -83,8 +84,11 @@ public final class HexCli {
                 LOGGER.error("[HexCLI] could not apply default profile: {}", e.getMessage());
             }
             HexCliRemote.start(server);
+            // 复用 TCP 端点的 token；本身还看 -Dmielib.hexcli.http / enableHexCliHttp（默认关闭）
+            HexCliHttp.start(server);
         });
         LifecycleEvent.SERVER_STOPPING.register(server -> {
+            HexCliHttp.stop();
             HexCliRemote.stop();
             HexCliOps.clearWaiters();
             CastObserver.shutdown();

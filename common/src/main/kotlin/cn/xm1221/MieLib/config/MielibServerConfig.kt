@@ -75,6 +75,39 @@ object MielibServerConfig {
         var hexCliPort: Int = 0
             private set
 
+        /**
+         * 启用 HexCLI 的 HTTP JSON 端点（浏览器前端用，见 docs/hexcli-http.md）。默认关闭。
+         * 还需要 HexCLI 本身已启用；启动参数 `-Dmielib.hexcli.http=true` 优先于本项。服务端专用，不参与网络同步。
+         */
+        @Tooltip
+        var enableHexCliHttp: Boolean = false
+            private set
+
+        /**
+         * HTTP 端点的端口。0 = 每次启动自动挑一个空闲端口。
+         * 启动参数 `-Dmielib.hexcli.http.port=<n>` 优先于本项。服务端专用，不参与网络同步。
+         */
+        @Tooltip
+        var hexCliHttpPort: Int = 0
+            private set
+
+        /**
+         * HTTP 端点的绑定地址，默认显式 `127.0.0.1`（`::1` 在部分加载器上会让 IPv4 客户端连不上）。
+         * 启动参数 `-Dmielib.hexcli.http.bind=<addr>` 优先于本项。服务端专用，不参与网络同步。
+         */
+        @Tooltip
+        var hexCliHttpBind: String = "127.0.0.1"
+            private set
+
+        /**
+         * HTTP 端点的 CORS 白名单：`*` 或逗号分隔的 origin，允许 `http://localhost:*` 这样的端口通配。
+         * 默认 `http://127.0.0.1:*,http://localhost:*`。
+         * 启动参数 `-Dmielib.hexcli.http.cors=<list>` 优先于本项。服务端专用，不参与网络同步。
+         */
+        @Tooltip
+        var hexCliHttpCors: String = "http://127.0.0.1:*,http://localhost:*"
+            private set
+
         fun encode(buf: FriendlyByteBuf) {
             buf.writeInt(dummyServerConfigOption)
         }
