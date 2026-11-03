@@ -11,14 +11,15 @@
 | 命令 | 作用 |
 |------|------|
 | `/genHexBook` | 输出到 `<gameDir>/hexbook`，语言 `en_us`+`zh_cn` |
-| `/genHexBook out <目录>` | 自定义输出目录 |
+| `/genHexBook out <目录>` | 自定义输出目录（默认 both，无 md） |
 | `/genHexBook lang <en_us\|zh_cn\|both>` | 选择语言 |
-| `/genHexBook md` | 同时导出 Markdown（`md/<lang>/`） |
-| `/genHexBook serve [端口]` | 生成后在 `127.0.0.1` 上提供静态文件（默认 8765） |
+| `/genHexBook md` | 默认目录 + both + 导出 Markdown |
+| `/genHexBook serve [端口]` | 生成后在 `127.0.0.1` 提供静态文件（默认 8765） |
+| `/genHexBook export <目录> <lang> <yes\|no> [端口]` | **组合**：目录 + 语言 + 是否 md + 可选 serve |
 | `/genHexBook stop` | 停止 HTTP |
 | `/genHexBook deploy-hint` | 打印 Cloudflare Pages 部署提示 |
 
-可组合，例如：`/genHexBook out hexbook lang both md serve 8765`。
+组合请用 `export`，例如：`/genHexBook export hexbook both yes 8765`。子命令互为并列，不能写成 `out … lang … md serve`。
 
 ### 部署到 Cloudflare Pages
 
@@ -37,7 +38,7 @@ npx wrangler pages deploy <hexbook目录> --project-name mielib-hexbook
 ```bash
 java -Xmx1G -Dmielib.hexcli=true -jar fabric-server-launch.jar nogui
 # 控制台：
-genHexBook out hexbook lang both md serve 8765
+genHexBook export hexbook both yes 8765
 ```
 
 ---
@@ -55,10 +56,13 @@ Unlike hexdoc (which scrapes pattern data from mod sources with regex), this com
 | `/genHexBook` | Write to `<gameDir>/hexbook`, langs `en_us`+`zh_cn` |
 | `/genHexBook out <dir>` | Custom output directory |
 | `/genHexBook lang <en_us\|zh_cn\|both>` | Language selection |
-| `/genHexBook md` | Also export Markdown under `md/<lang>/` |
-| `/genHexBook serve [port]` | Serve the site on `127.0.0.1` (default 8765) |
+| `/genHexBook md` | Default dir + both + Markdown |
+| `/genHexBook serve [port]` | Serve on `127.0.0.1` (default 8765) |
+| `/genHexBook export <dir> <lang> <yes\|no> [port]` | Combined: dir + lang + md + optional serve |
 | `/genHexBook stop` | Stop the HTTP server |
 | `/genHexBook deploy-hint` | Print Cloudflare Pages deploy hint |
+
+Use `export` to combine options, e.g. `/genHexBook export hexbook both yes 8765`. Subcommands are siblings and cannot be chained as `out … lang … md serve`.
 
 ### Deploy to Cloudflare Pages
 
@@ -70,5 +74,6 @@ Requires `CLOUDFLARE_API_TOKEN`. No custom domain required.
 
 ### Notes
 
-- Book JSON is loaded via the server `ResourceManager` (Patchouli client `BookContentsBuilder` is **not** used — dedicated servers have no client book loader).
+- Book JSON: try server `ResourceManager` first; on dedicated/HexCLI (empty pack) fall back to scanning `mods/*.jar` (`ModAssetWalker`) for `data/*/patchouli_books/thehexbook/**`. Patchouli client `BookContentsBuilder` is **not** used.
+- Patterns: live `IXplatAbstractions.getActionRegistry()` + `HexTags.Actions.PER_WORLD_PATTERN` (canonical prototype only; never world-scrambled).
 - Lang: Hex Casting ships book JSON under `en_us` only; `zh_cn` comes from translation keys / `*.flatten.json5`.
