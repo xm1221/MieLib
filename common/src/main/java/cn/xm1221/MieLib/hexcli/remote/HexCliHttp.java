@@ -245,7 +245,7 @@ public final class HexCliHttp {
 
     private void handleHealth(HttpExchange ex) {
         try {
-            if (!preflightOrReject(ex)) return;
+            if (preflightOrReject(ex)) return;
             if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
                 corsHeaders(ex);
                 sendJson(ex, 405, errorJson(null, "method not allowed; use GET"));
@@ -258,6 +258,9 @@ public final class HexCliHttp {
             out.addProperty("server", SERVER_NAME);
             out.addProperty("version", modVersion());
             sendJson(ex, 200, out);
+        } catch (Throwable t) {
+            HexCli.LOGGER.error("[HexCLI] HTTP health failed: {}", t.toString(), t);
+            try { sendJson(ex, 500, errorJson(null, rootMessage(t))); } catch (Throwable ignored) {}
         } finally {
             ex.close();
         }
@@ -265,7 +268,7 @@ public final class HexCliHttp {
 
     private void handleRpc(HttpExchange ex) {
         try {
-            if (!preflightOrReject(ex)) return;
+            if (preflightOrReject(ex)) return;
             if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
                 corsHeaders(ex);
                 sendJson(ex, 405, errorJson(null, "method not allowed; use POST"));
@@ -511,8 +514,9 @@ public final class HexCliHttp {
             try (OutputStream out = ex.getResponseBody()) {
                 out.write(bytes);
             }
-        } catch (IOException ignored) {
-            // 客户端断开
+        } catch (IOException e) {
+            // 客户端断开，或响应头已发送失败
+            HexCli.LOGGER.debug("[HexCLI] HTTP write failed: {}", e.toString());
         }
     }
 
