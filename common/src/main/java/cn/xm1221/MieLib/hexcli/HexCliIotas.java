@@ -1,11 +1,16 @@
 package cn.xm1221.MieLib.hexcli;
 
+import at.petrak.hexcasting.api.casting.iota.BooleanIota;
+import at.petrak.hexcasting.api.casting.iota.DoubleIota;
 import at.petrak.hexcasting.api.casting.iota.EntityIota;
 import at.petrak.hexcasting.api.casting.iota.GarbageIota;
 import at.petrak.hexcasting.api.casting.iota.Iota;
 import at.petrak.hexcasting.api.casting.iota.ListIota;
+import at.petrak.hexcasting.api.casting.iota.NullIota;
+import at.petrak.hexcasting.api.casting.iota.PatternIota;
 import at.petrak.hexcasting.xplat.IXplatAbstractions;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -73,7 +78,9 @@ public final class HexCliIotas {
 
     /**
      * 结构化表示：{@code {"type", "text", "rich", "color", "children"?}}；
-     * 实体 iota 另外带 {@code "entity": {"type","name","pos":[x,y,z],"uuid"}}。
+     * 实体 iota 另外带 {@code "entity": {"type","name","pos":[x,y,z],"uuid"}}；
+     * 图案带 {@code "pattern": {"startDir","angles"}}（给前端画迷你图案）；
+     * 常见标量另外带 {@code "value"}（数字 / 布尔 / null）。
      * {@code rich} 是 display() 的带样式分段（实体用修正后的纯文本代替）。
      */
     public static JsonObject toJson(Iota iota) {
@@ -81,6 +88,19 @@ public final class HexCliIotas {
         out.addProperty("type", typeId(iota));
         out.addProperty("text", text(iota));
         out.addProperty("color", color(iota));
+
+        if (iota instanceof DoubleIota di) {
+            out.addProperty("value", di.getDouble());
+        } else if (iota instanceof BooleanIota bi) {
+            out.addProperty("value", bi.getBool());
+        } else if (iota instanceof NullIota) {
+            out.add("value", JsonNull.INSTANCE);
+        } else if (iota instanceof PatternIota pi) {
+            JsonObject pattern = new JsonObject();
+            pattern.addProperty("startDir", safe(() -> pi.getPattern().getStartDir().name()));
+            pattern.addProperty("angles", safe(() -> pi.getPattern().anglesSignature()));
+            out.add("pattern", pattern);
+        }
 
         Component display;
         if (iota instanceof EntityIota || iota instanceof GarbageIota) {
