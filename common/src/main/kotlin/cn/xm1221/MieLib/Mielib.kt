@@ -25,6 +25,8 @@ object Mielib {
         MielibNetworking.init()
         // HexCLI 默认关闭；开关只看系统属性 / 服务端配置（见 HEXCLI.md）
         cn.xm1221.MieLib.hexcli.HexCli.init()
+        // Always-on: /genHexBook static site exporter (see docs/genhexbook.md)
+        cn.xm1221.MieLib.genhexbook.GenHexBook.init()
     }
 
     fun initServer() {
