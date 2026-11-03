@@ -12,6 +12,8 @@ public final class PatchouliText {
     public static String toHtml(String input, LangResolver lang) {
         if (input == null) return "";
         String text = lang.resolveMaybeKey(input);
+        // Patchouli also uses "/$" as a style reset (outside $(...))
+        text = text.replace("/$", "$(clear)");
         StringBuilder out = new StringBuilder();
         Matcher m = MACRO.matcher(text);
         int last = 0;
@@ -71,6 +73,7 @@ public final class PatchouliText {
     public static String toMarkdown(String input, LangResolver lang) {
         if (input == null) return "";
         String text = lang.resolveMaybeKey(input);
+        text = text.replace("/$", "$(clear)");
         StringBuilder out = new StringBuilder();
         Matcher m = MACRO.matcher(text);
         int last = 0;
