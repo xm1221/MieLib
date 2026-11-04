@@ -205,3 +205,6 @@ cython_debug/
 
 # HexCLI installer bootstrap scripts (tracked; the Python template rule above ignores dist/)
 !hexcli-installer/dist/
+
+# Local HexCLI E2E addon jars (not published)
+fabric/hexcli-extra-mods/*.jar

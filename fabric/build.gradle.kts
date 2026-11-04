@@ -166,4 +166,8 @@ dependencies {
         Regex("""META-INF/jars/yclib-.*\.jar"""),
         "yclib-fabric.jar",
     )))
+
+    // Optional HexCLI addon for local E2E: MieHex without JiJ MieLib (Loom provides MieLib from source).
+    // Jar under fabric/hexcli-extra-mods/; not shipped in published artifacts.
+    modLocalRuntime(files("hexcli-extra-mods/miehex-fabric-nojij.jar"))
 }
