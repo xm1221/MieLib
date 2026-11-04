@@ -1,15 +1,32 @@
-from importlib.resources import Package, files
+import importlib
+from importlib.resources import Package
 from typing import Any
 
-from hexdoc.plugin import HookReturn, ModPlugin, ModPluginImpl, ModPluginWithBook, hookimpl
+from hexdoc.plugin import (
+    HookReturn,
+    LoadTaggedUnionsImpl,
+    ModPlugin,
+    ModPluginImpl,
+    ModPluginWithBook,
+    hookimpl,
+)
 from typing_extensions import override
 
+from . import pages
 
-class LiveHexBookPlugin(ModPluginImpl):
+
+class LiveHexBookPlugin(LoadTaggedUnionsImpl, ModPluginImpl):
     @staticmethod
     @hookimpl
     def hexdoc_mod_plugin(branch: str) -> ModPlugin:
         return LiveHexBookModPlugin(branch=branch)
+
+    @staticmethod
+    @hookimpl
+    def hexdoc_load_tagged_unions() -> HookReturn[Package]:
+        # Ensure concrete stubs exist before Page validation runs.
+        _register_stubs_from_resources()
+        return [pages]
 
 
 class LiveHexBookModPlugin(ModPluginWithBook):
@@ -40,12 +57,94 @@ class LiveHexBookModPlugin(ModPluginWithBook):
 
     @override
     def resource_dirs(self) -> HookReturn[Package]:
-        return []
+        # Companion resources, eg. the `hexdoc` lang overrides (site title,
+        # description). Listed first in resource_dirs so lang lookups prefer them.
+        return [importlib.import_module("hexdoc_livehexbook.resources")]
 
     @override
     def jinja_template_root(self) -> tuple[Package, str] | None:
-        return None
+        # Overrides hexdoc's book.html.jinja landing box (themed + bilingual intro).
+        return importlib.import_module("hexdoc_livehexbook"), "_templates"
 
+
+def _collect_page_types_from_resources() -> set[str]:
+    """Collect every Patchouli page ``type`` mentioned by the dumped book files.
+
+    Unknown types are registered as permissive stubs by
+    :func:`pages.register_runtime_page_stubs`. Nothing is rewritten here: a page
+    that hexdoc cannot parse is dropped (with a warning) by
+    :mod:`hexdoc_livehexbook.tolerance`, never patched into shape.
+    """
+    import json
+    from pathlib import Path
+
+    found: set[str] = set()
+    root = Path("resources")
+    if not root.is_dir():
+        return found
+    for path in root.rglob("*.json"):
+        if "patchouli_books" not in path.parts:
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
+        def walk(obj: Any) -> None:
+            if isinstance(obj, dict):
+                t = obj.get("type")
+                if isinstance(t, str):
+                    found.add(t if ":" in t else f"patchouli:{t}")
+                for v in obj.values():
+                    walk(v)
+            elif isinstance(obj, list):
+                for v in obj:
+                    walk(v)
+
+        walk(data)
+    return found
+
+
+def _register_stubs_from_resources() -> None:
+    import logging
+
+    # Import concrete upstream pages so "known" is complete before we stub.
+    import hexdoc.patchouli.page.pages  # noqa: F401
+    import hexdoc_hexcasting.book.page.pages  # noqa: F401
+
+    logger = logging.getLogger("hexdoc_livehexbook")
+    types = _collect_page_types_from_resources()
+    # Always ensure the hand-written stubs are import-registered.
+    _ = pages.EverbookEntryPage, pages.LapisworksPwshapePage, pages.TransmutingPage
+    newly = pages.register_runtime_page_stubs(types)
+    if newly:
+        logger.warning("Registered fallback Patchouli page stubs for: %s", ", ".join(newly))
+    try:
+        rnew = pages.register_runtime_recipe_stubs(_collect_recipe_samples())
+        if rnew:
+            logger.warning("Registered fallback recipe stubs for: %s", ", ".join(rnew))
+    except Exception as e:  # never fatal
+        logger.warning("Recipe stub registration failed: %s", e)
+
+
+def _collect_recipe_samples() -> dict[str, dict]:
+    import json
+    from pathlib import Path
+
+    out: dict[str, dict] = {}
+    root = Path("resources")
+    if not root.is_dir():
+        return out
+    for path in root.rglob("*.json"):
+        if "recipes" not in path.parts:
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if isinstance(data, dict) and isinstance(data.get("type"), str):
+            out.setdefault(data["type"], data)
+    return out
 
 
 # --- genHexBook texture fixes -------------------------------------------------
@@ -55,12 +154,21 @@ class LiveHexBookModPlugin(ModPluginWithBook):
 #    id must fail instead of falling back.
 # 2. The live project reuses modid "hexcasting", which replaces the packaged
 #    hexdoc-hexcasting texture metadata; merge it back underneath ours.
+# 3. Missing / invalid item-model overrides (common in big addon sets) raise
+#    FileNotFoundError inside ModelItem.find_texture; catch them when
+#    textures.strict=false so one bad hat model cannot abort the whole site.
 def _patch_textures() -> None:
+    import logging
+
     import hexdoc.cli.app as app
+    import hexdoc.minecraft.assets.load_assets as load_assets
     from hexdoc.data import HexdocMetadata
     from hexdoc.minecraft.assets.animated import AnimatedTexture
     from hexdoc.minecraft.assets.items import MultiItemTexture, SingleItemTexture
+    from hexdoc.minecraft.assets.models import ModelItem
     from hexdoc.minecraft.assets.textures import PNGTexture
+
+    logger = logging.getLogger("hexdoc_livehexbook")
 
     def _wrap(tex_cls, skip):
         orig = tex_cls.lookup.__func__
@@ -78,6 +186,46 @@ def _patch_textures() -> None:
     for c in (PNGTexture, AnimatedTexture):
         _wrap(c, not_texture_path)
     _wrap(SingleItemTexture, lambda id, l: id in MultiItemTexture.get_lookup(l))
+
+    # Addon item models often point overrides at runtime-generated or absent
+    # models (e.g. hexpigmentplus:item/magician_hat_high). Upstream only catches
+    # TextureNotFoundError; FileNotFoundError / ValidationError kill the build.
+    # With textures.strict=false, treat those as "no icon" and keep going.
+    orig_override = ModelItem._find_override_texture
+
+    def _find_override_texture(self, index, override, loader, gaslighting_items, checked_overrides):
+        try:
+            return orig_override(self, index, override, loader, gaslighting_items, checked_overrides)
+        except FileNotFoundError as e:
+            logger.warning("Skipping missing override model %s on %s: %s", override.model, self.id, e)
+            return None
+
+    ModelItem._find_override_texture = _find_override_texture
+
+    orig_load_item = load_assets.load_and_render_item
+
+    def load_and_render_item(model, loader, renderer, gaslighting_items, image_textures, site_url):
+        try:
+            return orig_load_item(model, loader, renderer, gaslighting_items, image_textures, site_url)
+        except FileNotFoundError as e:
+            if loader.props.textures.strict:
+                raise
+            logger.warning("No texture for item model %s: %s", model.id, e)
+            return None
+        except Exception as e:
+            if loader.props.textures.strict:
+                raise
+            if e.__class__.__name__ in {"ValidationError", "ValueError", "KeyError", "TypeError"}:
+                logger.warning(
+                    "Failed to render item model %s: %s: %s",
+                    model.id,
+                    e.__class__.__name__,
+                    e,
+                )
+                return None
+            raise
+
+    load_assets.load_and_render_item = load_and_render_item
 
     orig_render = app.render_textures_and_export_metadata
 
@@ -97,3 +245,13 @@ def _patch_textures() -> None:
 
 
 _patch_textures()
+
+
+# Unified tolerance: drop what cannot be parsed (addons only — hexcasting content
+# still fails loudly) and degrade dangling $(l:...) links to plain text. See
+# tolerance.py for the policy. Installed at import time so the hooks exist before
+# `hexdoc build` loads the book.
+from . import tolerance as _tolerance  # noqa: E402
+
+_tolerance.install()
+

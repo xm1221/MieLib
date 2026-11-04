@@ -23,7 +23,7 @@
 schema_version: 1
 minecraft: "1.20.1"
 loader: fabric
-fabric_loader: "0.16.9"
+fabric_loader: "0.19.5"
 fabric_installer: "1.1.2"
 
 mods:
@@ -31,17 +31,17 @@ mods:
     role: library
     source: modrinth
     project: fabric-api
-    version: lcnQpW9C
-    filename: fabric-api-0.87.0+1.20.1.jar
-    sha512: 72e4c2abee838139ae3ba87615273deb8386791c43cf1e423f2a44d2b36ef845f6f967fd370a39d17498adb2fb7a9661b9352fc9f1070571b93db8579f383a24
+    version: rvI2dfzR
+    filename: fabric-api-0.92.12+1.20.1.jar
+    sha512: de9da2344043b3e9ef9fb7dbfff5f2577b06000c4f73f2a37959a80123141169084cece19133bd299b45feaaa4648bdaca2ea085684888cc8c55cc9134a477ca
 
   - name: fabric-language-kotlin
     role: library
     source: modrinth
     project: fabric-language-kotlin
-    version: LcgnDDmT
-    filename: fabric-language-kotlin-1.13.7+kotlin.2.2.21.jar
-    sha512: 0453a8a4eb8d791b5f0097a6628fae6f13b6dfba1e2bd1f91218769123808c4396a88bcdfc785f1d6bca348f267b32afc2aa9e0d5ec93a7b35bcfe295268c7bc
+    version: SKW1BTL3
+    filename: fabric-language-kotlin-1.14.2+kotlin.2.4.21.jar
+    sha512: 7fb475c4a7e7bdf8d0aca4b5798a58a354c51443d5b1fbde3e8cf34dfbf7191ef4238b5f07d08ec9490ec180b371624523326c3ad45d4ed2b2be541de9407e5d
 
   - name: architectury
     role: library
@@ -71,9 +71,9 @@ mods:
     role: library
     source: modrinth
     project: cardinal-components-api
-    version: HykM2Qyv
-    filename: cardinal-components-api-5.2.1.jar
-    sha512: 8457049dd5d232dd2e9220b5881e79ac5c31a6c051c55025f633276142a1954dd3bf8506511c887ca58fee398853434db39dcbee80b098ab4674109d36b5fe4a
+    version: Ielhod3p
+    filename: cardinal-components-api-5.2.3.jar
+    sha512: f20484d5bc780bee9b388ff6075e7c3bd130c7f8cae75a425bfd1fb68d03ca19288c09b0729992987fd32f3a2433b49c25162e086de82abd8d06ee45e4e3c917
 
   - name: inline
     role: library
@@ -120,3 +120,639 @@ mods:
     sha512: 31ee9594d66129caca80693909139d553884321f9ec26cba9ca24c4915cc870e0d7cae0504a3e94c35b86fa1576e5055d02d4561ff90f22e42510ab5fb09e548
     strip_nested:
       - mielib
+
+  # ---- from hexaddons (SamsTheNerd/hexaddons hexaddons.json, MC 1.20.1 Fabric) ----
+  # Not added: hexvidia (needs Hex Casting 0.11.3 exactly); hexdentity (needs `identity` mod (not on Modrinth for 1.20.1)); hexxyplanes (incompatible with Hexical <2.0 (no Hexical 2 for 1.20.1)); hexxyskies (needs Valkyrien Skies + incompatible with Hexical <2.0); hexoncommand (jar clashes: duplicate hexoncommand.mixins.json at launch); focalworks (mixin into OpWrite fails: critical injection failure with this set); hexic (CastingVM mixin target missing on hex 0.11.4); hexvr (incompatible with current Vivecraft, BodyPart missing).
+  # Required dependencies of the addons below.
+  - name: carpet
+    role: library
+    source: modrinth
+    project: carpet
+    version: K0Wj117C
+    filename: fabric-carpet-1.20-1.4.112+v230608.jar
+    sha512: bf9060e6b1d30d676d9efd30369ccb5baef164fc2d87aad7c7a19d2d9265b5d1d328428a308bdd15960a26bfe46dcd823a236c39f4e26474847354337b043c51
+
+  - name: cc-tweaked
+    role: library
+    source: modrinth
+    project: cc-tweaked
+    version: LFj8qZ7a
+    filename: cc-tweaked-1.20.1-fabric-1.121.0.jar
+    sha512: 20d29a7f0c239433fe35d4607ccba8b5a65e30f0bfdeba6f0b5a4307c83dc257b3eff4bc25644009f517b062c54d7d3e54ef58ae63db8ac6e43498d73757557a
+
+  - name: cynosure
+    role: library
+    source: modrinth
+    project: cynosure
+    version: ERJwLCKb
+    filename: cynosure-0.1.16-fabric.jar
+    sha512: 9895dc59b9a79c734bf1a456295aa4b768f65fa0dcb4b4873162bc400658bb0d95777f6d74dc6d70ea65d2a82376890f80ce18f6a2fe308b19600abc6e22e6ea
+
+  - name: dynamickeybinds
+    role: library
+    source: modrinth
+    project: dynamickeybinds
+    version: yG5vtP16
+    filename: dynamickeybinds-fabric-1.20.1-0.1.2.1.jar
+    sha512: 9b4f09712b5e5d430dd78be228594799df0b684aa8cd59a72c7b37748a5b685f9d5beb0549e2c0b58ab061005c092118ad747acbcb96eec72eea82e5f5a9d968
+
+  - name: estrogen
+    role: library
+    source: modrinth
+    project: estrogen
+    version: ZnqWS7up
+    filename: estrogen-5.0.8+1.20.1-fabric.jar
+    sha512: e82213b9b63158c550a33e2b8c45704cf239f61283f8050eb64e0a75df2e233fab074be317f5039bf35cc1babb699ad433f8075071b72731bd7a03bf63d2ada7
+
+  - name: female-gender
+    role: library
+    source: modrinth
+    project: female-gender
+    version: nYZ0oktX
+    filename: Female-Gender-Mod-fabric-1.20-3.0.1.jar
+    sha512: 0093c742f57ad4afc9aae48e3af92a32f14d94745e5573c935d923ddd34de607e9e98ca0a4084ac30c24942514909c595f43e7aee0def6aba286446e36dbd2c8
+
+  - name: geckolib
+    role: library
+    source: modrinth
+    project: geckolib
+    version: SD2lOScS
+    filename: geckolib-fabric-1.20.1-4.8.4.jar
+    sha512: 757cf010eef44500c0722afc193d874b62fb1b3e61ba8dea952f8434b2a939536e3440e04c01bc58922d75bb76c16c605d72f9fa9157ac62806e862d9652d13f
+
+  - name: gravity-api-fork
+    role: library
+    source: modrinth
+    project: gravity-api-fork
+    version: kl3DxAl9
+    filename: gravity-changer-1.1.2+mc1.20.1.jar
+    sha512: d73d104ee2bca052ec76e151433d80884cd42fd6faab7160f69d6b78e4826ece3b9c4d18651f9007ede4330e1615f140dd0a3b8d022562ffb994252dafce9632
+
+  - name: immersiveportals
+    role: library
+    source: modrinth
+    project: immersiveportals
+    version: fSBijwCM
+    filename: immersive-portals-5.2.0-mc1.20.1-fabric.jar
+    sha512: 6e0f8b7673b04c9862c31cc860a062174028fdd3135eee16a147089a9b7af794ae8fb18bbf413ad1daa30d2791af3931f435668e8765fbd726bbce53f7f0fd28
+
+  - name: jsonpatcher
+    role: library
+    source: modrinth
+    project: jsonpatcher
+    version: U1Q4YW9z
+    filename: JsonPatcher-1.0.0-beta.4+mc.1.20.1.jar
+    sha512: 839c6524d429113355cb6d7a43aeea43382542fafa8b1aca42a23b82d4b565d623ed8233a462541e86fe78ce8a2f709dcf7a59a3e09e3d691df3ff9b1ba9aa08
+
+  - name: krysztal-language-scala
+    role: library
+    source: modrinth
+    project: krysztal-language-scala
+    version: TtrSP7tW
+    filename: krysztal-language-scala-3.7.0.jar
+    sha512: 8e45602fc00116a0eec77b7d7e0efe74d92a83bff8dfda9218168b38508fd1124408eb1beb5680171e5f85307dc9e2f808ef74d6541527215e81707c6480b2d0
+
+  - name: origins
+    role: library
+    source: modrinth
+    project: origins
+    version: oT0CGnBQ
+    filename: Origins-1.10.2+mc.1.20.x.jar
+    sha512: d68d6be3c092619ecd80e4e9049616acc19359b9764bc776ad2fbd00112f6bd651996cdccc6008d87022bdf3929f55250bf348659f9c42bdba3bbc627d041fa7
+
+  - name: phlib
+    role: library
+    source: modrinth
+    project: phlib
+    version: TbDrX89n
+    filename: phlib-0.1.4.jar
+    sha512: 08a42f57b0a95afafb014b4dea4371b7b8dab314b038574094d37cdbc7049b7fd95b2486b7e0a8bfc427fbe41e3cc5c0d3cc513073cb6396ca68e194735f4c31
+
+  - name: trinkets
+    role: library
+    source: modrinth
+    project: trinkets
+    version: AHxQGtuC
+    filename: trinkets-3.7.2.jar
+    sha512: bedf97c87c5e556416410267108ad358b32806448be24ef8ae1a79ac63b78b48b9c851c00c845b8aedfc7805601385420716b9e65326fdab21340e8ba3cc4274
+
+  - name: forge-config-api-port
+    role: library
+    source: modrinth
+    project: forge-config-api-port
+    version: HvR3IdRE
+    filename: ForgeConfigAPIPort-v8.0.3-1.20.1-Fabric.jar
+    sha512: 15144d6d7b74dfbe2eede6e3b0aa0c841670be1bd6121608bc28f3b1e46846ccd36b506060a081c988da96cf46fce8bf2e55601e3934b9a52d22dc2fa6cbfd32
+
+  # Addons.
+  - name: abitmorehex-recasted
+    role: addon
+    source: modrinth
+    project: abitmorehex-recasted
+    version: uQ8Jd2yZ
+    filename: abitmorehex_recasted-fabric-0.1.2c+1.20.1.jar
+    sha512: 659a876414664dd4fbb2195e8ce4c8cb2f171f8377ecb1001603716edb95549b70ffbfef58f15c6520ed7db9db9b3d9df918c1db316b8e4cbb87632c0721fc92
+
+  - name: almightly-staff
+    role: addon
+    source: modrinth
+    project: almightly-staff
+    version: 2ZqPKkd8
+    filename: almightly_staff-fabric-0.0.5.23.jar
+    sha512: fdd5e8944c7a4c6ddbd63e736e0288985b34ce3689aebc91b99fed7c34ea21d317b449415cdbb89e605c02dca483cf08d9cc168548049039f5516422981377b8
+
+  - name: caduceus
+    role: addon
+    source: modrinth
+    project: caduceus
+    version: AuLxYA4q
+    filename: caduceus-fabric-0.3.0+1.20.1.jar
+    sha512: 0f311e6e9e66578886d8fa11434cbfa05011764a23e4c42134723e1e8381808ff3ac64f2abc5e8cbb0490a74f7592982814faef867d0b19ba4caa76323328c6c
+
+  - name: complex-hex
+    role: addon
+    source: modrinth
+    project: complex-hex
+    version: 1fRUMDUc
+    filename: complexhex-fabric-1.20.1-0.1.3-beta.jar
+    sha512: ae9a57a7c94d2c45fe38306b271045ad4deeebe00c65ff52f8619eb3a75c5871f9947ebec3ae98cfc11f91b2f10cefdbb950789e0d6d5cd95822b3112fe55079
+
+  - name: ducky-periphs
+    role: addon
+    source: modrinth
+    project: ducky-periphs
+    version: FYDI2Gut
+    filename: duckyperiphs-1.20.1-1.3.1-fabric.jar
+    sha512: dbefdf44def2db076c1f5394ad62427e511d926ed12e4adf57b683d2ff1a1e5d0a95a4a94272f4bbafdb24c373eb1c7dba364937993f323d3996629da0bb0acd
+
+  - name: ephemera
+    role: addon
+    source: modrinth
+    project: ephemera
+    version: d4xVSBKN
+    filename: ephemera-fabric-1.20.1-0.3.1.jar
+    sha512: bfee42148cc23505db656776c18f1df4f500cfd86fdefbca405bec9ffb0b5893f2735571e087bf05809f1aec11e7f597f9f94e6f6ed67025ebeccf0e31e79fab
+
+  - name: heartxxy
+    role: addon
+    source: modrinth
+    project: heartxxy
+    version: K7OfiujX
+    filename: pregxxy-fabric-0.4.67+1.20.1-SNAPSHOT.jar
+    sha512: 316920c72cabce89a3e4d90ee45e44cccee494fe9a8f1cf82e98ff55748b8ba439d99a7e1e6d59059e3ef8d39cf785624a4247b0770e84d39120ff840907cbe1
+
+  - name: help-from-hexxy
+    role: addon
+    source: modrinth
+    project: help-from-hexxy
+    version: 9eAfP74Y
+    filename: helpfromhexxy-fabric-1.20.1-0.1.2.jar
+    sha512: abedbbe691088538c4482d19cf46f683cdf7c70a815092e5e4b3d0cebc5fd9a064af0633681100cea3c20c9e507624536cc801a2052b25d332113407814103ee
+
+  - name: hex-casting-media-display
+    role: addon
+    source: modrinth
+    project: hex-casting-media-display
+    version: hC4KLCXE
+    filename: hexcasting-media-display-2.0.0.jar
+    sha512: 2ac8faf88d4e51ae7edcad3df85edf6c894f41769884462a84bf6d7a7a4665cad77f9f82c465669a0d0e0d48ab0c6b79829ae45b47b6803e67b6879e7bcb4f31
+
+  - name: hex-machina
+    role: addon
+    source: modrinth
+    project: hex-machina
+    version: FEkNBdoN
+    filename: hex_machina-1.0.1.jar
+    sha512: ca5fbaf4ada2f27e2e554ee1572ca0ad3134abce5afa559f41eb0c6f1e182528f0fd88b343f8691face3eb23102939f2fe4df0a20b1cdb67b4963da41518bc13
+
+  - name: hex-spell-wheel
+    role: addon
+    source: modrinth
+    project: hex-spell-wheel
+    version: AefE7HaD
+    filename: spellwheel-fabric-1.2.3+1.20.1.jar
+    sha512: bcb14264a481bd5a6f7175b4bac249ee13f0acab64474a594869782338d011a003022c6aae8eadb297c79618a5eb4b7be67ff319df2a3181882fadefdfcf0b34
+
+  - name: hex-ways-1.20
+    role: addon
+    source: modrinth
+    project: hex-ways-1.20
+    version: Sh8wRYxi
+    filename: hexways-1.0.1.jar
+    sha512: e9011c4b26c0e5582deb5262e064f2ca94249b01495b0e8b8e274f742980a82a908a995636aba506323f88f44dc582d5e47861ef2d7c715c909c0ed37364ea82
+
+  - name: hexal
+    role: addon
+    source: modrinth
+    project: hexal
+    version: VfuFYJJp
+    filename: hexal-fabric-1.20.1-0.3.1.jar
+    sha512: 59803aeaf7af966bc46ec7a199cf07a522a821e14cd7b3c696c081ef9da884cb0e6098c4b995df0c067bbaba2f2aad9ab0d057351484c33de7a92e835a9465cd
+
+  - name: hexautomata
+    role: addon
+    source: modrinth
+    project: hexautomata
+    version: 7fi3bOOs
+    filename: HexAutomata-fabric-1.20.1-0.3.5.2.jar
+    sha512: aa7283b99246b5f8afa17492ad45c6eb2ec38c6467720c0009d5b69d68dcdf3774156a6ffd6f7ec073ca377f199e799f5f5fbb465b1cc61258c9be9f90070671
+
+  - name: hexboard
+    role: addon
+    source: modrinth
+    project: hexboard
+    version: l0o2W0dn
+    filename: hexboard-fabric-0.1.1.jar
+    sha512: e1941429241b759339e78719f39e838b7cbf6030d9ea4c41b26a3902ed6616ae555a6acc9860a3c7f80ea29fc3163aca4e8baac17a372ca2dd39ea04ec51ffbd
+
+  - name: hexcassettes
+    role: addon
+    source: modrinth
+    project: hexcassettes
+    version: 4Ml342F0
+    filename: hexcassettes-1.1.4.jar
+    sha512: c778865fd2726afaa95858845c58c19cebdb2d06c3aeffce3c7b9384daa97aef70a4a367b16a013df7cee0ca251c939eb19f4af7e6adb90c8b7ca1f3dbdefde7
+
+  - name: hexcellular
+    role: addon
+    source: modrinth
+    project: hexcellular
+    version: W2wVSuD5
+    filename: hexcellular-1.1.1.jar
+    sha512: ca0166cdabc95c0c08d9434efbda639c424eb5f82a82868b38fa239a980e28ff0e9d814d61712e71184c7d27b2a83d92ee8b4f4a38220560a751056818f444ba
+
+  - name: hexcessible
+    role: addon
+    source: modrinth
+    project: hexcessible
+    version: sSIvtX4x
+    filename: hexcessible-0.3.1.jar
+    sha512: 53d3621171004920c4e1583abd04238b8eb77193cb44c5920627744100657a53dfb9c7573429d845c389a01774fbf9b30ada78b5a254fd81ede8d2a8afa19982
+
+  - name: hexchanting
+    role: addon
+    source: modrinth
+    project: hexchanting
+    version: Bv9VLS8I
+    filename: hexchanting-1.3.0-beta1.jar
+    sha512: 8e6f969086f7cac6e22d72ce729a9f19cbddc50e68962cf477855e6cf51b4038e3809e74174e0d027546d44cf04fdcc224662c2e487b5d5fd91659c5fb24f2e0
+
+  - name: hexdebug
+    role: addon
+    source: modrinth
+    project: hexdebug
+    version: 641HJOJm
+    filename: hexdebug-fabric-0.9.1+1.20.1.jar
+    sha512: 998d2e7f831d9cb45d0831d976c259f29b3f1ae7bc6d2d2413f40a7591b10627f7b2b053621ac8e13d9feccea9ef2f7ddac7457699f14849bdf9e42f4a21d13e
+
+  - name: hexdim
+    role: addon
+    source: modrinth
+    project: hexdim
+    version: pSfTHr1z
+    filename: hexxy-dimensions-1.3.0.jar
+    sha512: 03850605f43614ad417038798690f0bc1439b8a2ef805357d5f8a57d8e99d686f9ab52344c658f6c95095d0d9a395d8b558a49edb8b45dbeb4cfa117ae892ecf
+
+  - name: hexflow
+    role: addon
+    source: modrinth
+    project: hexflow
+    version: b6xlBiM7
+    filename: hexFlow-fabric-1.20.1-0.7.0.jar
+    sha512: 9f8c83bc46e46e9aea208b813973bf8a2a476616e035c9dbbcbdea92c9df533029db698b2d4303bb2f10788eba91e6c5270613052a3acaba8022bc1603d1cbf3
+
+  - name: hexgender
+    role: addon
+    source: modrinth
+    project: hexgender
+    version: rq1zWMAZ
+    filename: hexgender-fabric-1.0.4.jar
+    sha512: 61f09eff3a2f8667cf04ecf19a9aea6fdbe5a746a0b2c73f9bc4c5605d40541eac9ea085fc99abe9520465f19597690d74e47555519dd35a04da5f152e3200ac
+
+  - name: hexical
+    role: addon
+    source: modrinth
+    project: hexical
+    version: 59F5AzXt
+    filename: hexical-1.5.0.jar
+    sha512: 66c22136217a644ce414b8268ebd2169d2229987e0a82bb5e13203f1354ee7e8bd41064417d87d7264a2b4f4b63a19b4e9ad093c5f7a1689f9cf3ad9ba503d63
+
+  - name: hexintent
+    role: addon
+    source: modrinth
+    project: hexintent
+    version: 4niHlN89
+    filename: manifestation-2.2.2.jar
+    sha512: d341296284e3d8be5745953ca93f6621df2d3fd9292a28fb41a3b1eee333e46702c5c5ffde9efab37f7649cebc6981051991af4996ec3e8baf049c7cd81f971c
+
+  - name: hexkeys
+    role: addon
+    source: modrinth
+    project: hexkeys
+    version: X2nFe4sf
+    filename: hexkeys-fabric-1.20.1-0.1.6.jar
+    sha512: a671612083fa5575fbaf8fcbadad7e9884162890d4e218d74ea71150deba56e751678bfafd4d91999f6fd91cae88236bcf926159b3efda730ff7d61671785c88
+
+  - name: hexmapping
+    role: addon
+    source: modrinth
+    project: hexmapping
+    version: 11PEtef7
+    filename: hexmapping-fabric-1.20.1-0.0.4.jar
+    sha512: b0514c459ad82f6f86a468412881fd92543486948e012f8264d89612d88646827e9bf5f9beed6339e88c56ed175c2242c8b4cef9a6c444abf847dc910369dc53
+
+  - name: hexminline
+    role: addon
+    source: modrinth
+    project: hexminline
+    version: OcVtlZ9F
+    filename: HexMinline-0.1.1.jar
+    sha512: e0eed2ce3bf89f7a894c73d716315b4274062c65662175836ff3fe546f20bd0b71e5f6f6fe4356a069361bb18edb60f6b0a7ca8f8e9e61e4896987c264fbf1eb
+
+  - name: hexnbt
+    role: addon
+    source: modrinth
+    project: hexnbt
+    version: 6ROx2Zti
+    filename: hexnbt-1.2.0.jar
+    sha512: 3339d1d34ee8114a5f21953ff61ee2256944800ed393eb03c16517a8df3027a2d5bd4967e88aa4d1909b9e26fa86c705b58896a5e7be59053b41b186af4d1dcc
+
+  - name: hexodus
+    role: addon
+    source: modrinth
+    project: hexodus
+    version: 1ApHzJr1
+    filename: hexodus-1.0.0.jar
+    sha512: 28ab168c1c5a787d97016ddd7e89f31f8ecb1d833d098b43faa6a985e9e5887c1019be3f6c0e3706e776e4ee3d3b84255d2014275a55526892b5ae6fbc45db66
+
+  - name: hexoverpowered
+    role: addon
+    source: modrinth
+    project: hexoverpowered
+    version: Hm3DhE1B
+    filename: HexOverpowered-fabric-1.20.1-0.12.3.jar
+    sha512: 783c0404044e49d1a4591fb06211e0e256a82a7c06ed01b90fb8168cf2769295e19f034f0068295e7049cd4f9cd808f524ad572fb8956b5382980fec6958b601
+
+  - name: hexpats
+    role: addon
+    source: modrinth
+    project: hexpats
+    version: 4wId0HQw
+    filename: hexpats-0.1.1-1.20.1.jar
+    sha512: fcfdfeb16b0e3e877018c6ad9dd7d73fd71f619fba5f81faa3979a837cd67283429d509f662a5bc66b0276e6074d2a026bfd41350a8c9b8b57de4dd94d653817
+
+  - name: hexpigmentplus
+    role: addon
+    source: modrinth
+    project: hexpigmentplus
+    version: hRQ30Jjy
+    filename: hexpigmentplus-1.7.2.jar
+    sha512: 6f421146c2739a1c5ddfa1c8baeae7ae4c19da8c501643f5c3d36d54893d30171475f8e6dd09071536a0be7a89d248afe5576010293ef613c8617e4b2cd08156
+
+  - name: hexportation
+    role: addon
+    source: modrinth
+    project: hexportation
+    version: P9Zb0V9l
+    filename: hexportation-fabric-1.20.1-0.0.3.jar
+    sha512: 852666f293e5aa197d4e1badf018113c2a1fe22c4f242796227b96d20f1f42b41a6fafaa8ff9ebf9ece316c940ea5588a0dcc66e35714d50374735410e52a6de
+
+  - name: hexpose
+    role: addon
+    source: modrinth
+    project: hexpose
+    version: xdGntEal
+    filename: hexpose-2.0.0.jar
+    sha512: 7e1c544160cd886149da779dc35130e7db3df5ffb46ae79d2bff4221d59fe793cdf36efe1bcb18cf24574a8fe6fa86a748c8af9dd7cfc5ecaaa0fc2c76f5a1e7
+
+  - name: hexsbm
+    role: addon
+    source: modrinth
+    project: hexsbm
+    version: fwQz7T64
+    filename: hexsbm-0.2.2.jar
+    sha512: 0f0edb73985860cc14a7b693613e7fee2e4f1e50287b87572798ce99c435af13819ff90ec035ba1644afc1f53c3b6d24c3d9752b6556bdd0f684138ad8ffe686
+
+  - name: hexshadowing
+    role: addon
+    source: modrinth
+    project: hexshadowing
+    version: V6DEvOan
+    filename: hex-shadowing-1.1.0.jar
+    sha512: eccf13083e71a1011f5a01a57661529093516b0cbe6c88688c163f81ae3c593542fcc004d7a3aee10dd3104194381d29c151fc88250bf198b0dfe2c58337ba2d
+
+  - name: hexssence
+    role: addon
+    source: modrinth
+    project: hexssence
+    version: fxeR5qcQ
+    filename: hexssence-fabric-0.1.3+1.20.1.jar
+    sha512: eb129894e478cf2de8e7436438c4012b6de5669f1dfa01f65942f699701b43552c9834e1ff1cd6ea50d5048adb92979a2abd1307e2115b5c776fc5ff1c2cd7ea
+
+  - name: hexstruction
+    role: addon
+    source: modrinth
+    project: hexstruction
+    version: LfUSHo4m
+    filename: hexstruction-fabric-1.3.1+1.20.1.jar
+    sha512: 363363e7b13a6a2749fa2662d414fc5ed9410e11097244c49daab43d616df18a9922966e50c7fa37e8af9aa5221385d82ae7dae53c0775d9b5d24b442ac6d4e4
+
+  - name: hextended-staves
+    role: addon
+    source: modrinth
+    project: hextended-staves
+    version: l6et8gII
+    filename: hextended-fabric-1.20.1-2.0.1.jar
+    sha512: f7ad439cf150e4272dfaa8cd2b727a1bfd93a32749d0f5068787f4dadb010b8fdb57c29dffbd9cfd7dac0b5bc37e29432e995960ede0b8cac3eaa8d9b5b7a382
+
+  - name: hexthings
+    role: addon
+    source: modrinth
+    project: hexthings
+    version: uITeUl6U
+    filename: hexthings-fabric-0.2.0+1.20.1.jar
+    sha512: 7c0f65228ba09e106772aa1b1ea3cc2fb18621c76c6d8292b89ad0237f0c161ef0d20da2575ae28e0d88b9c70c0b65437b4feb2cf4e28435592bc22df4ddc624
+
+  - name: hexthingy
+    role: addon
+    source: modrinth
+    project: hexthingy
+    version: JBl5qpJu
+    filename: hexthingy-1.0.1.jar
+    sha512: 563da066ca352884c78d6a6ab101fa8b08f18055f954ab9793f5c9fd343dc179d3d0fed46d33a6297ae6a160291ed906f55d85a190874b6f7094e721522ca583
+
+  - name: hextra-patterns
+    role: addon
+    source: modrinth
+    project: hextra-patterns
+    version: H6GZVOoQ
+    filename: hextrapats-1.10.0+1.20.1.jar
+    sha512: f39dfdae72415fed2b0078cccff62febc2c0a40e0a96b77141ab940daf724cc986333cc76f098d70e5dc0d05e1a4a7c788c0f341556f456fba1b2048a784d59b
+
+  - name: hextrogen
+    role: addon
+    source: modrinth
+    project: hextrogen
+    version: juJQAmj2
+    filename: hextrogen-1.1.0.jar
+    sha512: f9c78912fa6cf9941ff1eccb8305e668086694c20f87d858dd66e735a90ce82be0c432ecebcd6f88b01404f2ef8296bfac709ac3a9da3a0068da9b81153deea6
+
+  - name: hextweaks
+    role: addon
+    source: modrinth
+    project: hextweaks
+    version: 7RPBspd1
+    filename: hextweaks-5.3.3.jar
+    sha512: 7fbc6ff1e7129d8f79bcaa4371a89d935f31614256540e2b0809a70f2fe18966665ade13985b7b3c57d322b0950e69998d186b74da48b70728e33fccd933e6ee
+
+  - name: hexweb
+    role: addon
+    source: modrinth
+    project: hexweb
+    version: tYa7JztJ
+    filename: hexweb-fabric-1.1.0.jar
+    sha512: a519c49929f3ea38487ca09bef7a58fcc57ac27782d4ce25dd6a7fe45eef700f31a8014bfd1e3f777b9b73e9ef3c0e3ca21e08f7ad6d9e50514a670b38897592
+
+  - name: hexxyattributes
+    role: addon
+    source: modrinth
+    project: hexxyattributes
+    version: LZPMnifU
+    filename: hexxyattributes-1.0.jar
+    sha512: 20dad9e18951873903a99e8c7a05c856419be3237dfdf6ad7964d3a5fa5b53ced0d8fe880f7503bcb78fbb01e325456853afc5b917841b6e104674b6df69fd1e
+
+  - name: hierophantics
+    role: addon
+    source: modrinth
+    project: hierophantics
+    version: Su9MCaIW
+    filename: hierophantics-fabric-1.4.0.jar
+    sha512: d43b1b10d9bc80b87726f5ab2252be7e5f5e768b48f8ced77c472b9c15e7e932af16f196ce6181adc5c233d5d03bb8901a360d4dfe1cace7129d366acf5a525a
+
+  - name: iotaworks
+    role: addon
+    source: modrinth
+    project: iotaworks
+    version: jXEsbzW1
+    filename: iotaworks-0.1.4.jar
+    sha512: 17fa5e7b9ce3727745c8b28f025f0d1aefdcfdaea16b6cc8eeb0493a0dcd8e3f5d80ec4841f95b5bdcc80d50bb2c36b68a4f4f65f1cf9a3aa5e8dce69d104b6a
+
+  - name: ioticblocks
+    role: addon
+    source: modrinth
+    project: ioticblocks
+    version: SJMDeeZs
+    filename: ioticblocks-fabric-1.0.2+1.20.1.jar
+    sha512: 7371f4af875730066f12da6fa305d9f0d0a6d3dd497c7aba88cd1239d33e1cdaab26b2d974c2b1313eb1ec6ca0fc5a5c882e358b22c067be9412de2dff0c6b44
+
+  - name: kvha
+    role: addon
+    source: modrinth
+    project: kvha
+    version: GRoAM7T9
+    filename: reshex-fabric-0.1.0+1.20.1-SNAPSHOT.jar
+    sha512: 16c4ab26e91a0a71b8eda52451878a4358535adf66481ecc01ed759f9473decc24b98744415edb82952aeb8e7e36cf069300697f87fdd44254778fb73c25f94b
+
+  - name: lapisworks
+    role: addon
+    source: modrinth
+    project: lapisworks
+    version: NXkpUK40
+    filename: lapisworks-1.5.8.6.jar
+    sha512: d648ab28923ee03d8e7c44731e685edca639472dc2e9e41d70e1e06afce0a7af280c956914c1a2c0a5f8bd1b8ec755c4dd5a608cbf06a362c543a4381ab997c8
+
+  - name: lesser-teleport
+    role: addon
+    source: modrinth
+    project: lesser-teleport
+    version: VU8RjNNq
+    filename: lessertp-1.2.6.jar
+    sha512: 75e9b44ac935ef25ea6ffe99ffad73fdc89fa1ab5ef57dd4ab291d873eb05c11be8117bdc8879e2fad3787eb8d7f4c270ae7cd94d9f45d1808663c22a36b3113
+
+  - name: merlingsgrace
+    role: addon
+    source: modrinth
+    project: merlingsgrace
+    version: u4OKj3XN
+    filename: merlingsgrace-1.0.0.jar
+    sha512: 8137b15829849c2cf0ee3328d8b1766ff9aece230ca2a48c34cd3b401bd1cf660b425c21375f8b4e15ae176a1b3a7a7948a288638816b115e388f0e2f16077f3
+
+  - name: miehexrevolution
+    role: addon
+    source: modrinth
+    project: miehexrevolution
+    version: cbpeHW7n
+    filename: miehex_revolution-fabric-1.0.3.45+0.11.4.jar
+    sha512: 6d2c59c10a890f32f0572fdffeb5da3aec7a98d20879c705b392dea5439b86fe8650077d5b6c4d5b3d7226145045b6f1414ede4fb848990159c5ddafbe32ee52
+
+  - name: minihex
+    role: addon
+    source: modrinth
+    project: minihex
+    version: SdLLSjOW
+    filename: minihex-1.0.0.jar
+    sha512: b3f8084e8740933cbefda07e52d9d9bde7ac478d9413a57dacaa2fc63509f836a4e6f50dee6bde47a0c2ebd60b7c12721c523e680a48b3fb5846f814ed4124f3
+
+  - name: moreiotas
+    role: addon
+    source: modrinth
+    project: moreiotas
+    version: ibSppm0K
+    filename: moreiotas-fabric-1.20.1-0.1.2.jar
+    sha512: dc4c432c8d8ff20cb6f346a7ee3df2640d0047adc8706b7058f72e120f93aaec7f375a9ae33d0b01ed2a7e2a9910e37a3162d2c39e17bf4fbba9d4376d658607
+
+  - name: moves-the-mind
+    role: addon
+    source: modrinth
+    project: moves-the-mind
+    version: 4jyqi29b
+    filename: movesthemind-1.1.0.jar
+    sha512: 89c67891265cc0b39028c3857903100085f23bef8cd32826961085ad03849e03056b43fe6a7e7d6971aa975105d3f3ef13ef912dae5d78b33969b03bfab02ffb
+
+  - name: phlexiful
+    role: addon
+    source: modrinth
+    project: phlexiful
+    version: W2Tx6aRM
+    filename: phlexiful-fabric-1.0.0.jar
+    sha512: bf7a3f4fb87d3b39101c354f4f937ba146cbe8b81ddc5e84d126bcc4a1a4759220beaf2f862933c9d84be4a5a0eceb8fe0c8f1974026f9af003f7fa5b7dc99f6
+
+  - name: pointless-machine
+    role: addon
+    source: modrinth
+    project: pointless-machine
+    version: nfVGLyoC
+    filename: pointless-machine-1.0.67-SNAPSHOT.jar
+    sha512: ad2ffd350c75270f2f588f600fc443a0ed65d11bf6a8881684678c40d129891d4570480b624106a74a662fa6ef8078fdc2afce13a274c4ee83ab089badb76ca2
+
+  - name: quadcasting
+    role: addon
+    source: modrinth
+    project: quadcasting
+    version: VOjfEJ7F
+    filename: quadcasting-1.0.0.jar
+    sha512: 8c7996baa751e36558d2b8713e04372babde19f9c4d63e30f86a8c43653f792679b5728016c516325bcc34ec0cd5364cad75ec4bd0ea7bbc5335043d59dfc952
+
+  - name: slate-works
+    role: addon
+    source: modrinth
+    project: slate-works
+    version: yUAyayIn
+    filename: Slate_Work-2.3.2.jar
+    sha512: d9a0e9636d629eed6f26d6bf5cbd31ed9cbebd8742cac089e81807d1a2f9e9b649e9e481e77ef8f6d5e550a7c96544cd58a6c163271726057253e53c521f3162
+
+  - name: stackpatterns
+    role: addon
+    source: modrinth
+    project: stackpatterns
+    version: uf4onNhd
+    filename: stackpatterns-1.0.0.jar
+    sha512: 1aeb2a96b1eeff75dd56d9db936245e19da04b80546bde3d3184ede091e875972cef94a9ed7bc272cdc8e145c77142cab01a32dc8aea69dff06f0dbab273bede
+
+  - name: yaha
+    role: addon
+    source: modrinth
+    project: yaha
+    version: Y3drbKYA
+    filename: YAHA-0.4.2.jar
+    sha512: a2138d23c394429417a1bc341fe4bbe1770be14ded13f0207f48257de69de11a026ead5f78f9b0eac6387c35aa5095f643dc1220e25d211000ac8ecf115b2d58

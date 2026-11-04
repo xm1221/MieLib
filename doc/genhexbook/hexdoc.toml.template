@@ -4,7 +4,10 @@ default_lang = "en_us"
 default_branch = "main"
 
 # Resources are dumped by /genHexBook from the live server (mods/*.jar).
+# The companion's own dir comes first so its lang overrides (site title,
+# description, landing intro) win over the addon translations.
 resource_dirs = [
+    "src/hexdoc_livehexbook/resources",
     "resources",
     { modid="hexcasting" },
     { modid="minecraft" },
@@ -12,12 +15,13 @@ resource_dirs = [
 ]
 
 [template]
-include = ["hexcasting", "hexdoc"]
+# livehexbook first: its _templates/ override hexdoc's book landing box.
+include = ["livehexbook", "hexcasting", "hexdoc"]
 
 [template.args]
-mod_name = "Hex Casting"
+mod_name = "HexBook"
 author = "xm1221"
-show_landing_text = false
+show_landing_text = true
 
 [extra.hexcasting]
 allow_duplicates = true
@@ -29,3 +33,6 @@ path = "patterns-registry.json"
 
 [textures]
 missing = "*"
+# Addon item models whose parents live in absent mods (e.g. Create) or are
+# generated at runtime: log and fall back instead of failing the whole build.
+strict = false

@@ -19,6 +19,9 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -32,6 +35,9 @@ import java.util.stream.Stream;
  *       {@code ResourceManager});</li>
  *   <li>{@code patterns-registry.json} — pattern stubs straight from the live Action
  *       registry, so no source scraping is needed;</li>
+ *   <li>{@code resource-origins.json} — which modid contributed each Patchouli book file,
+ *       so the hexdoc side can keep hexcasting itself strict while treating addons as
+ *       best effort (see {@code src/hexdoc_livehexbook/tolerance.py});</li>
  *   <li>{@code hexdoc.toml}, {@code .env} — config;</li>
  *   <li>{@code src/}, {@code requirements.txt}, {@code build.sh} — the companion from
  *       {@code doc/genhexbook/}.</li>
@@ -51,6 +57,13 @@ public final class HexdocProjectWriter {
         "build.sh",
         "README.md",
         "src/hexdoc_livehexbook/__init__.py",
+        "src/hexdoc_livehexbook/pages.py",
+        "src/hexdoc_livehexbook/tolerance.py",
+        "src/hexdoc_livehexbook/_templates/book.html.jinja",
+        "src/hexdoc_livehexbook/_templates/macros/styles.html.jinja",
+        "src/hexdoc_livehexbook/resources/__init__.py",
+        "src/hexdoc_livehexbook/resources/assets/hexdoc/lang/en_us.json",
+        "src/hexdoc_livehexbook/resources/assets/hexdoc/lang/zh_cn.json",
         "src/hexdoc_livehexbook-0.0.1.dist-info/METADATA",
         "src/hexdoc_livehexbook-0.0.1.dist-info/entry_points.txt"
     );
@@ -64,11 +77,13 @@ public final class HexdocProjectWriter {
         // and the run would report 0 dumped files.
         deleteRecursively(resources);
         Files.createDirectories(resources);
+        RESOURCE_ORIGINS.clear();
 
         int files = dumpResources(server, resources);
         GenHexBook.LOGGER.info("[GenHexBook] dumped {} resource files → {}", files, resources);
         copyClientAssets(resources);
 
+        writeResourceOrigins(project);
         writePatterns(project.resolve("patterns-registry.json"));
         copyCompanion(project);
 
@@ -176,6 +191,7 @@ public final class HexdocProjectWriter {
     private static void copyJarResources(Path jar, Path dest, int[] count, int depth) {
         if (depth > 1) return;
         try (FileSystem fs = FileSystems.newFileSystem(jar, Collections.emptyMap())) {
+            String modid = jarModId(fs, jar);
             for (Path root : fs.getRootDirectories()) {
                 for (String top : new String[]{"assets", "data"}) {
                     Path dir = root.resolve(top);
@@ -201,6 +217,13 @@ public final class HexdocProjectWriter {
                                     Files.write(target, bytes);
                                 }
                                 count[0]++;
+                                // Patchouli book files are namespaced under the *book* owner
+                                // (hexcasting), not the addon that shipped them, so record
+                                // the real source modid here for the hexdoc-side policy.
+                                String originKey = bookOriginKey(top + "/" + rel);
+                                if (originKey != null) {
+                                    RESOURCE_ORIGINS.putIfAbsent(originKey, modid);
+                                }
                             } catch (Exception ex) {
                                 GenHexBook.LOGGER.debug("[GenHexBook] skip {}: {}", p, ex.toString());
                             }
@@ -284,6 +307,66 @@ public final class HexdocProjectWriter {
         return count[0];
     }
 
+    /**
+     * Source modid of every dumped Patchouli book file, keyed by
+     * {@code <book>/<lang>/<folder>/<id>} without a file extension.
+     *
+     * <p>Every addon injects its pages into {@code hexcasting:thehexbook}, so the dumped
+     * tree alone cannot tell hexcasting's own content apart from addon content. The
+     * hexdoc side needs that distinction to keep the base book strict.
+     */
+    private static final Map<String, String> RESOURCE_ORIGINS = new TreeMap<>();
+    private static final List<String> BOOK_EXTENSIONS = List.of(".json5", ".json", ".yml", ".yaml");
+    private static final java.util.regex.Pattern MOD_ID_PATTERN =
+        java.util.regex.Pattern.compile("(?m)^\\s*modId\\s*=\\s*\"([^\"]+)\"");
+
+    /** Manifest key for a book file, or {@code null} when the path is not book content. */
+    private static String bookOriginKey(String rel) {
+        int books = rel.indexOf("patchouli_books/");
+        if (books < 0) return null;
+        String shortName = rel.substring(books + "patchouli_books/".length());
+        for (String extension : BOOK_EXTENSIONS) {
+            if (shortName.endsWith(extension)) {
+                return shortName.substring(0, shortName.length() - extension.length());
+            }
+        }
+        return shortName;
+    }
+
+    /** Best-effort modid of a jar: {@code fabric.mod.json}, then {@code mods.toml}. */
+    private static String jarModId(FileSystem fs, Path jar) {
+        for (Path root : fs.getRootDirectories()) {
+            Path fabric = root.resolve("fabric.mod.json");
+            if (Files.isRegularFile(fabric)) {
+                try (InputStream in = Files.newInputStream(fabric)) {
+                    JsonElement element = JsonParser.parseString(
+                        new String(in.readAllBytes(), StandardCharsets.UTF_8));
+                    if (element.isJsonObject()) {
+                        JsonElement id = element.getAsJsonObject().get("id");
+                        if (id != null && id.isJsonPrimitive()) return id.getAsString();
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            Path forge = root.resolve("META-INF").resolve("mods.toml");
+            if (Files.isRegularFile(forge)) {
+                try {
+                    var matcher = MOD_ID_PATTERN.matcher(Files.readString(forge, StandardCharsets.UTF_8));
+                    if (matcher.find()) return matcher.group(1);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return jar.getFileName().toString();
+    }
+
+    private static void writeResourceOrigins(Path project) throws IOException {
+        Path target = project.resolve("resource-origins.json");
+        Files.writeString(target, GSON.toJson(RESOURCE_ORIGINS), StandardCharsets.UTF_8);
+        GenHexBook.LOGGER.info("[GenHexBook] wrote resource-origins.json ({} book files) → {}",
+            RESOURCE_ORIGINS.size(), target);
+    }
+
     /** Languages hexdoc can handle; anything else (e.g. cloth-config's {@code en_ud}) breaks it. */
     private static final List<String> KEPT_LANGS = List.of("en_us", "zh_cn");
     private static final java.util.regex.Pattern LOCALE_SEGMENT =
@@ -357,12 +440,15 @@ public final class HexdocProjectWriter {
      * and repeating them makes hexdoc fail with {@code Duplicate pattern id}.
      */
     private static void writePatterns(Path target) throws IOException {
-        List<Stub> stubs = new ArrayList<>();
+        Map<String, Stub> stubs = new LinkedHashMap<>();
         for (PatternInfo p : PatternLookup.list()) {
             if (p.id().startsWith("hexcasting:")) continue;
-            stubs.add(new Stub(p.id(), p.startDir().toUpperCase(Locale.ROOT), p.signature(), p.perWorld()));
+            stubs.put(p.id(), new Stub(p.id(), p.startDir().toUpperCase(Locale.ROOT), p.signature(), p.perWorld()));
         }
-        Files.writeString(target, GSON.toJson(stubs), StandardCharsets.UTF_8);
+        // No backfill from the book JSON: a page that references a pattern which is not
+        // registered at runtime is dropped with a warning by the hexdoc side
+        // (src/hexdoc_livehexbook/tolerance.py), instead of inventing stubs here.
+        Files.writeString(target, GSON.toJson(new ArrayList<>(stubs.values())), StandardCharsets.UTF_8);
         GenHexBook.LOGGER.info("[GenHexBook] wrote {} addon pattern stubs → {}", stubs.size(), target);
     }
 
