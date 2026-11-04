@@ -168,6 +168,9 @@ dependencies {
     )))
 
     // Optional HexCLI addon for local E2E: MieHex without JiJ MieLib (Loom provides MieLib from source).
-    // Jar under fabric/hexcli-extra-mods/; not shipped in published artifacts.
-    modLocalRuntime(files("hexcli-extra-mods/miehex-fabric-nojij.jar"))
+    // The jar lives under fabric/hexcli-extra-mods/ and is gitignored, so CI checkouts do not have it.
+    val miehexNoJij = file("hexcli-extra-mods/miehex-fabric-nojij.jar")
+    if (miehexNoJij.isFile) {
+        modLocalRuntime(files(miehexNoJij))
+    }
 }
