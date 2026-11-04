@@ -19,6 +19,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -358,13 +362,70 @@ public final class HexdocProjectWriter {
      * and repeating them makes hexdoc fail with {@code Duplicate pattern id}.
      */
     private static void writePatterns(Path target) throws IOException {
-        List<Stub> stubs = new ArrayList<>();
+        Map<String, Stub> stubs = new LinkedHashMap<>();
         for (PatternInfo p : PatternLookup.list()) {
             if (p.id().startsWith("hexcasting:")) continue;
-            stubs.add(new Stub(p.id(), p.startDir().toUpperCase(Locale.ROOT), p.signature(), p.perWorld()));
+            stubs.put(p.id(), new Stub(p.id(), p.startDir().toUpperCase(Locale.ROOT), p.signature(), p.perWorld()));
         }
-        Files.writeString(target, GSON.toJson(stubs), StandardCharsets.UTF_8);
-        GenHexBook.LOGGER.info("[GenHexBook] wrote {} addon pattern stubs → {}", stubs.size(), target);
+        // Books may reference optional-mod patterns (e.g. hexmapping + squaremap) that
+        // are not in the live Action registry. hexdoc still requires a stub entry.
+        Path resources = target.getParent() == null ? null : target.getParent().resolve("resources");
+        int backfilled = 0;
+        if (resources != null && Files.isDirectory(resources)) {
+            for (String opId : collectBookOpIds(resources)) {
+                if (opId.startsWith("hexcasting:")) continue;
+                if (stubs.containsKey(opId)) continue;
+                stubs.put(opId, new Stub(opId, "EAST", "w", false));
+                backfilled++;
+            }
+        }
+        Files.writeString(target, GSON.toJson(new ArrayList<>(stubs.values())), StandardCharsets.UTF_8);
+        GenHexBook.LOGGER.info(
+            "[GenHexBook] wrote {} addon pattern stubs ({} backfilled) → {}",
+            stubs.size(),
+            backfilled,
+            target
+        );
+    }
+
+    /** Collects every string {@code op_id} under dumped Patchouli book JSON. */
+    private static Set<String> collectBookOpIds(Path resources) throws IOException {
+        Set<String> ids = new HashSet<>();
+        try (Stream<Path> walk = Files.walk(resources)) {
+            walk.filter(Files::isRegularFile)
+                .filter(p -> {
+                    String s = p.toString().replace('\\', '/');
+                    return s.contains("patchouli_books") && s.endsWith(".json");
+                })
+                .forEach(p -> {
+                    try {
+                        JsonElement root = JsonParser.parseString(Files.readString(p, StandardCharsets.UTF_8));
+                        collectOpIds(root, ids);
+                    } catch (Exception ignored) {
+                    }
+                });
+        }
+        return ids;
+    }
+
+    private static void collectOpIds(JsonElement el, Set<String> ids) {
+        if (el == null || el.isJsonNull()) return;
+        if (el.isJsonObject()) {
+            var obj = el.getAsJsonObject();
+            if (obj.has("op_id") && obj.get("op_id").isJsonPrimitive()) {
+                String op = obj.get("op_id").getAsString();
+                if (op != null && !op.isEmpty()) {
+                    ids.add(op.endsWith("/") ? op.substring(0, op.length() - 1) : op);
+                }
+            }
+            for (var e : obj.entrySet()) {
+                collectOpIds(e.getValue(), ids);
+            }
+        } else if (el.isJsonArray()) {
+            for (JsonElement child : el.getAsJsonArray()) {
+                collectOpIds(child, ids);
+            }
+        }
     }
 
     private record Stub(String id, String startdir, String signature, boolean is_per_world) {}
