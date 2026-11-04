@@ -193,7 +193,7 @@ public final class HexdocRunner {
               <head>
                 <meta charset="utf-8" />
                 <meta http-equiv="refresh" content="0; url=v/latest/main/en_us/index.html" />
-                <title>Hex Book</title>
+                <title>Hex Casting All-Addons Book · HexBook</title>
               </head>
               <body>
                 <p><a href="v/latest/main/en_us/index.html">English</a> ·

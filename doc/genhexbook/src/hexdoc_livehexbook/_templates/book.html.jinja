@@ -1,0 +1,21 @@
+{# Overrides hexdoc's book.html.jinja (same structure) to replace Patchouli's
+   book landing text with the livehexbook site intro, localized per language. #}
+{% import "macros/formatting.html.jinja" as fmt with context -%}
+
+<div class="container">
+  {% if show_landing_text %}
+    <header class="jumbotron">
+      <h1 class="book-title">{{ _("hexdoc."~props.modid~".title") }}</h1>
+      {{ fmt.styled(_f("hexdoc.landing.intro")) }}
+    </header>
+  {% endif %}
+
+  {% include "components/table_of_contents.html.jinja" %}
+
+  {# actual book content (ie. all the categories) #}
+  <main class="book-body">
+    {% for category in book.categories.values() if category.entries.values() +%}
+      {% include "category.html.jinja" %}
+    {% endfor +%}
+  </main>
+</div>

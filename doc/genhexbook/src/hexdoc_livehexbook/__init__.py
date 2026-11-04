@@ -1,3 +1,4 @@
+import importlib
 from importlib.resources import Package
 from typing import Any
 
@@ -56,11 +57,14 @@ class LiveHexBookModPlugin(ModPluginWithBook):
 
     @override
     def resource_dirs(self) -> HookReturn[Package]:
-        return []
+        # Companion resources, eg. the `hexdoc` lang overrides (site title,
+        # description). Listed first in resource_dirs so lang lookups prefer them.
+        return [importlib.import_module("hexdoc_livehexbook.resources")]
 
     @override
     def jinja_template_root(self) -> tuple[Package, str] | None:
-        return None
+        # Overrides hexdoc's book.html.jinja landing box (themed + bilingual intro).
+        return importlib.import_module("hexdoc_livehexbook"), "_templates"
 
 
 def _collect_page_types_from_resources() -> set[str]:

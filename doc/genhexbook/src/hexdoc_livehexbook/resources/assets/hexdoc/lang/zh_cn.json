@@ -1,0 +1,5 @@
+{
+  "hexdoc.hexcasting.title": "Hex Casting 全附属图鉴 · HexBook",
+  "hexdoc.hexcasting.description": "收录 Hex Casting 与社区 hexaddons 清单中附属的 HexBook，由 MieLib 从游戏内实时注册表经 hexdoc 生成。",
+  "hexdoc.landing.intro": "本站在 $(thing)Hex Casting/$ 之外，还收录了社区 $(l:https://github.com/xm1221/MieLib)hexaddons 清单/$中的各附属。图案取自游戏内实时注册表，由 MieLib 的 $(thing)/genHexBook/$ 命令经 $(l:https://pypi.org/project/hexdoc/)hexdoc/$ 渲染。每个图案都标注了所属命名空间，因此 Hex Casting 与各附属的图案可以清楚区分。$(br2)想搭建自己的站点，只需修改 $(l:https://github.com/xm1221/MieLib)MieLib/$ 中的 $(thing)doc/genhexbook/mods.yml/$，选择要安装并渲染的附属即可。"
+}

@@ -1,0 +1,5 @@
+{
+  "hexdoc.hexcasting.title": "Hex Casting All-Addons Book · HexBook",
+  "hexdoc.hexcasting.description": "A HexBook listing Hex Casting and community addons from the hexaddons list, generated from the live game registry with hexdoc.",
+  "hexdoc.landing.intro": "This site lists $(thing)Hex Casting/$ together with the community addons from the $(l:https://github.com/xm1221/MieLib)hexaddons list/$. Patterns are collected from the live game registry and rendered with $(l:https://pypi.org/project/hexdoc/)hexdoc/$ by MieLib's $(thing)/genHexBook/$ command. Every pattern is labelled with its namespace, so Hex Casting and each addon stay distinguishable.$(br2)To publish your own site, edit $(thing)doc/genhexbook/mods.yml/$ in $(l:https://github.com/xm1221/MieLib)MieLib/$ to choose the addons that get installed and rendered."
+}

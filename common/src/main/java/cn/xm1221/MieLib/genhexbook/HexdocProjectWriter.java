@@ -56,6 +56,10 @@ public final class HexdocProjectWriter {
         "README.md",
         "src/hexdoc_livehexbook/__init__.py",
         "src/hexdoc_livehexbook/pages.py",
+        "src/hexdoc_livehexbook/_templates/book.html.jinja",
+        "src/hexdoc_livehexbook/resources/__init__.py",
+        "src/hexdoc_livehexbook/resources/assets/hexdoc/lang/en_us.json",
+        "src/hexdoc_livehexbook/resources/assets/hexdoc/lang/zh_cn.json",
         "src/hexdoc_livehexbook-0.0.1.dist-info/METADATA",
         "src/hexdoc_livehexbook-0.0.1.dist-info/entry_points.txt"
     );
