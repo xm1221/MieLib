@@ -53,6 +53,10 @@ public final class HexBookHttpServer {
             if (raw == null || raw.isEmpty() || "/".equals(raw)) raw = "/index.html";
             String rel = raw.startsWith("/") ? raw.substring(1) : raw;
             Path target = base.resolve(rel).normalize();
+            // Directory URLs (e.g. /v/latest/main/en_us/) resolve to their index.html.
+            if (raw.endsWith("/") || Files.isDirectory(target)) {
+                target = target.resolve("index.html").normalize();
+            }
             if (!target.startsWith(base) || !Files.isRegularFile(target)) {
                 byte[] msg = "404".getBytes();
                 ex.sendResponseHeaders(404, msg.length);
