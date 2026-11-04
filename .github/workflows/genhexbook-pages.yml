@@ -22,8 +22,8 @@
 #                             environment. peaceiris pushes an orphan gh-pages
 #                             branch with peaceiris/actions-gh-pages.
 #
-# Triggers: push to main when the manifest, companion, exporter, docs, or this
-# workflow change, plus workflow_dispatch. Forks: enable Actions, set the
+# Triggers: push to main when the manifest, companion, exporter, docs, Fabric
+# project config, or this workflow change, plus workflow_dispatch. Forks: enable Actions, set the
 # secrets/variables, edit doc/genhexbook/mods.yml, push to main.
 # Bilingual guide: docs/genhexbook.md
 
@@ -96,6 +96,12 @@ jobs:
           python-version: "3.11"
 
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          # A Gradle User Home saved mid-failure is missing Loom's tiny mappings.
+          # Restore keys are prefix matches, so that entry is handed to later jobs
+          # and compile fails before it starts. Write-only skips the bad restore
+          # and stores a complete home for the next run.
+          cache-write-only: true
 
       - name: Build MieLib (Fabric)
         run: ./gradlew -Pfabric.loom.disableMinecraftVerification=true :fabric:build

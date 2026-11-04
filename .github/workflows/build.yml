@@ -33,6 +33,10 @@ jobs:
           java-version: 17
 
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          # Skip a Gradle User Home that was saved without Loom's tiny mappings.
+          # See genhexbook-pages.yml for the same workaround.
+          cache-write-only: true
 
       - name: Build mod
         env:
