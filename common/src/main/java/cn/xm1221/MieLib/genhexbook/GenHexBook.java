@@ -20,9 +20,9 @@ import java.nio.file.Path;
 import java.util.Locale;
 
 /**
- * {@code /genHexBook} — render Hex Casting Patchouli book (thehexbook)
- * to a hexdoc-style static site using the live action registry.
- * See docs/genhexbook.md.
+ * {@code /genHexBook} — dump a hexdoc project from the live server (resources +
+ * action registry), build it with the real {@code hexdoc} CLI, and optionally
+ * serve / export Markdown. See docs/genhexbook.md.
  */
 public final class GenHexBook {
     public static final Logger LOGGER = LoggerFactory.getLogger("GenHexBook");
@@ -109,18 +109,25 @@ public final class GenHexBook {
         c.getSource().sendSuccess(() -> Component.literal(
             "[GenHexBook] generating → " + outDir + " (lang=" + langFinal + ", md=" + md + ")"), true);
         try {
-            GenHexBookGenerator.Result result = GenHexBookGenerator.generate(server, outDir, lang, md);
+            GenHexBookGenerator.Result result = GenHexBookGenerator.generate(server, outDir, lang, md, servePort);
             c.getSource().sendSuccess(() -> Component.literal(
-                "[GenHexBook] done: " + result.categories() + " categories, "
-                    + result.entries() + " entries, " + result.patterns() + " patterns → " + outDir), true);
+                "[GenHexBook] done: " + result.patterns() + " pattern stubs, hexdoc site → " + result.siteDir()), true);
+            if (md) {
+                c.getSource().sendSuccess(() -> Component.literal(
+                    "[GenHexBook] markdown: " + result.categories() + " categories, "
+                        + result.entries() + " entries → " + outDir.resolve("md")), true);
+            }
             if (servePort != null) {
-                String url = HexBookHttpServer.start(outDir, servePort);
+                String url = HexBookHttpServer.start(result.siteDir(), servePort);
                 c.getSource().sendSuccess(() -> Component.literal("[GenHexBook] serving " + url), true);
             }
             return 1;
         } catch (Exception e) {
             LOGGER.error("[GenHexBook] failed", e);
             c.getSource().sendFailure(Component.literal("[GenHexBook] failed: " + e.getMessage()));
+            for (String line : HexdocRunner.installHint()) {
+                c.getSource().sendSuccess(() -> Component.literal(line), false);
+            }
             return 0;
         }
     }

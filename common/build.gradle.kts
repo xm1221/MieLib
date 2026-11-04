@@ -28,3 +28,11 @@ dependencies {
         annotationProcessor(it)
     }
 }
+
+// /genHexBook dumps a hexdoc project on the server; ship the companion
+// (doc/genhexbook) inside the jar so no checkout is needed at runtime.
+tasks.processResources {
+    from(rootProject.file("doc/genhexbook")) {
+        into("genhexbook")
+    }
+}
