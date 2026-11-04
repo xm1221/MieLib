@@ -140,37 +140,41 @@ public final class HexdocRunner {
 
     /**
      * hexdoc has no top-level index: each language lives at
-     * {@code src/docs/v/latest/main/<lang>/index.html}. Add a redirect so the
-     * directory can be served as-is.
+     * {@code v/latest/main/<lang>/index.html} under the copied site root. Add a
+     * redirect so the directory can be served as-is.
      */
     private static void writeRootRedirect(Path site) throws IOException {
         Path index = site.resolve("index.html");
         if (Files.exists(index)) return;
-        Path langIndex = site.resolve("src/docs/v/latest/main/en_us/index.html");
+        Path langIndex = site.resolve("v/latest/main/en_us/index.html");
         if (!Files.exists(langIndex)) return;
         String html = """
             <!DOCTYPE html>
             <html lang="en">
               <head>
                 <meta charset="utf-8" />
-                <meta http-equiv="refresh" content="0; url=src/docs/v/latest/main/en_us/index.html" />
+                <meta http-equiv="refresh" content="0; url=v/latest/main/en_us/index.html" />
                 <title>Hex Book</title>
               </head>
               <body>
-                <p><a href="src/docs/v/latest/main/en_us/index.html">English</a> ·
-                   <a href="src/docs/v/latest/main/zh_cn/index.html">中文</a></p>
+                <p><a href="v/latest/main/en_us/index.html">English</a> ·
+                   <a href="v/latest/main/zh_cn/index.html">中文</a></p>
               </body>
             </html>
             """;
         Files.writeString(index, html, StandardCharsets.UTF_8);
     }
 
-    /** hexdoc writes the book under {@code _site/src/docs/v/latest/main}. */
+    /**
+     * hexdoc writes the book under {@code _site/src/docs/v/latest/main}; publish
+     * {@code _site/src/docs} as the site root so the tree starts at {@code v/}.
+     */
     private static Path locateSite(Path root) throws IOException {
         if (!Files.isDirectory(root)) return null;
-        Path book = root.resolve("src/docs/v/latest/main");
+        Path docs = root.resolve("src/docs");
+        Path book = docs.resolve("v/latest/main");
         if (Files.isDirectory(book) && Files.exists(book.resolve("index.html"))) {
-            return root;
+            return docs;
         }
         if (Files.exists(root.resolve("index.html"))) return root;
         // fall back to the deepest directory containing index.html

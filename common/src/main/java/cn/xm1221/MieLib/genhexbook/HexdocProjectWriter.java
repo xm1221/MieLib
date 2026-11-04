@@ -2,6 +2,8 @@ package cn.xm1221.MieLib.genhexbook;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import net.minecraft.server.MinecraftServer;
 
 import java.io.IOException;
@@ -169,9 +171,12 @@ public final class HexdocProjectWriter {
                                 Files.createDirectories(target.getParent());
                                 try (InputStream in = Files.newInputStream(p)) {
                                     byte[] bytes = in.readAllBytes();
-                                    if (isLangFile(rel) && !isJsonObject(bytes)) {
-                                        GenHexBook.LOGGER.debug("[GenHexBook] skip invalid lang {}: {}", rel, p);
-                                        return;
+                                    if (isLangFile(rel)) {
+                                        String error = langJsonError(bytes);
+                                        if (error != null) {
+                                            GenHexBook.LOGGER.warn("[GenHexBook] skip invalid lang {} ({}): {}", rel, error, p);
+                                            return;
+                                        }
                                     }
                                     Files.write(target, bytes);
                                 }
@@ -239,8 +244,13 @@ public final class HexdocProjectWriter {
         return parts.length == 3 && parts[1].equals("lang") && rel.endsWith(".json");
     }
 
-    /** Cheap check that the file is a JSON object; hexdoc's JSON5 parser is strict enough to care. */
-    private static boolean isJsonObject(byte[] bytes) {
+    /**
+     * Returns {@code null} when {@code bytes} is a parseable JSON object, otherwise a short
+     * reason. hexdoc hands every language file to a strict JSON5 parser, so a merely
+     * brace-balanced file (e.g. patchouli's upstream {@code zh_cn.json}, which is missing a
+     * comma) still aborts the whole build.
+     */
+    private static String langJsonError(byte[] bytes) {
         int start = 0;
         int end = bytes.length;
         // UTF-8 BOM
@@ -249,7 +259,15 @@ public final class HexdocProjectWriter {
         }
         while (start < end && isSpace(bytes[start])) start++;
         while (end > start && isSpace(bytes[end - 1])) end--;
-        return end - start >= 2 && bytes[start] == '{' && bytes[end - 1] == '}';
+        if (end - start < 2 || bytes[start] != '{' || bytes[end - 1] != '}') {
+            return "not a JSON object";
+        }
+        try {
+            JsonElement element = JsonParser.parseString(new String(bytes, start, end - start, StandardCharsets.UTF_8));
+            return element.isJsonObject() ? null : "not a JSON object";
+        } catch (RuntimeException e) {
+            return e.getMessage();
+        }
     }
 
     private static boolean isSpace(byte b) {

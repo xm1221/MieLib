@@ -21,7 +21,7 @@
         │
         ├─ 2. 构建 (HexdocRunner)        → hexdoc build --branch main
         │      PYTHONPATH=<project>/src，输出 _site/src/docs/v/latest/main/{en_us,zh_cn}/
-        │      复制为 <dir>/site/，并补一个跳转到 en_us/ 的 /index.html
+        │      把 _site/src/docs 复制为 <dir>/site/，并补一个跳转到 v/latest/main/en_us/ 的 /index.html
         │
         └─ 3. 可选
                md=yes → <dir>/md/{en_us,zh_cn}/*.md（BookScanner + MdExporter）
@@ -68,8 +68,8 @@ python3 -m venv /tmp/hexdoc-venv
 <dir>/
   hexdoc-project/          # 可独立复现的 hexdoc 工程
   site/                    # 构建产物，直接部署
-    index.html             # 跳转到 en_us
-    src/docs/v/latest/main/{en_us,zh_cn}/
+    index.html             # 跳转到 v/latest/main/en_us/
+    v/latest/main/{en_us,zh_cn}/
   hexdoc-build.log         # hexdoc 的完整输出
   md/{en_us,zh_cn}/        # 仅 md=yes
 ```
@@ -96,6 +96,8 @@ npx wrangler pages deploy <dir>/site --project-name mielib-hexbook
 - 语言文件只保留 `en_us.json` / `zh_cn.json`（`assets/*/lang/`；`assets/*/patchouli_books/*/` 下只保留
   `en_us/`、`zh_cn/` 目录）。hexdoc 会解析它发现的所有语言，其他 mod 的非法 BCP47 标签（如
   cloth-config 的 `en_ud`）或损坏的翻译文件（Patchouli 的 `zh_cn.json`）会让整个构建失败。
+- 保留下来的 `lang/*.json` 还会用 Gson 按 JSON 对象解析一遍；解析失败（如 Patchouli 上游
+  `zh_cn.json` 缺逗号——花括号成对但 JSON5 无法解析）的文件会被跳过并记录一条警告。
 - `patterns-registry.json` 只含**非 `hexcasting:`** 的图案（miehex、hexparse 等附属）；原版图案由
   hexdoc-hexcasting 自带的 `hexcasting.patterns.hexdoc.json` 提供，重复会导致 `Duplicate pattern id`。
 - 导出后会在 `hexdoc-project/` 内 `git init` 并做一次空提交——hexdoc 需要 `git rev-parse --show-toplevel`
@@ -135,7 +137,7 @@ build the real static site with the **actual hexdoc CLI**.
         │
         ├─ 2. build (HexdocRunner)        → hexdoc build --branch main
         │      PYTHONPATH=<project>/src; output _site/src/docs/v/latest/main/{en_us,zh_cn}/
-        │      copied to <dir>/site/ with a root /index.html redirecting to en_us
+        │      _site/src/docs is copied to <dir>/site/ with a root /index.html redirecting to v/latest/main/en_us/
         │
         └─ 3. optional
                md=yes → <dir>/md/{en_us,zh_cn}/*.md (BookScanner + MdExporter)
@@ -183,8 +185,8 @@ Use `export` to combine options, e.g. `/genHexBook export hexbook both yes 8765`
 <dir>/
   hexdoc-project/          # reproducible hexdoc project
   site/                    # build output, deploy this
-    index.html             # redirects to en_us
-    src/docs/v/latest/main/{en_us,zh_cn}/
+    index.html             # redirects to v/latest/main/en_us/
+    v/latest/main/{en_us,zh_cn}/
   hexdoc-build.log         # full hexdoc log
   md/{en_us,zh_cn}/        # only with md=yes
 ```
@@ -213,6 +215,9 @@ Requires `CLOUDFLARE_API_TOKEN`. No custom domain required.
   `en_us/`, `zh_cn/` directories under `assets/*/patchouli_books/*/`). hexdoc parses every
   language it finds, so another mod's invalid BCP47 tag (cloth-config's `en_ud`) or a broken
   translation file (Patchouli's `zh_cn.json`) aborts the whole build.
+- Every kept `lang/*.json` is then parsed with Gson as a JSON object; files that fail
+  (e.g. Patchouli's upstream `zh_cn.json`, which is brace-balanced but missing a comma and so
+  is not JSON5-parseable) are skipped with a warning.
 - `patterns-registry.json` contains only **non-`hexcasting:`** patterns (miehex, hexparse, …).
   Vanilla patterns come from hexdoc-hexcasting's packaged `hexcasting.patterns.hexdoc.json`;
   duplicating them raises `Duplicate pattern id`.
