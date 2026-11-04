@@ -68,6 +68,13 @@ class LiveHexBookModPlugin(ModPluginWithBook):
 
 
 def _collect_page_types_from_resources() -> set[str]:
+    """Collect every Patchouli page ``type`` mentioned by the dumped book files.
+
+    Unknown types are registered as permissive stubs by
+    :func:`pages.register_runtime_page_stubs`. Nothing is rewritten here: a page
+    that hexdoc cannot parse is dropped (with a warning) by
+    :mod:`hexdoc_livehexbook.tolerance`, never patched into shape.
+    """
     import json
     from pathlib import Path
 
@@ -94,123 +101,8 @@ def _collect_page_types_from_resources() -> set[str]:
                 for v in obj:
                     walk(v)
 
-        changed = False
-
-        def fix(obj: Any) -> None:
-            # hexdoc LookupPatternPage / ManualPatternPage require anchor == op_id.
-            # Addons sometimes omit anchor, or leave a trailing slash on one side
-            # (seen: hexdim op_id=.../remove vs anchor=.../remove/).
-            nonlocal changed
-            if isinstance(obj, dict):
-                t = obj.get("type")
-                if isinstance(t, str) and (
-                    t == "hexcasting:manual_pattern"
-                    or t.endswith(":manual_pattern")
-                    or "pattern" in t
-                ):
-                    op = obj.get("op_id")
-                    if isinstance(op, str):
-                        op_norm = op.rstrip("/")
-                        if op_norm != op:
-                            obj["op_id"] = op_norm
-                            changed = True
-                            op = op_norm
-                        anchor = obj.get("anchor")
-                        if not anchor:
-                            obj["anchor"] = op
-                            changed = True
-                        elif isinstance(anchor, str):
-                            a_norm = anchor.rstrip("/")
-                            if a_norm != anchor or a_norm != op:
-                                obj["anchor"] = op
-                                changed = True
-                for v in obj.values():
-                    fix(v)
-            elif isinstance(obj, list):
-                for v in obj:
-                    fix(v)
-
-        fix(data)
-        if changed:
-            try:
-                path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-            except Exception:
-                pass
         walk(data)
     return found
-
-
-
-def _ensure_pattern_stubs_from_resources() -> list[str]:
-    """Append dummy stubs for book op_ids missing from patterns-registry.json.
-
-    Addon books (e.g. hexmapping) reference optional-mod patterns that are not
-    registered when those mods are absent. hexdoc LookupPatternPage then fails
-    with Unknown pattern ID. A stub is enough for the docs build.
-    """
-    import json
-    import logging
-    from pathlib import Path
-
-    log = logging.getLogger("hexdoc_livehexbook")
-    registry = Path("patterns-registry.json")
-    if not registry.is_file():
-        return []
-
-    try:
-        stubs = json.loads(registry.read_text(encoding="utf-8"))
-    except Exception:
-        return []
-    if not isinstance(stubs, list):
-        return []
-
-    known: set[str] = set()
-    for s in stubs:
-        if isinstance(s, dict) and isinstance(s.get("id"), str):
-            known.add(s["id"])
-
-    needed: set[str] = set()
-    root = Path("resources")
-    if root.is_dir():
-        for path in root.rglob("*.json"):
-            if "patchouli_books" not in path.parts:
-                continue
-            try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-            except Exception:
-                continue
-
-            def walk(obj: object) -> None:
-                if isinstance(obj, dict):
-                    op = obj.get("op_id")
-                    if isinstance(op, str) and op and not op.startswith("hexcasting:"):
-                        needed.add(op.rstrip("/"))
-                    for v in obj.values():
-                        walk(v)
-                elif isinstance(obj, list):
-                    for v in obj:
-                        walk(v)
-
-            walk(data)
-
-    added: list[str] = []
-    for op_id in sorted(needed - known):
-        stubs.append(
-            {
-                "id": op_id,
-                "startdir": "EAST",
-                "signature": "w",
-                "is_per_world": False,
-            }
-        )
-        added.append(op_id)
-    if added:
-        registry.write_text(json.dumps(stubs, ensure_ascii=False, indent=2), encoding="utf-8")
-        log.warning(
-            "Added dummy pattern stubs for missing op_ids: %s",
-            ", ".join(added),
-        )
-    return added
 
 
 def _register_stubs_from_resources() -> None:
@@ -227,10 +119,6 @@ def _register_stubs_from_resources() -> None:
     newly = pages.register_runtime_page_stubs(types)
     if newly:
         logger.warning("Registered fallback Patchouli page stubs for: %s", ", ".join(newly))
-    try:
-        _ensure_pattern_stubs_from_resources()
-    except Exception as e:
-        logger.warning("Pattern stub backfill failed: %s", e)
     try:
         rnew = pages.register_runtime_recipe_stubs(_collect_recipe_samples())
         if rnew:
@@ -357,4 +245,13 @@ def _patch_textures() -> None:
 
 
 _patch_textures()
+
+
+# Unified tolerance: drop what cannot be parsed (addons only — hexcasting content
+# still fails loudly) and degrade dangling $(l:...) links to plain text. See
+# tolerance.py for the policy. Installed at import time so the hooks exist before
+# `hexdoc build` loads the book.
+from . import tolerance as _tolerance  # noqa: E402
+
+_tolerance.install()
 

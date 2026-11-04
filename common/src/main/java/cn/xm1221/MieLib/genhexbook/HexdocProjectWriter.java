@@ -19,10 +19,9 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.Map;
 import java.util.LinkedHashMap;
-import java.util.HashSet;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -36,6 +35,9 @@ import java.util.stream.Stream;
  *       {@code ResourceManager});</li>
  *   <li>{@code patterns-registry.json} — pattern stubs straight from the live Action
  *       registry, so no source scraping is needed;</li>
+ *   <li>{@code resource-origins.json} — which modid contributed each Patchouli book file,
+ *       so the hexdoc side can keep hexcasting itself strict while treating addons as
+ *       best effort (see {@code src/hexdoc_livehexbook/tolerance.py});</li>
  *   <li>{@code hexdoc.toml}, {@code .env} — config;</li>
  *   <li>{@code src/}, {@code requirements.txt}, {@code build.sh} — the companion from
  *       {@code doc/genhexbook/}.</li>
@@ -56,7 +58,9 @@ public final class HexdocProjectWriter {
         "README.md",
         "src/hexdoc_livehexbook/__init__.py",
         "src/hexdoc_livehexbook/pages.py",
+        "src/hexdoc_livehexbook/tolerance.py",
         "src/hexdoc_livehexbook/_templates/book.html.jinja",
+        "src/hexdoc_livehexbook/_templates/macros/styles.html.jinja",
         "src/hexdoc_livehexbook/resources/__init__.py",
         "src/hexdoc_livehexbook/resources/assets/hexdoc/lang/en_us.json",
         "src/hexdoc_livehexbook/resources/assets/hexdoc/lang/zh_cn.json",
@@ -73,11 +77,13 @@ public final class HexdocProjectWriter {
         // and the run would report 0 dumped files.
         deleteRecursively(resources);
         Files.createDirectories(resources);
+        RESOURCE_ORIGINS.clear();
 
         int files = dumpResources(server, resources);
         GenHexBook.LOGGER.info("[GenHexBook] dumped {} resource files → {}", files, resources);
         copyClientAssets(resources);
 
+        writeResourceOrigins(project);
         writePatterns(project.resolve("patterns-registry.json"));
         copyCompanion(project);
 
@@ -185,6 +191,7 @@ public final class HexdocProjectWriter {
     private static void copyJarResources(Path jar, Path dest, int[] count, int depth) {
         if (depth > 1) return;
         try (FileSystem fs = FileSystems.newFileSystem(jar, Collections.emptyMap())) {
+            String modid = jarModId(fs, jar);
             for (Path root : fs.getRootDirectories()) {
                 for (String top : new String[]{"assets", "data"}) {
                     Path dir = root.resolve(top);
@@ -210,6 +217,13 @@ public final class HexdocProjectWriter {
                                     Files.write(target, bytes);
                                 }
                                 count[0]++;
+                                // Patchouli book files are namespaced under the *book* owner
+                                // (hexcasting), not the addon that shipped them, so record
+                                // the real source modid here for the hexdoc-side policy.
+                                String originKey = bookOriginKey(top + "/" + rel);
+                                if (originKey != null) {
+                                    RESOURCE_ORIGINS.putIfAbsent(originKey, modid);
+                                }
                             } catch (Exception ex) {
                                 GenHexBook.LOGGER.debug("[GenHexBook] skip {}: {}", p, ex.toString());
                             }
@@ -293,6 +307,66 @@ public final class HexdocProjectWriter {
         return count[0];
     }
 
+    /**
+     * Source modid of every dumped Patchouli book file, keyed by
+     * {@code <book>/<lang>/<folder>/<id>} without a file extension.
+     *
+     * <p>Every addon injects its pages into {@code hexcasting:thehexbook}, so the dumped
+     * tree alone cannot tell hexcasting's own content apart from addon content. The
+     * hexdoc side needs that distinction to keep the base book strict.
+     */
+    private static final Map<String, String> RESOURCE_ORIGINS = new TreeMap<>();
+    private static final List<String> BOOK_EXTENSIONS = List.of(".json5", ".json", ".yml", ".yaml");
+    private static final java.util.regex.Pattern MOD_ID_PATTERN =
+        java.util.regex.Pattern.compile("(?m)^\\s*modId\\s*=\\s*\"([^\"]+)\"");
+
+    /** Manifest key for a book file, or {@code null} when the path is not book content. */
+    private static String bookOriginKey(String rel) {
+        int books = rel.indexOf("patchouli_books/");
+        if (books < 0) return null;
+        String shortName = rel.substring(books + "patchouli_books/".length());
+        for (String extension : BOOK_EXTENSIONS) {
+            if (shortName.endsWith(extension)) {
+                return shortName.substring(0, shortName.length() - extension.length());
+            }
+        }
+        return shortName;
+    }
+
+    /** Best-effort modid of a jar: {@code fabric.mod.json}, then {@code mods.toml}. */
+    private static String jarModId(FileSystem fs, Path jar) {
+        for (Path root : fs.getRootDirectories()) {
+            Path fabric = root.resolve("fabric.mod.json");
+            if (Files.isRegularFile(fabric)) {
+                try (InputStream in = Files.newInputStream(fabric)) {
+                    JsonElement element = JsonParser.parseString(
+                        new String(in.readAllBytes(), StandardCharsets.UTF_8));
+                    if (element.isJsonObject()) {
+                        JsonElement id = element.getAsJsonObject().get("id");
+                        if (id != null && id.isJsonPrimitive()) return id.getAsString();
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            Path forge = root.resolve("META-INF").resolve("mods.toml");
+            if (Files.isRegularFile(forge)) {
+                try {
+                    var matcher = MOD_ID_PATTERN.matcher(Files.readString(forge, StandardCharsets.UTF_8));
+                    if (matcher.find()) return matcher.group(1);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return jar.getFileName().toString();
+    }
+
+    private static void writeResourceOrigins(Path project) throws IOException {
+        Path target = project.resolve("resource-origins.json");
+        Files.writeString(target, GSON.toJson(RESOURCE_ORIGINS), StandardCharsets.UTF_8);
+        GenHexBook.LOGGER.info("[GenHexBook] wrote resource-origins.json ({} book files) → {}",
+            RESOURCE_ORIGINS.size(), target);
+    }
+
     /** Languages hexdoc can handle; anything else (e.g. cloth-config's {@code en_ud}) breaks it. */
     private static final List<String> KEPT_LANGS = List.of("en_us", "zh_cn");
     private static final java.util.regex.Pattern LOCALE_SEGMENT =
@@ -371,65 +445,11 @@ public final class HexdocProjectWriter {
             if (p.id().startsWith("hexcasting:")) continue;
             stubs.put(p.id(), new Stub(p.id(), p.startDir().toUpperCase(Locale.ROOT), p.signature(), p.perWorld()));
         }
-        // Books may reference optional-mod patterns (e.g. hexmapping + squaremap) that
-        // are not in the live Action registry. hexdoc still requires a stub entry.
-        Path resources = target.getParent() == null ? null : target.getParent().resolve("resources");
-        int backfilled = 0;
-        if (resources != null && Files.isDirectory(resources)) {
-            for (String opId : collectBookOpIds(resources)) {
-                if (opId.startsWith("hexcasting:")) continue;
-                if (stubs.containsKey(opId)) continue;
-                stubs.put(opId, new Stub(opId, "EAST", "w", false));
-                backfilled++;
-            }
-        }
+        // No backfill from the book JSON: a page that references a pattern which is not
+        // registered at runtime is dropped with a warning by the hexdoc side
+        // (src/hexdoc_livehexbook/tolerance.py), instead of inventing stubs here.
         Files.writeString(target, GSON.toJson(new ArrayList<>(stubs.values())), StandardCharsets.UTF_8);
-        GenHexBook.LOGGER.info(
-            "[GenHexBook] wrote {} addon pattern stubs ({} backfilled) → {}",
-            stubs.size(),
-            backfilled,
-            target
-        );
-    }
-
-    /** Collects every string {@code op_id} under dumped Patchouli book JSON. */
-    private static Set<String> collectBookOpIds(Path resources) throws IOException {
-        Set<String> ids = new HashSet<>();
-        try (Stream<Path> walk = Files.walk(resources)) {
-            walk.filter(Files::isRegularFile)
-                .filter(p -> {
-                    String s = p.toString().replace('\\', '/');
-                    return s.contains("patchouli_books") && s.endsWith(".json");
-                })
-                .forEach(p -> {
-                    try {
-                        JsonElement root = JsonParser.parseString(Files.readString(p, StandardCharsets.UTF_8));
-                        collectOpIds(root, ids);
-                    } catch (Exception ignored) {
-                    }
-                });
-        }
-        return ids;
-    }
-
-    private static void collectOpIds(JsonElement el, Set<String> ids) {
-        if (el == null || el.isJsonNull()) return;
-        if (el.isJsonObject()) {
-            var obj = el.getAsJsonObject();
-            if (obj.has("op_id") && obj.get("op_id").isJsonPrimitive()) {
-                String op = obj.get("op_id").getAsString();
-                if (op != null && !op.isEmpty()) {
-                    ids.add(op.endsWith("/") ? op.substring(0, op.length() - 1) : op);
-                }
-            }
-            for (var e : obj.entrySet()) {
-                collectOpIds(e.getValue(), ids);
-            }
-        } else if (el.isJsonArray()) {
-            for (JsonElement child : el.getAsJsonArray()) {
-                collectOpIds(child, ids);
-            }
-        }
+        GenHexBook.LOGGER.info("[GenHexBook] wrote {} addon pattern stubs → {}", stubs.size(), target);
     }
 
     private record Stub(String id, String startdir, String signature, boolean is_per_world) {}

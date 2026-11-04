@@ -1,0 +1,69 @@
+{#- Overrides hexdoc's macros/styles.html.jinja (same file, same macros) to make a
+    dangling $(l:...) render as plain text instead of aborting the build or
+    producing an empty <a href="">. Everything else is identical to
+    hexdoc 1!0.1.0a40, so a hexdoc upgrade only needs this one macro re-checked.
+
+    The policy and the warning live in hexdoc_livehexbook/tolerance.py. -#}
+{% macro plain_text() -%}
+  {{ caller() }}
+{%- endmacro %}
+
+{# CommandStyle #}
+
+{% macro command_obfuscated(style) -%}
+  <span class="obfuscated">{{ caller() }}</span>
+{%- endmacro %}
+
+{% macro command_bold(style) -%}
+  <strong>{{ caller() }}</strong>
+{%- endmacro %}
+
+{% macro command_strikethrough(style) -%}
+  <s>{{ caller() }}</s>
+{%- endmacro %}
+
+{% macro command_underline(style) -%}
+  <span style="text-decoration: underline">{{ caller() }}</span>
+{%- endmacro %}
+
+{% macro command_italic(style) -%}
+  <i>{{ caller() }}</i>
+{%- endmacro %}
+
+{% macro special_base(style) -%}
+  {{ caller() }}
+{%- endmacro %}
+
+{# FunctionStyle #}
+
+{% macro function_tooltip(style) -%}
+  <span class="has-tooltip" title="{{ style.value }}">{{ caller() }}</span>
+{%- endmacro %}
+
+{% macro function_cmd_click(style) -%}
+  <span class="has-cmd-click" title="{{ _('hexdoc.when_clicked').format(style.value) }}">{{ caller() }}</span>
+{%- endmacro %}
+
+{% macro special_color(style) -%}
+  <span style="color: #{{ style.value }}">{{ caller() }}</span>
+{%- endmacro %}
+
+{# LinkStyle #}
+
+{% macro special_link(style) -%}
+  {%- if style.is_broken_link() -%}
+    {{ caller() }}
+  {%- else -%}
+    <a href="{{ style.href() }}"{{ ' target="_blank"'|safe if style.external }}>{{ caller() }}</a>
+  {%- endif -%}
+{%- endmacro %}
+
+{# ParagraphStyle #}
+
+{% macro paragraph_paragraph(style) -%}
+  <p>{{ caller() }}</p>
+{%- endmacro %}
+
+{% macro paragraph_list_item(style) -%}
+  <p class="fake-li {{ 'fake-li-alt' if style.level % 2 == 0 }}" style="--level: {{ style.level }};">{{ caller() }}</p>
+{%- endmacro %}
