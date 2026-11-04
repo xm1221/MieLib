@@ -6,4 +6,4 @@ A lib for hex-addons
 
 ## GenHexBook
 
-Export the Hex Casting Patchouli book to a static hexdoc-style site: see [`docs/genhexbook.md`](docs/genhexbook.md) (中英双语).
+Dump a hexdoc project from a live server (resources + action registry) and build the real static site with hexdoc: see [`docs/genhexbook.md`](docs/genhexbook.md) (中英双语).
