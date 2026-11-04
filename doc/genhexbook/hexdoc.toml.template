@@ -1,0 +1,31 @@
+modid = "hexcasting"
+book = "hexcasting:thehexbook"
+default_lang = "en_us"
+default_branch = "main"
+
+# Resources are dumped by /genHexBook from the live server (mods/*.jar).
+resource_dirs = [
+    "resources",
+    { modid="hexcasting" },
+    { modid="minecraft" },
+    { modid="hexdoc" },
+]
+
+[template]
+include = ["hexcasting", "hexdoc"]
+
+[template.args]
+mod_name = "Hex Casting"
+author = "xm1221"
+show_landing_text = false
+
+[extra.hexcasting]
+allow_duplicates = true
+
+# Patterns are exported from the live Action registry, not scraped from sources.
+[[extra.hexcasting.pattern_stubs]]
+type = "json"
+path = "patterns-registry.json"
+
+[textures]
+missing = "*"
