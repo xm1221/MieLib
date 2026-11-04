@@ -62,6 +62,13 @@ python3 -m venv /tmp/hexdoc-venv
 渲染的物品图标，再回退到 `[textures] missing = "*"` 的占位图，并把 `hexcasting` 的打包纹理元数据合并回来。
 只有在专用服上渲染以原版模型为父级的附属物品时，才需要 `clientJar`；未设置时静默跳过（路径不存在时记录警告）。
 
+hexdoc 生成的内部纹理链接形如 `<asset_url>/resources/assets/<ns>/textures/....png`，其默认
+`asset_url` 是 `raw.githubusercontent.com/<repo>/<sha>`（会 404）。因此 `.env` 里的
+`DEBUG_GITHUBUSERCONTENT` 被写成站点地址 `<siteUrl>`，构建后 `HexdocRunner` 会把
+`hexdoc-project/resources/assets/*/textures/**` 下的 `*.png` / `*.png.mcmeta` 复制到
+`<site>/resources/assets/...`（保持相对路径），于是纹理由 `<siteUrl>/resources/assets/...`
+提供，部署时整个 `site/` 目录一起上传即可。
+
 ### 命令（权限 ≥ 2）
 
 | 命令 | 作用 |
@@ -195,6 +202,14 @@ Item icons reuse the textures prerendered by hexdoc-hexcasting / hexdoc-minecraf
 placeholder and merges the packaged `hexcasting` texture metadata back. `clientJar` is only needed
 on dedicated servers to render addon items whose models inherit from vanilla ones; when unset it is
 skipped silently (a warning is logged if the path does not exist).
+
+hexdoc emits internal texture URLs as `<asset_url>/resources/assets/<ns>/textures/....png`, where
+`asset_url` defaults to `raw.githubusercontent.com/<repo>/<sha>` (which 404s). The project's
+`.env` therefore sets `DEBUG_GITHUBUSERCONTENT` to the site URL `<siteUrl>`, and after the build
+`HexdocRunner` copies every `*.png` / `*.png.mcmeta` under
+`hexdoc-project/resources/assets/*/textures/**` to `<site>/resources/assets/...` (same relative
+paths). Textures are thus served from `<siteUrl>/resources/assets/...`, so deploy the whole
+`site/` directory.
 
 ### Commands (permission level ≥ 2)
 

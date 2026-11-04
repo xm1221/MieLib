@@ -79,11 +79,30 @@ public final class HexdocProjectWriter {
         if (env == null) {
             env = "GITHUB_REPOSITORY=xm1221/MieLib\nGITHUB_SHA=main\n";
         }
-        env = env.replaceAll("(?m)^GITHUB_PAGES_URL=.*$", "GITHUB_PAGES_URL=" + siteUrl);
+        env = setEnvLine(env, "GITHUB_PAGES_URL", siteUrl);
+        // hexdoc builds internal texture URLs as <asset_url>/resources/assets/<ns>/textures/...
+        // where asset_url defaults to raw.githubusercontent.com/<repo>/<sha> (a 404 for us).
+        // DEBUG_GITHUBUSERCONTENT overrides asset_url, so point it at the published site: the
+        // runner copies the texture tree to <site>/resources/assets/.
+        env = setEnvLine(env, "DEBUG_GITHUBUSERCONTENT", siteUrl);
         Files.writeString(project.resolve(".env"), env, StandardCharsets.UTF_8);
 
         initGitRepo(project);
         return project;
+    }
+
+    /**
+     * Sets {@code key=value} in a dotenv-style text: replaces every existing line for
+     * {@code key}, or appends one when the template does not mention it.
+     */
+    private static String setEnvLine(String env, String key, String value) {
+        String line = key + "=" + value;
+        String replaced = env.replaceAll("(?m)^" + java.util.regex.Pattern.quote(key) + "=.*$",
+            java.util.regex.Matcher.quoteReplacement(line));
+        if (!replaced.equals(env) || env.contains(key + "=")) {
+            return replaced;
+        }
+        return (replaced.isEmpty() || replaced.endsWith("\n") ? replaced : replaced + "\n") + line + "\n";
     }
 
     /**

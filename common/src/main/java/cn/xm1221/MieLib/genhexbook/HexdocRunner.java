@@ -133,9 +133,48 @@ public final class HexdocRunner {
 
         Path dest = outDir.resolve("site");
         copyTree(site, dest);
+        copyTextures(project, dest);
         writeRootRedirect(dest);
         GenHexBook.LOGGER.info("[GenHexBook] hexdoc site → {}", dest);
         return dest;
+    }
+
+    /**
+     * Serves the mod's textures alongside the site.
+     *
+     * <p>hexdoc emits internal texture URLs as {@code <asset_url>/resources/assets/<ns>/textures/....png}.
+     * {@code DEBUG_GITHUBUSERCONTENT} (written to the project's {@code .env} as the site URL)
+     * replaces the default {@code raw.githubusercontent.com/...} base, so the matching tree has
+     * to exist under the site root. Copies every {@code *.png} / {@code *.png.mcmeta} below
+     * {@code <project>/resources/assets/<ns>/textures/} to {@code <site>/resources/assets/...},
+     * preserving relative paths.
+     */
+    private static void copyTextures(Path project, Path site) throws IOException {
+        Path assets = project.resolve("resources").resolve("assets");
+        if (!Files.isDirectory(assets)) {
+            GenHexBook.LOGGER.warn("[GenHexBook] no dumped assets at {}, skipping textures", assets);
+            return;
+        }
+        int[] count = {0};
+        try (Stream<Path> namespaces = Files.list(assets)) {
+            for (Path ns : (Iterable<Path>) namespaces::iterator) {
+                Path textures = ns.resolve("textures");
+                if (!Files.isDirectory(textures)) continue;
+                try (Stream<Path> walk = Files.walk(textures)) {
+                    for (Path p : (Iterable<Path>) walk::iterator) {
+                        if (!Files.isRegularFile(p)) continue;
+                        String name = p.getFileName().toString();
+                        if (!name.endsWith(".png") && !name.endsWith(".png.mcmeta")) continue;
+                        Path target = site.resolve("resources").resolve(assets.relativize(p).toString());
+                        Files.createDirectories(target.getParent());
+                        Files.copy(p, target, StandardCopyOption.REPLACE_EXISTING);
+                        count[0]++;
+                    }
+                }
+            }
+        }
+        GenHexBook.LOGGER.info("[GenHexBook] copied {} texture files → {}/resources/assets",
+            count[0], site);
     }
 
     /**
