@@ -96,13 +96,15 @@ hexdoc 生成的内部纹理链接形如 `<asset_url>/resources/assets/<ns>/text
   md/{en_us,zh_cn}/        # 仅 md=yes
 ```
 
-### 部署到 Cloudflare Pages
+### 部署
+
+手动（Cloudflare Pages）：
 
 ```bash
 npx wrangler pages deploy <dir>/site --project-name mielib-hexbook
 ```
 
-需要 `CLOUDFLARE_API_TOKEN`。不必绑自定义域名。
+需要 `CLOUDFLARE_API_TOKEN`。不必绑自定义域名。GitHub Pages 与「fork 自己的站点」见下面一节：改 `doc/genhexbook/mods.yml` 后推到 `main`，Actions 会重建并部署到 Cloudflare Pages、GitHub Pages，或两边都部署。
 
 ### 失败的常见原因
 
@@ -134,6 +136,144 @@ java -Xmx1G -Dmielib.hexcli=true \
 # 控制台：
 genHexBook export hexbook both yes 8765
 ```
+
+### 用 mods 列表搭自己的站点
+
+加 Hex Casting 附属的主路径是编辑 [`doc/genhexbook/mods.yml`](../doc/genhexbook/mods.yml)，不是往仓库里塞 jar。
+推到 `main`（或手动跑 Actions）后，[`.github/workflows/genhexbook-pages.yml`](../.github/workflows/genhexbook-pages.yml) 会：
+
+1. 按清单下载 mod，并编出本仓库的 Fabric 版 MieLib（不把第三方库打进 mod jar）；
+2. 拉起 Fabric 无头服，用 `-Dmielib.genhexbook.siteUrl=` 跑 `genHexBook export`（和本地 `/genHexBook` 同一条导出路径）；
+3. 把 `site/` 部署到 Cloudflare Pages 和/或 GitHub Pages。
+
+清单里已经有 HexCLI 冒烟用的那一套（Fabric API、Kotlin、Architectury、Cloth Config、Patchouli、Cardinal Components、Inline、PAUCAL、Hex Casting 0.11.4、hexParse）以及 MieHex。
+
+#### 清单字段
+
+| 字段 | 作用 |
+|------|------|
+| `minecraft` / `loader` / `fabric_loader` / `fabric_installer` | 游戏与 Fabric 服务端启动器。`loader` 只能是 `fabric` |
+| `name` | 唯一名字，也是日志里的名字 |
+| `enabled` | 省略等于 `true`；`false` 时跳过，字段可以不齐 |
+| `role` | `library` 或 `addon`，只给人看，解析器不靠它 |
+| `source` | `modrinth`、`maven`、`curse`、`url` |
+| `filename` | 落到 `mods/` 的文件名；同名本地 jar 会覆盖它 |
+| `sha512` | 可选。下载后校验，不通过就失败。`strip_nested` 在校验之后才改 jar |
+| `strip_nested` | 要从附属 jar 里删掉的嵌套 mod id。MieHex 的发行 jar 嵌了一份旧 MieLib，删掉它，加载的才是刚编出来、带 `/genHexBook` 的那份 |
+
+按来源再写：
+
+| source | 字段 |
+|--------|------|
+| `modrinth` | `project`（slug 或 id），`version`（版本 id，或该 MC/加载器下的版本号） |
+| `maven` | `repo`、`group`、`artifact`、`version`，可选 `classifier`、`extension`（默认 `jar`） |
+| `curse` | `project_id`、`file_id`。仓库密钥 `CURSEFORGE_API_KEY`（只在有 Curse 条目时需要；工作流不会打印它） |
+| `url` | `url`，建议再写 `filename` |
+
+例（默认不启用，抄进 `mods:` 再把 `enabled` 改成 `true`）：
+
+```yaml
+  - name: example-maven
+    enabled: false
+    role: addon
+    source: maven
+    repo: https://maven.example.com/releases
+    group: com.example
+    artifact: example-fabric
+    version: "1.2.3"
+
+  - name: example-curse
+    enabled: false
+    role: addon
+    source: curse
+    project_id: 123456
+    file_id: 654321
+
+  - name: example-url
+    enabled: false
+    role: addon
+    source: url
+    url: https://example.com/addons/example-fabric.jar
+    filename: example-fabric.jar
+```
+
+#### jar 投放（次要）
+
+[`doc/genhexbook/mods-local/`](../doc/genhexbook/mods-local/) 里的 `*.jar` 被 gitignore。解析脚本会在下载之后把它们拷进服务端 `mods/`，同名文件覆盖清单里的 jar，并且**不**做 `strip_nested`。
+
+Actions 只检出 git 里的文件，被忽略的 jar **不会进 CI**。要在 CI 里加一个没有 Maven/Modrinth 坐标的附属，用 `source: url` 指向发行文件。这个目录是本机跑 `doc/genhexbook/tools/export_site.sh` 时的备用入口。
+
+#### Fork 之后
+
+1. Fork 这个仓库，在 Actions 里允许工作流运行。
+2. 按需要设置密钥和变量（见下表）。一个都不设也可以：工作流仍会编站点并上传名为 `genhexbook-site` 的 artifact，只是不部署。
+3. 编辑 `doc/genhexbook/mods.yml`（加一条附属，或把 `enabled` 改掉）。
+4. 推到你自己的 `main`。也可以在 Actions 里手动跑 **GenHexBook site**。
+5. 打开部署出来的 URL。写进站点的地址是 `GENHEXBOOK_SITE_URL`，默认 `https://mielib-hexbook.pages.dev`。只部署到 GitHub 项目页时，把它改成 `https://<用户>.github.io/<仓库>`，否则纹理链接仍指向默认域名。
+
+触发条件：推到 `main`，且改动了 `doc/genhexbook/**`、`docs/genhexbook.md`、工作流本身或 `common/.../genhexbook/**`；以及 `workflow_dispatch`。别的提交不会自动重建，需要时手动跑一次。
+
+#### 密钥和变量
+
+密钥写在仓库或组织的 Actions secrets 里。文件里没有令牌，日志里也不要打印。
+
+| 名字 | 何时需要 |
+|------|----------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare Pages，权限含 Pages 编辑。没有它（或没有账号 id）就跳过 CF |
+| `CLOUDFLARE_ACCOUNT_ID` | 同上 |
+| `CURSEFORGE_API_KEY` | 清单里有启用的 `source: curse` 时 |
+
+| 变量 | 含义 |
+|------|------|
+| `GENHEXBOOK_DEPLOY` | `auto`（默认）、`both`、`cloudflare`、`github`、`none`。`auto` 只部署已经配好的那一侧；`both` 要求两侧都配好，缺了就失败 |
+| `GENHEXBOOK_SITE_URL` | 传给 `-Dmielib.genhexbook.siteUrl=` 的公开地址。默认 `https://mielib-hexbook.pages.dev` |
+| `GENHEXBOOK_CF_PROJECT` | Cloudflare Pages 项目名，默认 `mielib-hexbook` |
+| `GENHEXBOOK_GITHUB_PAGES` | `true` / `false`。留空时：`actions` 发布器在仓库已经开了 Pages 才部署；`peaceiris` 需要把它设为 `true`（或 Pages 已经存在） |
+| `GENHEXBOOK_GH_PUBLISHER` | `actions`（默认）或 `peaceiris` |
+
+#### Cloudflare Pages
+
+1. 做一张 API token，账号权限里勾上 Cloudflare Pages 的编辑。
+2. 设置 `CLOUDFLARE_API_TOKEN` 和 `CLOUDFLARE_ACCOUNT_ID`。有的 xm1221 仓库上已经有同名密钥，fork 之后要在自己的仓库再设一份；不要把值写进 git。
+3. 可选：`GENHEXBOOK_CF_PROJECT`（默认 `mielib-hexbook`）。工作流会在没有项目时创建，再生产部署 `site/`。
+4. 站点默认在 `https://<项目名>.pages.dev`。自定义域名时把 `GENHEXBOOK_SITE_URL` 改成那个域名。
+
+#### GitHub Pages
+
+两条路，由 `GENHEXBOOK_GH_PUBLISHER` 选。
+
+**`actions`（默认）** — `actions/upload-pages-artifact` + `actions/deploy-pages`：
+
+1. 仓库 Settings → Pages → Build and deployment → Source 选 **GitHub Actions**。
+2. 工作流已经申请 `pages: write` 和 `id-token: write`，部署 job 使用名为 `github-pages` 的 environment。
+3. `auto` 模式下，Pages 站点还不存在就跳过并在日志里说明；手动把部署目标选成 `github` 或 `both`，而 Pages 没开，这次运行会失败并告诉你怎么开。
+
+**`peaceiris`** — `peaceiris/actions-gh-pages`，把站点推到孤儿分支 `gh-pages`：
+
+1. 变量 `GENHEXBOOK_GH_PUBLISHER=peaceiris`。
+2. `GENHEXBOOK_GITHUB_PAGES=true`（Pages 已经开着也可以）。
+3. 若 Pages 的 Source 要指向分支，选 `gh-pages` / `/ (root)`。和 `actions` 发布器不要同时用两种 Source。
+
+GitHub 项目页的地址带仓库路径（`https://<用户>.github.io/<仓库>/`）。用户页、组织页和 Cloudflare Pages 在域名根上。hexdoc 的页面链接多半是相对路径；如果项目页去域名根上要资源，改用 Cloudflare Pages 或绑一个根域名，并把 `GENHEXBOOK_SITE_URL` 设成实际打开的地址。
+
+#### 本机跑同一条流水线
+
+```bash
+python3 -m venv /tmp/hexdoc-venv
+/tmp/hexdoc-venv/bin/pip install -r doc/genhexbook/requirements.txt -r doc/genhexbook/tools/requirements.txt
+./gradlew :fabric:build
+server=build/genhexbook-server
+/tmp/hexdoc-venv/bin/python doc/genhexbook/tools/resolve_mods.py \
+  --out "$server/mods" --server-jar "$server/fabric-server-launch.jar"
+mielib="$(find fabric/build/libs -maxdepth 1 -name '*-fabric-*.jar' \
+  ! -name '*-dev*' ! -name '*-sources*' ! -name '*-javadoc*' | head -n 1)"
+cp "$mielib" "$server/mods/"
+bash doc/genhexbook/tools/export_site.sh \
+  --server-dir "$server" --hexdoc /tmp/hexdoc-venv/bin/hexdoc \
+  --site-url https://mielib-hexbook.pages.dev --out build/genhexbook-site
+```
+
+服务端 `max-tick-time=-1`：`/genHexBook` 在服务器线程里等 hexdoc，默认 60 秒看门狗会把进程杀掉。CI 不下载原版客户端 jar，因此以原版模型为父级的附属物品图标会走 hexdoc 的占位图；需要时自行加 `-Dmielib.genhexbook.clientJar`。这条工作流只起 Fabric 服务端。
 
 ---
 
@@ -238,13 +378,15 @@ Use `export` to combine options, e.g. `/genHexBook export hexbook both yes 8765`
   md/{en_us,zh_cn}/        # only with md=yes
 ```
 
-### Deploy to Cloudflare Pages
+### Deploy
+
+Manual (Cloudflare Pages):
 
 ```bash
 npx wrangler pages deploy <dir>/site --project-name mielib-hexbook
 ```
 
-Requires `CLOUDFLARE_API_TOKEN`. No custom domain required.
+Requires `CLOUDFLARE_API_TOKEN`. No custom domain required. GitHub Pages and the fork flow are in the next section: edit `doc/genhexbook/mods.yml`, push to `main`, and Actions rebuilds and deploys to Cloudflare Pages, GitHub Pages, or both.
 
 ### Troubleshooting
 
@@ -282,3 +424,141 @@ Requires `CLOUDFLARE_API_TOKEN`. No custom domain required.
   translation keys / `*.flatten.json5`.
 - The hexdoc project directory is self-contained: `cd hexdoc-project && PYTHONPATH=src hexdoc build --branch main`
   reproduces the site without Minecraft.
+
+### Fork your own site
+
+The primary way to add a Hex Casting addon is to edit [`doc/genhexbook/mods.yml`](../doc/genhexbook/mods.yml), not to commit jars.
+Pushing to `main` (or running the workflow by hand) makes [`.github/workflows/genhexbook-pages.yml`](../.github/workflows/genhexbook-pages.yml):
+
+1. download the mods in the list and build this repo's Fabric MieLib jar (third-party jars stay out of the mod jar);
+2. boot a headless Fabric server and run `genHexBook export` with `-Dmielib.genhexbook.siteUrl=` — the same export path as a local `/genHexBook`;
+3. deploy `site/` to Cloudflare Pages and/or GitHub Pages.
+
+The list is seeded with the HexCLI smoke set (Fabric API, Kotlin, Architectury, Cloth Config, Patchouli, Cardinal Components, Inline, PAUCAL, Hex Casting 0.11.4, hexParse) plus MieHex.
+
+#### Manifest fields
+
+| Field | Meaning |
+|-------|---------|
+| `minecraft` / `loader` / `fabric_loader` / `fabric_installer` | Game version and the Fabric server launcher. `loader` must be `fabric` |
+| `name` | Unique name, also the name in the log |
+| `enabled` | Omitted means `true`. `false` skips the entry and the other fields may be incomplete |
+| `role` | `library` or `addon`. Informational; the resolver does not branch on it |
+| `source` | `modrinth`, `maven`, `curse`, or `url` |
+| `filename` | Name under `mods/`. A local jar with the same name replaces it |
+| `sha512` | Optional. The download is rejected when it does not match. `strip_nested` rewrites the jar only after this check |
+| `strip_nested` | Nested mod ids to remove from an addon jar. MieHex's release jar nests an older MieLib; removing it makes the freshly built jar (the one that contains `/genHexBook`) the copy that loads |
+
+Per source:
+
+| source | Fields |
+|--------|--------|
+| `modrinth` | `project` (slug or id), `version` (version id, or the version number for this Minecraft version and loader) |
+| `maven` | `repo`, `group`, `artifact`, `version`, optional `classifier` and `extension` (default `jar`) |
+| `curse` | `project_id`, `file_id`. Repository secret `CURSEFORGE_API_KEY` (only when a Curse entry is enabled; the workflow does not print it) |
+| `url` | `url`, and a `filename` is recommended |
+
+Examples (leave `enabled: false` until you want them, then copy the entry under `mods:`):
+
+```yaml
+  - name: example-maven
+    enabled: false
+    role: addon
+    source: maven
+    repo: https://maven.example.com/releases
+    group: com.example
+    artifact: example-fabric
+    version: "1.2.3"
+
+  - name: example-curse
+    enabled: false
+    role: addon
+    source: curse
+    project_id: 123456
+    file_id: 654321
+
+  - name: example-url
+    enabled: false
+    role: addon
+    source: url
+    url: https://example.com/addons/example-fabric.jar
+    filename: example-fabric.jar
+```
+
+#### Jar drop-in (secondary)
+
+`*.jar` files in [`doc/genhexbook/mods-local/`](../doc/genhexbook/mods-local/) are gitignored. The resolver copies them into the server `mods/` folder after the downloads. A same filename wins, and **`strip_nested` is not applied**.
+
+Actions checks out git, so an ignored jar **never reaches CI**. For an addon that has no Maven or Modrinth coordinate, use `source: url` and point it at a release file. The directory is the escape hatch for a local `doc/genhexbook/tools/export_site.sh` run.
+
+#### After you fork
+
+1. Fork the repository and allow Actions to run.
+2. Set the secrets and variables you need (table below). Setting none is valid: the workflow still builds the site and uploads a `genhexbook-site` artifact, and it does not deploy.
+3. Edit `doc/genhexbook/mods.yml` (add an addon, or flip `enabled`).
+4. Push to your `main`. You can also run **GenHexBook site** by hand under Actions.
+5. Open the deployed URL. The URL written into the site is `GENHEXBOOK_SITE_URL`, default `https://mielib-hexbook.pages.dev`. If you only publish a GitHub project site, set it to `https://<user>.github.io/<repo>` or texture links keep pointing at the default host.
+
+Triggers: a push to `main` that touches `doc/genhexbook/**`, `docs/genhexbook.md`, the workflow file, or `common/.../genhexbook/**`, plus `workflow_dispatch`. Other commits do not rebuild the site; run the workflow by hand when you want that.
+
+#### Secrets and variables
+
+Secrets belong in the repository or organization Actions secrets. The workflow file has no token values, and the jobs must not print them.
+
+| Name | When |
+|------|------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare Pages, with Pages edit. Cloudflare is skipped when this or the account id is unset |
+| `CLOUDFLARE_ACCOUNT_ID` | Same as above |
+| `CURSEFORGE_API_KEY` | Only when an enabled `source: curse` entry is in the list |
+
+| Variable | Meaning |
+|----------|---------|
+| `GENHEXBOOK_DEPLOY` | `auto` (default), `both`, `cloudflare`, `github`, or `none`. `auto` deploys each host that is configured. `both` requires both and fails if either is missing |
+| `GENHEXBOOK_SITE_URL` | Public URL passed as `-Dmielib.genhexbook.siteUrl=`. Default `https://mielib-hexbook.pages.dev` |
+| `GENHEXBOOK_CF_PROJECT` | Cloudflare Pages project name, default `mielib-hexbook` |
+| `GENHEXBOOK_GITHUB_PAGES` | `true` or `false`. When unset, the `actions` publisher deploys only if a Pages site already exists; `peaceiris` also needs this set to `true` (or an existing Pages site) |
+| `GENHEXBOOK_GH_PUBLISHER` | `actions` (default) or `peaceiris` |
+
+#### Cloudflare Pages
+
+1. Create an API token with Cloudflare Pages edit on the account.
+2. Set `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Some xm1221 repositories already have secrets with these names; a fork needs its own copy. Do not commit the values.
+3. Optionally set `GENHEXBOOK_CF_PROJECT` (default `mielib-hexbook`). The workflow creates the project when it is missing, then deploys `site/`.
+4. The default host is `https://<project>.pages.dev`. For a custom domain, set `GENHEXBOOK_SITE_URL` to that origin.
+
+#### GitHub Pages
+
+`GENHEXBOOK_GH_PUBLISHER` picks one of the two publishers.
+
+**`actions` (default)** — `actions/upload-pages-artifact` and `actions/deploy-pages`:
+
+1. Repository Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+2. The workflow already requests `pages: write` and `id-token: write`. The deploy job uses the `github-pages` environment.
+3. In `auto` mode a missing Pages site is skipped with a log notice. Choosing `github` or `both` by hand while Pages is off fails the run and prints how to turn it on.
+
+**`peaceiris`** — `peaceiris/actions-gh-pages` pushes the site to an orphan `gh-pages` branch:
+
+1. Set `GENHEXBOOK_GH_PUBLISHER=peaceiris`.
+2. Set `GENHEXBOOK_GITHUB_PAGES=true` (an existing Pages site is enough as well).
+3. If the Pages source should be a branch, choose `gh-pages` and `/ (root)`. Do not point Pages at a branch and at GitHub Actions at the same time.
+
+A GitHub project site is served under the repository path (`https://<user>.github.io/<repo>/`). User sites, organization sites, and Cloudflare Pages are at the domain root. hexdoc page links are mostly relative; if a project site requests assets from the domain root, use Cloudflare Pages or a custom root domain, and set `GENHEXBOOK_SITE_URL` to the URL you actually open.
+
+#### Run the same pipeline locally
+
+```bash
+python3 -m venv /tmp/hexdoc-venv
+/tmp/hexdoc-venv/bin/pip install -r doc/genhexbook/requirements.txt -r doc/genhexbook/tools/requirements.txt
+./gradlew :fabric:build
+server=build/genhexbook-server
+/tmp/hexdoc-venv/bin/python doc/genhexbook/tools/resolve_mods.py \
+  --out "$server/mods" --server-jar "$server/fabric-server-launch.jar"
+mielib="$(find fabric/build/libs -maxdepth 1 -name '*-fabric-*.jar' \
+  ! -name '*-dev*' ! -name '*-sources*' ! -name '*-javadoc*' | head -n 1)"
+cp "$mielib" "$server/mods/"
+bash doc/genhexbook/tools/export_site.sh \
+  --server-dir "$server" --hexdoc /tmp/hexdoc-venv/bin/hexdoc \
+  --site-url https://mielib-hexbook.pages.dev --out build/genhexbook-site
+```
+
+The server sets `max-tick-time=-1` because `/genHexBook` waits for hexdoc on the server thread and the default 60-second watchdog would kill it. CI does not download a vanilla client jar, so addon items whose models use vanilla parents fall back to hexdoc's placeholder; pass `-Dmielib.genhexbook.clientJar` yourself when you need those icons. This workflow boots a Fabric server only.

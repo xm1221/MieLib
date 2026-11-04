@@ -6,4 +6,4 @@ A lib for hex-addons
 
 ## GenHexBook
 
-Dump a hexdoc project from a live server (resources + action registry) and build the real static site with hexdoc: see [`docs/genhexbook.md`](docs/genhexbook.md) (中英双语).
+Dump a hexdoc project from a live server (resources + action registry) and build the real static site with hexdoc: see [`docs/genhexbook.md`](docs/genhexbook.md) (中英双语). Forks add Hex Casting addons in [`doc/genhexbook/mods.yml`](doc/genhexbook/mods.yml); GitHub Actions rebuilds the site and can deploy it to Cloudflare Pages and GitHub Pages.

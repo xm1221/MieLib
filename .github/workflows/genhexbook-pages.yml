@@ -1,0 +1,239 @@
+# Rebuild the hexdoc site from doc/genhexbook/mods.yml and deploy it.
+#
+# Secrets — set these in the repository or org settings. This file does not
+# contain token values, and the jobs must not print them.
+#   CLOUDFLARE_API_TOKEN   Cloudflare API token with Pages edit. Cloudflare
+#                          deploy is skipped when this or the account id is unset.
+#   CLOUDFLARE_ACCOUNT_ID  Account that owns the Pages project.
+#   CURSEFORGE_API_KEY     Only if mods.yml has an enabled source: curse entry.
+#
+# Repository variables (Settings → Secrets and variables → Actions → Variables):
+#   GENHEXBOOK_DEPLOY         auto (default) | both | cloudflare | github | none
+#                             auto deploys to each host that is actually configured.
+#   GENHEXBOOK_SITE_URL       Public URL baked into the book via
+#                             -Dmielib.genhexbook.siteUrl=
+#                             Default: https://mielib-hexbook.pages.dev
+#   GENHEXBOOK_CF_PROJECT     Cloudflare Pages project name. Default: mielib-hexbook
+#   GENHEXBOOK_GITHUB_PAGES   true | false. Unset follows `auto` (deploy when a
+#                             Pages site already exists, or when the publisher is
+#                             peaceiris and this is true).
+#   GENHEXBOOK_GH_PUBLISHER   actions (default) uses actions/upload-pages-artifact
+#                             and actions/deploy-pages with the github-pages
+#                             environment. peaceiris pushes an orphan gh-pages
+#                             branch with peaceiris/actions-gh-pages.
+#
+# Triggers: push to main when the manifest, companion, exporter, docs, or this
+# workflow change, plus workflow_dispatch. Forks: enable Actions, set the
+# secrets/variables, edit doc/genhexbook/mods.yml, push to main.
+# Bilingual guide: docs/genhexbook.md
+
+name: GenHexBook site
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "doc/genhexbook/**"
+      - "docs/genhexbook.md"
+      - ".github/workflows/genhexbook-pages.yml"
+      - "common/src/main/java/cn/xm1221/MieLib/genhexbook/**"
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Where to deploy (auto skips a host that is not configured)"
+        type: choice
+        options:
+          - auto
+          - both
+          - cloudflare
+          - github
+          - none
+        default: auto
+      site_url:
+        description: "Public site URL baked into the book (blank = variable or default)"
+        required: false
+        type: string
+      gh_publisher:
+        description: "GitHub Pages publisher (auto = repository variable or actions/deploy-pages)"
+        type: choice
+        options:
+          - auto
+          - actions
+          - peaceiris
+        default: auto
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: genhexbook-pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      deploy_cf: ${{ steps.targets.outputs.deploy_cf }}
+      deploy_gh_actions: ${{ steps.targets.outputs.deploy_gh_actions }}
+      deploy_gh_branch: ${{ steps.targets.outputs.deploy_gh_branch }}
+      site_url: ${{ steps.targets.outputs.site_url }}
+      cf_project: ${{ steps.targets.outputs.cf_project }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build MieLib (Fabric)
+        run: ./gradlew -Pfabric.loom.disableMinecraftVerification=true :fabric:build
+
+      - name: Install hexdoc and the mods resolver
+        run: |
+          python3 -m venv /tmp/hexdoc-venv
+          /tmp/hexdoc-venv/bin/pip install --upgrade pip
+          /tmp/hexdoc-venv/bin/pip install -r doc/genhexbook/requirements.txt -r doc/genhexbook/tools/requirements.txt
+
+      - name: Resolve mods list and Fabric server launcher
+        env:
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+        run: |
+          set -euo pipefail
+          server="$GITHUB_WORKSPACE/build/genhexbook-server"
+          /tmp/hexdoc-venv/bin/python doc/genhexbook/tools/resolve_mods.py \
+            --manifest doc/genhexbook/mods.yml \
+            --local doc/genhexbook/mods-local \
+            --out "$server/mods" \
+            --cache "$GITHUB_WORKSPACE/build/genhexbook-cache" \
+            --server-jar "$server/fabric-server-launch.jar"
+          mielib="$(find fabric/build/libs -maxdepth 1 -name '*-fabric-*.jar' \
+            ! -name '*-dev*' ! -name '*-sources*' ! -name '*-javadoc*' | head -n 1)"
+          if [ -z "$mielib" ]; then
+            echo "::error::no remapped Fabric jar in fabric/build/libs"
+            ls -l fabric/build/libs || true
+            exit 1
+          fi
+          cp "$mielib" "$server/mods/"
+          echo "MieLib jar: $(basename "$mielib")"
+
+      - name: Decide deploy targets
+        id: targets
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          INPUT_DEPLOY: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy || '' }}
+          INPUT_SITE: ${{ github.event_name == 'workflow_dispatch' && inputs.site_url || '' }}
+          INPUT_PUB: ${{ github.event_name == 'workflow_dispatch' && inputs.gh_publisher || '' }}
+          VAR_DEPLOY: ${{ vars.GENHEXBOOK_DEPLOY }}
+          VAR_SITE: ${{ vars.GENHEXBOOK_SITE_URL }}
+          VAR_PROJECT: ${{ vars.GENHEXBOOK_CF_PROJECT }}
+          VAR_GH: ${{ vars.GENHEXBOOK_GITHUB_PAGES }}
+          VAR_PUB: ${{ vars.GENHEXBOOK_GH_PUBLISHER }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash doc/genhexbook/tools/decide_deploy.sh
+
+      - name: Export the hexdoc site
+        run: |
+          bash doc/genhexbook/tools/export_site.sh \
+            --server-dir "$GITHUB_WORKSPACE/build/genhexbook-server" \
+            --hexdoc /tmp/hexdoc-venv/bin/hexdoc \
+            --site-url "${{ steps.targets.outputs.site_url }}" \
+            --out "$GITHUB_WORKSPACE/build/genhexbook-site" \
+            --timeout 900 \
+            --start-timeout 600
+
+      - name: Upload site artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: genhexbook-site
+          path: build/genhexbook-site
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload GitHub Pages artifact
+        if: steps.targets.outputs.deploy_gh_actions == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/genhexbook-site
+
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: genhexbook-server-log
+          if-no-files-found: ignore
+          path: |
+            build/genhexbook-server/logs
+            build/genhexbook-server/hexbook/hexdoc-build.log
+
+  deploy-cloudflare:
+    needs: build
+    if: needs.build.outputs.deploy_cf == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: genhexbook-site
+          path: site
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Deploy to Cloudflare Pages
+        env:
+          CI: "true"
+          WRANGLER_SEND_METRICS: "false"
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          project="${{ needs.build.outputs.cf_project }}"
+          # Creating an existing project is not fatal; the deploy below is the check.
+          npx --yes wrangler@3 pages project create "$project" --production-branch main || true
+          npx --yes wrangler@3 pages deploy site --project-name "$project" --branch main
+
+  deploy-github-pages:
+    needs: build
+    if: needs.build.outputs.deploy_gh_actions == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  deploy-github-pages-branch:
+    needs: build
+    if: needs.build.outputs.deploy_gh_branch == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: genhexbook-site
+          path: site
+
+      - name: Deploy to the gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          force_orphan: true

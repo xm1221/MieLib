@@ -1,0 +1,122 @@
+# GenHexBook mods list — the primary way to add a Hex Casting addon.
+# 加附属请改这一份清单（主路径）。jar 丢进 mods-local/ 只是本地备用，进不了 CI。
+#
+# Schema (full write-up, 中英): docs/genhexbook.md
+#   minecraft, loader (fabric), fabric_loader, fabric_installer
+#   mods[]:
+#     name, enabled (default true), role (library | addon, informational)
+#     source: modrinth | maven | curse | url
+#     modrinth: project (slug or id), version (version id or version number)
+#     maven:    repo, group, artifact, version, classifier?, extension? (jar)
+#     curse:    project_id, file_id   (needs the CURSEFORGE_API_KEY secret)
+#     url:      url, filename?
+#     filename?, sha512?, strip_nested? (modids whose nested jars are removed)
+#
+# strip_nested: a published addon often jar-in-jars an older MieLib. Removing that
+# nested copy lets the MieLib just built from this checkout (the one with
+# /genHexBook) be the copy that loads. The downloaded file is checked against
+# sha512 before it is rewritten; the rewritten jar is not redistributed.
+#
+# Seeded from the HexCLI installer smoke set (hexcli-installer/manifest) plus MieHex.
+# Versions are Modrinth version ids so a re-run does not float.
+
+schema_version: 1
+minecraft: "1.20.1"
+loader: fabric
+fabric_loader: "0.16.9"
+fabric_installer: "1.1.2"
+
+mods:
+  - name: fabric-api
+    role: library
+    source: modrinth
+    project: fabric-api
+    version: lcnQpW9C
+    filename: fabric-api-0.87.0+1.20.1.jar
+    sha512: 72e4c2abee838139ae3ba87615273deb8386791c43cf1e423f2a44d2b36ef845f6f967fd370a39d17498adb2fb7a9661b9352fc9f1070571b93db8579f383a24
+
+  - name: fabric-language-kotlin
+    role: library
+    source: modrinth
+    project: fabric-language-kotlin
+    version: LcgnDDmT
+    filename: fabric-language-kotlin-1.13.7+kotlin.2.2.21.jar
+    sha512: 0453a8a4eb8d791b5f0097a6628fae6f13b6dfba1e2bd1f91218769123808c4396a88bcdfc785f1d6bca348f267b32afc2aa9e0d5ec93a7b35bcfe295268c7bc
+
+  - name: architectury
+    role: library
+    source: modrinth
+    project: architectury-api
+    version: WbL7MStR
+    filename: architectury-9.2.14-fabric.jar
+    sha512: 4cb8f009fd522d68a795d2cf5a657bdbe248b32ba7c33cd968f5ab521e9d60e198f8a3f6c50e7d960a2b8f50375116be0db1fd44b5710ea758697d8ea70d15de
+
+  - name: cloth-config
+    role: library
+    source: modrinth
+    project: cloth-config
+    version: s7VTKfLA
+    filename: cloth-config-11.1.106-fabric.jar
+    sha512: bce3d04905f49a331ade089332f0bb5f2329a81451f2acdd4d95590cb090dbc88f0192a85de342e705f4aea9f4cdf2add8b5ef842d0014e29f0a2a9c281984a2
+
+  - name: patchouli
+    role: library
+    source: modrinth
+    project: patchouli
+    version: Y6tuH1cn
+    filename: Patchouli-1.20.1-84-FABRIC.jar
+    sha512: b20cebaab0972443ccc7f3b10b2038d32cfa7baa953a1cc8de6333fa711f63fd51b1b5933e0f2757445385b98e132ef295bd7c17f67ebb44bc8481295329d8bf
+
+  - name: cardinal-components-api
+    role: library
+    source: modrinth
+    project: cardinal-components-api
+    version: HykM2Qyv
+    filename: cardinal-components-api-5.2.1.jar
+    sha512: 8457049dd5d232dd2e9220b5881e79ac5c31a6c051c55025f633276142a1954dd3bf8506511c887ca58fee398853434db39dcbee80b098ab4674109d36b5fe4a
+
+  - name: inline
+    role: library
+    source: modrinth
+    project: inline
+    version: n7VmkBLu
+    filename: inline-fabric-1.20.1-1.2.2.jar
+    sha512: f2aecf5f8de3d6ff32d810b8d358450579ab3215d19ff5c228ab874f781d45ab35dfdbc0948d76150617e283140f0e8a0275c56d01d1a0991863e11952b27812
+
+  - name: paucal
+    role: library
+    source: modrinth
+    project: paucal
+    version: dabyDTwJ
+    filename: paucal-0.6.0+1.20.1-fabric.jar
+    sha512: 5ab76a177c66113a1a1a6aaf738077c711d4b73807814d530f753961967398d5908ef1857b3290e633a3917bf7a93f9dc8cf2fb9767b26b8efbe8e295922d571
+
+  # Hex Casting itself. hexdoc-hexcasting renders hexcasting: patterns; this jar
+  # supplies the live registry and the book assets.
+  - name: hexcasting
+    role: addon
+    source: modrinth
+    project: hex-casting
+    version: d1pTywTc
+    filename: hexcasting-fabric-1.20.1-0.11.4.jar
+    sha512: 5cdc241966cdd17f5ffc16b8dc1903f5cbe9676d5132989da7f9a391b0f1a98d087b81fe66bc2066efea5feb2ef195b12519ae99e08c70b05f96ef5a53ec0907
+
+  - name: hexparse
+    role: addon
+    source: modrinth
+    project: hexparse
+    version: wt2k5ALr
+    filename: hexParse-fabric-1.20.1-1.12.0.jar
+    sha512: 5d671026fcc7c749e0eb5ecc4de3c533eff75032870b58c8cdd5e6a82117011c49a7b8a16ab402d2e56b89a495805c3f86de6f15732388ec7f75426b724ff20f
+
+  # MieHex release jars nest mieLib. strip_nested drops that copy so /genHexBook
+  # comes from the jar this workflow just built.
+  - name: miehex
+    role: addon
+    source: modrinth
+    project: miehex
+    version: cEe1UxdH
+    filename: miehex-fabric-1.0.2.2+0.11.41+1.20.1.jar
+    sha512: 31ee9594d66129caca80693909139d553884321f9ec26cba9ca24c4915cc870e0d7cae0504a3e94c35b86fa1576e5055d02d4561ff90f22e42510ab5fb09e548
+    strip_nested:
+      - mielib

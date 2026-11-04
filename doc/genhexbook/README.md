@@ -48,6 +48,13 @@ The book ends up in `_site/src/docs/v/latest/main/` (`index.html`, `en_us/`,
 - Item icons reuse the textures prerendered by hexdoc-hexcasting / hexdoc-minecraft; the plugin
   tries the rendered icon before the `[textures] missing = "*"` fallback.
 
+## CI mods list
+
+Addon jars are not vendored here. Edit `mods.yml` (Modrinth / Maven / CurseForge / URL).
+`mods-local/*.jar` is a gitignored local drop-in and does not reach GitHub Actions.
+The workflow and the bilingual fork guide live in `docs/genhexbook.md` and
+`.github/workflows/genhexbook-pages.yml`.
+
 ---
 
 # GenHexBook — hexdoc 伴生包
@@ -97,3 +104,9 @@ PYTHONPATH=src /tmp/hexdoc-venv/bin/hexdoc build --branch main
     以原版模型为父级的附属物品时需要
 - 物品图标复用 hexdoc-hexcasting / hexdoc-minecraft 预渲染的纹理：插件会先尝试渲染的图标，
   再回退到 `[textures] missing = "*"` 占位图。
+
+## CI 的 mods 列表
+
+附属 jar 不打进这个目录。改 `mods.yml`（Modrinth / Maven / CurseForge / 直链）。
+`mods-local/*.jar` 是被 gitignore 的本地投放，不会进入 GitHub Actions。
+工作流和中英 fork 说明在 `docs/genhexbook.md` 与 `.github/workflows/genhexbook-pages.yml`。

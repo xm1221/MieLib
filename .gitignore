@@ -213,3 +213,6 @@ cf.env
 
 # Local HexCLI E2E addon jars (not published)
 fabric/hexcli-extra-mods/*.jar
+
+# GenHexBook jar drop-in (secondary to doc/genhexbook/mods.yml; not the CI source of truth)
+doc/genhexbook/mods-local/*.jar

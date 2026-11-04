@@ -31,8 +31,18 @@ dependencies {
 
 // /genHexBook dumps a hexdoc project on the server; ship the companion
 // (doc/genhexbook) inside the jar so no checkout is needed at runtime.
+// The mods list, resolver, and drop-in jars are CI/local only — never pack them
+// into the mod jar (third-party jars must stay out of the published artifact).
 tasks.processResources {
     from(rootProject.file("doc/genhexbook")) {
         into("genhexbook")
+        include(
+            "hexdoc.toml.template",
+            "requirements.txt",
+            ".env.template",
+            "build.sh",
+            "README.md",
+            "src/**",
+        )
     }
 }

@@ -1,0 +1,2 @@
+# Resolver only. hexdoc itself is doc/genhexbook/requirements.txt.
+pyyaml>=6
