@@ -29,3 +29,6 @@ path = "patterns-registry.json"
 
 [textures]
 missing = "*"
+# Addon item models whose parents live in absent mods (e.g. Create) or are
+# generated at runtime: log and fall back instead of failing the whole build.
+strict = false
