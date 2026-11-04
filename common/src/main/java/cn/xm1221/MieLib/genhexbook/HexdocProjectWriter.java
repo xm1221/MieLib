@@ -51,6 +51,7 @@ public final class HexdocProjectWriter {
         "build.sh",
         "README.md",
         "src/hexdoc_livehexbook/__init__.py",
+        "src/hexdoc_livehexbook/pages.py",
         "src/hexdoc_livehexbook-0.0.1.dist-info/METADATA",
         "src/hexdoc_livehexbook-0.0.1.dist-info/entry_points.txt"
     );

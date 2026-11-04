@@ -1,15 +1,31 @@
-from importlib.resources import Package, files
+from importlib.resources import Package
 from typing import Any
 
-from hexdoc.plugin import HookReturn, ModPlugin, ModPluginImpl, ModPluginWithBook, hookimpl
+from hexdoc.plugin import (
+    HookReturn,
+    LoadTaggedUnionsImpl,
+    ModPlugin,
+    ModPluginImpl,
+    ModPluginWithBook,
+    hookimpl,
+)
 from typing_extensions import override
 
+from . import pages
 
-class LiveHexBookPlugin(ModPluginImpl):
+
+class LiveHexBookPlugin(LoadTaggedUnionsImpl, ModPluginImpl):
     @staticmethod
     @hookimpl
     def hexdoc_mod_plugin(branch: str) -> ModPlugin:
         return LiveHexBookModPlugin(branch=branch)
+
+    @staticmethod
+    @hookimpl
+    def hexdoc_load_tagged_unions() -> HookReturn[Package]:
+        # Ensure concrete stubs exist before Page validation runs.
+        _register_stubs_from_resources()
+        return [pages]
 
 
 class LiveHexBookModPlugin(ModPluginWithBook):
@@ -46,6 +62,52 @@ class LiveHexBookModPlugin(ModPluginWithBook):
     def jinja_template_root(self) -> tuple[Package, str] | None:
         return None
 
+
+def _collect_page_types_from_resources() -> set[str]:
+    import json
+    from pathlib import Path
+
+    found: set[str] = set()
+    root = Path("resources")
+    if not root.is_dir():
+        return found
+    for path in root.rglob("*.json"):
+        if "patchouli_books" not in path.parts:
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
+        def walk(obj: Any) -> None:
+            if isinstance(obj, dict):
+                t = obj.get("type")
+                if isinstance(t, str):
+                    found.add(t if ":" in t else f"patchouli:{t}")
+                for v in obj.values():
+                    walk(v)
+            elif isinstance(obj, list):
+                for v in obj:
+                    walk(v)
+
+        walk(data)
+    return found
+
+
+def _register_stubs_from_resources() -> None:
+    import logging
+
+    # Import concrete upstream pages so "known" is complete before we stub.
+    import hexdoc.patchouli.page.pages  # noqa: F401
+    import hexdoc_hexcasting.book.page.pages  # noqa: F401
+
+    logger = logging.getLogger("hexdoc_livehexbook")
+    types = _collect_page_types_from_resources()
+    # Always ensure the hand-written stubs are import-registered.
+    _ = pages.EverbookEntryPage, pages.LapisworksPwshapePage, pages.TransmutingPage
+    newly = pages.register_runtime_page_stubs(types)
+    if newly:
+        logger.warning("Registered fallback Patchouli page stubs for: %s", ", ".join(newly))
 
 
 # --- genHexBook texture fixes -------------------------------------------------
@@ -114,11 +176,15 @@ def _patch_textures() -> None:
             logger.warning("No texture for item model %s: %s", model.id, e)
             return None
         except Exception as e:
-            # ValidationError etc. from weird override models
             if loader.props.textures.strict:
                 raise
             if e.__class__.__name__ in {"ValidationError", "ValueError", "KeyError", "TypeError"}:
-                logger.warning("Failed to render item model %s: %s: %s", model.id, e.__class__.__name__, e)
+                logger.warning(
+                    "Failed to render item model %s: %s: %s",
+                    model.id,
+                    e.__class__.__name__,
+                    e,
+                )
                 return None
             raise
 
