@@ -108,7 +108,9 @@ public final class HexdocProjectWriter {
                     try (Stream<Path> walk = Files.walk(dir)) {
                         walk.filter(Files::isRegularFile).forEach(p -> {
                             try {
-                                Path target = dest.resolve(dir.relativize(p).toString().replace('\\', '/'));
+                                // hexdoc expects resources/assets/... and resources/data/..., so keep the top-level segment.
+                                Path target = dest.resolve(top)
+                                    .resolve(dir.relativize(p).toString().replace('\\', '/'));
                                 if (Files.exists(target)) return; // first jar wins (mods sorted by name)
                                 Files.createDirectories(target.getParent());
                                 try (InputStream in = Files.newInputStream(p)) {
