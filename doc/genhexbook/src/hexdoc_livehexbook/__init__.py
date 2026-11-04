@@ -93,17 +93,33 @@ def _collect_page_types_from_resources() -> set[str]:
         changed = False
 
         def fix(obj: Any) -> None:
-            # Some addons (e.g. hexboard) ship manual_pattern pages with op_id
-            # but no anchor; hexdoc requires anchor == op_id.
+            # hexdoc LookupPatternPage / ManualPatternPage require anchor == op_id.
+            # Addons sometimes omit anchor, or leave a trailing slash on one side
+            # (seen: hexdim op_id=.../remove vs anchor=.../remove/).
             nonlocal changed
             if isinstance(obj, dict):
-                if (
-                    obj.get("type") == "hexcasting:manual_pattern"
-                    and isinstance(obj.get("op_id"), str)
-                    and not obj.get("anchor")
+                t = obj.get("type")
+                if isinstance(t, str) and (
+                    t == "hexcasting:manual_pattern"
+                    or t.endswith(":manual_pattern")
+                    or "pattern" in t
                 ):
-                    obj["anchor"] = obj["op_id"]
-                    changed = True
+                    op = obj.get("op_id")
+                    if isinstance(op, str):
+                        op_norm = op.rstrip("/")
+                        if op_norm != op:
+                            obj["op_id"] = op_norm
+                            changed = True
+                            op = op_norm
+                        anchor = obj.get("anchor")
+                        if not anchor:
+                            obj["anchor"] = op
+                            changed = True
+                        elif isinstance(anchor, str):
+                            a_norm = anchor.rstrip("/")
+                            if a_norm != anchor or a_norm != op:
+                                obj["anchor"] = op
+                                changed = True
                 for v in obj.values():
                     fix(v)
             elif isinstance(obj, list):
@@ -260,3 +276,4 @@ def _patch_textures() -> None:
 
 
 _patch_textures()
+
