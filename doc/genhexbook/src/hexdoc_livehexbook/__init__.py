@@ -134,6 +134,32 @@ def _register_stubs_from_resources() -> None:
     newly = pages.register_runtime_page_stubs(types)
     if newly:
         logger.warning("Registered fallback Patchouli page stubs for: %s", ", ".join(newly))
+    try:
+        rnew = pages.register_runtime_recipe_stubs(_collect_recipe_samples())
+        if rnew:
+            logger.warning("Registered fallback recipe stubs for: %s", ", ".join(rnew))
+    except Exception as e:  # never fatal
+        logger.warning("Recipe stub registration failed: %s", e)
+
+
+def _collect_recipe_samples() -> dict[str, dict]:
+    import json
+    from pathlib import Path
+
+    out: dict[str, dict] = {}
+    root = Path("resources")
+    if not root.is_dir():
+        return out
+    for path in root.rglob("*.json"):
+        if "recipes" not in path.parts:
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if isinstance(data, dict) and isinstance(data.get("type"), str):
+            out.setdefault(data["type"], data)
+    return out
 
 
 # --- genHexBook texture fixes -------------------------------------------------

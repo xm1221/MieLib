@@ -71,3 +71,49 @@ def register_runtime_page_stubs(type_ids: set[str]) -> list[str]:
         registered.append(type_id)
         known.add(type_id)
     return registered
+
+
+# --- addon recipe types --------------------------------------------------------
+# Addons register custom recipe serializers (e.g. hexdebug:focus_holder_filling_shaped)
+# that are structurally vanilla shaped/shapeless crafting. Register stub subclasses
+# so Patchouli crafting pages referencing them can still render.
+
+
+def register_runtime_recipe_stubs(recipes: dict[str, dict]) -> list[str]:
+    import types as _types
+
+    from hexdoc.minecraft.recipe import recipes as _r
+    from hexdoc.minecraft.recipe.recipes import Recipe
+
+    known: set[str] = set()
+
+    def _collect(cls: type) -> None:
+        for sub in cls.__subclasses__():
+            t = getattr(sub, "type", None)
+            if t is not None:
+                known.add(str(t))
+            _collect(sub)
+
+    _collect(Recipe)
+    added: list[str] = []
+    for type_id, sample in sorted(recipes.items()):
+        if ":" not in type_id or type_id in known:
+            continue
+        if "pattern" in sample and "key" in sample:
+            base = _r.CraftingShapedRecipe
+        elif isinstance(sample.get("ingredients"), list):
+            base = _r.CraftingShapelessRecipe
+        else:
+            continue
+        name = "Stub_" + "".join(c if c.isalnum() else "_" for c in type_id)
+        try:
+            _types.new_class(
+                name,
+                (base,),
+                {"type": type_id, "template_type": str(base.type)},
+                lambda ns: ns.update({"__module__": __name__}),
+            )
+        except Exception:
+            continue
+        added.append(type_id)
+    return added
