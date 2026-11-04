@@ -90,6 +90,32 @@ def _collect_page_types_from_resources() -> set[str]:
                 for v in obj:
                     walk(v)
 
+        changed = False
+
+        def fix(obj: Any) -> None:
+            # Some addons (e.g. hexboard) ship manual_pattern pages with op_id
+            # but no anchor; hexdoc requires anchor == op_id.
+            nonlocal changed
+            if isinstance(obj, dict):
+                if (
+                    obj.get("type") == "hexcasting:manual_pattern"
+                    and isinstance(obj.get("op_id"), str)
+                    and not obj.get("anchor")
+                ):
+                    obj["anchor"] = obj["op_id"]
+                    changed = True
+                for v in obj.values():
+                    fix(v)
+            elif isinstance(obj, list):
+                for v in obj:
+                    fix(v)
+
+        fix(data)
+        if changed:
+            try:
+                path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+            except Exception:
+                pass
         walk(data)
     return found
 
