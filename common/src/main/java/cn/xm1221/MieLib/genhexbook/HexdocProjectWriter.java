@@ -67,6 +67,7 @@ public final class HexdocProjectWriter {
 
         int files = dumpResources(server, resources);
         GenHexBook.LOGGER.info("[GenHexBook] dumped {} resource files → {}", files, resources);
+        copyClientAssets(resources);
 
         writePatterns(project.resolve("patterns-registry.json"));
         copyCompanion(project);
@@ -207,6 +208,61 @@ public final class HexdocProjectWriter {
         } catch (Exception e) {
             GenHexBook.LOGGER.warn("[GenHexBook] open jar {}: {}", jar.getFileName(), e.toString());
         }
+    }
+
+    /** Optional vanilla client jar, needed to render addon items with vanilla model parents. */
+    private static final String CLIENT_JAR_PROPERTY = "mielib.genhexbook.clientJar";
+    private static final List<String> CLIENT_ASSET_DIRS = List.of(
+        "assets/minecraft/models",
+        "assets/minecraft/textures/item",
+        "assets/minecraft/textures/block",
+        "assets/minecraft/blockstates"
+    );
+
+    /**
+     * Copies the vanilla client assets hexdoc needs from {@code -Dmielib.genhexbook.clientJar}.
+     *
+     * <p>Dedicated servers ship no client jar, so addon items whose models inherit from vanilla
+     * parents (e.g. {@code minecraft:item/generated}) would otherwise render as missing images.
+     * Files already dumped from {@code mods/} are not overwritten, so mod overrides win.
+     */
+    private static int copyClientAssets(Path dest) {
+        String value = System.getProperty(CLIENT_JAR_PROPERTY);
+        if (value == null || value.isBlank()) return 0;
+        Path jar = Path.of(value.strip());
+        if (!Files.isRegularFile(jar)) {
+            GenHexBook.LOGGER.warn("[GenHexBook] {} points to a missing client jar: {}",
+                CLIENT_JAR_PROPERTY, jar);
+            return 0;
+        }
+        int[] count = {0};
+        try (FileSystem fs = FileSystems.newFileSystem(jar, Collections.emptyMap())) {
+            for (Path root : fs.getRootDirectories()) {
+                for (String dirName : CLIENT_ASSET_DIRS) {
+                    Path dir = root.resolve(dirName);
+                    if (!Files.isDirectory(dir)) continue;
+                    try (Stream<Path> walk = Files.walk(dir)) {
+                        walk.filter(Files::isRegularFile).forEach(p -> {
+                            try {
+                                Path target = dest.resolve(root.relativize(p).toString());
+                                if (Files.exists(target)) return;
+                                Files.createDirectories(target.getParent());
+                                Files.copy(p, target, StandardCopyOption.REPLACE_EXISTING);
+                                count[0]++;
+                            } catch (Exception ex) {
+                                GenHexBook.LOGGER.debug("[GenHexBook] skip client asset {}: {}", p, ex.toString());
+                            }
+                        });
+                    }
+                }
+            }
+        } catch (Exception e) {
+            GenHexBook.LOGGER.warn("[GenHexBook] open client jar {}: {}", jar.getFileName(), e.toString());
+            return count[0];
+        }
+        GenHexBook.LOGGER.info("[GenHexBook] copied {} vanilla client asset files from {}",
+            count[0], jar.getFileName());
+        return count[0];
     }
 
     /** Languages hexdoc can handle; anything else (e.g. cloth-config's {@code en_ud}) breaks it. */

@@ -29,9 +29,17 @@ public final class GenHexBookGenerator {
         Files.createDirectories(outDir);
         Map<String, PatternInfo> patterns = PatternLookup.all();
 
-        String siteUrl = servePort == null
-            ? "http://127.0.0.1:8765"
-            : "http://127.0.0.1:" + servePort;
+        // Public URL used for og:url / the site base path. Explicit property wins, then the
+        // local preview server, then the deployed Cloudflare Pages site.
+        String siteUrl = System.getProperty("mielib.genhexbook.siteUrl", "").strip();
+        while (siteUrl.endsWith("/")) {
+            siteUrl = siteUrl.substring(0, siteUrl.length() - 1);
+        }
+        if (siteUrl.isEmpty()) {
+            siteUrl = servePort == null
+                ? "https://mielib-hexbook.pages.dev"
+                : "http://127.0.0.1:" + servePort;
+        }
 
         Path project = HexdocProjectWriter.write(server, outDir, siteUrl);
         GenHexBook.LOGGER.info("[GenHexBook] hexdoc project → {}", project);

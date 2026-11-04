@@ -39,6 +39,14 @@ The book ends up in `_site/src/docs/v/latest/main/` (`index.html`, `en_us/`,
 - Python ≥ 3.11 (hexdoc requirement)
 - Java-side: `/genHexBook` needs `hexdoc` resolvable via
   `-Dmielib.genhexbook.hexdoc=<path>` or on `PATH`
+- Optional JVM properties:
+  - `-Dmielib.genhexbook.siteUrl=<url>` — public site URL for `og:url` / the site base path
+    (defaults to `https://mielib-hexbook.pages.dev`, or the local serve URL with `serve`)
+  - `-Dmielib.genhexbook.clientJar=<client.jar>` — vanilla client jar to copy
+    `assets/minecraft/{models,textures/item,textures/block,blockstates}` from; only needed on
+    dedicated servers to render addon items whose models use vanilla parents
+- Item icons reuse the textures prerendered by hexdoc-hexcasting / hexdoc-minecraft; the plugin
+  tries the rendered icon before the `[textures] missing = "*"` fallback.
 
 ---
 
@@ -81,3 +89,11 @@ PYTHONPATH=src /tmp/hexdoc-venv/bin/hexdoc build --branch main
 - Python ≥ 3.11（hexdoc 要求）
 - Java 侧：`/genHexBook` 需要通过 `-Dmielib.genhexbook.hexdoc=<路径>` 或
   `PATH` 找到 `hexdoc`
+- 可选 JVM 参数：
+  - `-Dmielib.genhexbook.siteUrl=<url>` — 站点公开地址，用于 `og:url` / 站点基路径
+    （默认 `https://mielib-hexbook.pages.dev`；使用 `serve` 时为本地地址）
+  - `-Dmielib.genhexbook.clientJar=<client.jar>` — 原版客户端 jar，导出时复制
+    `assets/minecraft/{models,textures/item,textures/block,blockstates}`；仅专用服渲染
+    以原版模型为父级的附属物品时需要
+- 物品图标复用 hexdoc-hexcasting / hexdoc-minecraft 预渲染的纹理：插件会先尝试渲染的图标，
+  再回退到 `[textures] missing = "*"` 占位图。

@@ -47,6 +47,21 @@ python3 -m venv /tmp/hexdoc-venv
   3. `-Dmielib.genhexbook.python=/path/to/python`（以 `python -m hexdoc` 调用）
   4. `/tmp/hexdoc-genhexbook-venv/bin/hexdoc`、`/tmp/hexdoc-venv/bin/hexdoc`
 
+### 可选 JVM 参数
+
+| 参数 | 作用 |
+|------|------|
+| `-Dmielib.genhexbook.siteUrl=<url>` | 站点公开地址，用作 `og:url` 与站点基路径（部署到自定义域名时设置；末尾 `/` 会自动去掉） |
+| `-Dmielib.genhexbook.clientJar=<client.jar>` | 指向一份原版 Minecraft 客户端 jar；导出时把 `assets/minecraft/{models,textures/item,textures/block,blockstates}` 复制进 `hexdoc-project/resources/`，用于渲染以原版模型为父级的附属物品 |
+| `-Dmielib.genhexbook.timeoutSeconds=<秒>` | hexdoc 构建超时，默认 900 |
+
+站点地址优先级：`-Dmielib.genhexbook.siteUrl` → `/genHexBook serve` 的 `http://127.0.0.1:<port>` →
+默认 `https://mielib-hexbook.pages.dev`。
+
+物品图标复用 hexdoc-hexcasting / hexdoc-minecraft 预渲染的纹理：插件 `hexdoc_livehexbook` 会先尝试
+渲染的物品图标，再回退到 `[textures] missing = "*"` 的占位图，并把 `hexcasting` 的打包纹理元数据合并回来。
+只有在专用服上渲染以原版模型为父级的附属物品时，才需要 `clientJar`；未设置时静默跳过（路径不存在时记录警告）。
+
 ### 命令（权限 ≥ 2）
 
 | 命令 | 作用 |
@@ -163,6 +178,23 @@ python3 -m venv /tmp/hexdoc-venv
   2. `hexdoc` on `PATH`
   3. `-Dmielib.genhexbook.python=/path/to/python` (invoked as `python -m hexdoc`)
   4. `/tmp/hexdoc-genhexbook-venv/bin/hexdoc`, `/tmp/hexdoc-venv/bin/hexdoc`
+
+### Optional JVM properties
+
+| Property | Effect |
+|----------|--------|
+| `-Dmielib.genhexbook.siteUrl=<url>` | Public site URL used for `og:url` and the site base path (set it for a custom domain; a trailing `/` is stripped) |
+| `-Dmielib.genhexbook.clientJar=<client.jar>` | Path to a vanilla Minecraft client jar; its `assets/minecraft/{models,textures/item,textures/block,blockstates}` are copied into `hexdoc-project/resources/` so addon items with vanilla model parents render |
+| `-Dmielib.genhexbook.timeoutSeconds=<seconds>` | hexdoc build timeout, default 900 |
+
+Site URL priority: `-Dmielib.genhexbook.siteUrl` → `http://127.0.0.1:<port>` when `/genHexBook serve`
+is used → default `https://mielib-hexbook.pages.dev`.
+
+Item icons reuse the textures prerendered by hexdoc-hexcasting / hexdoc-minecraft: the
+`hexdoc_livehexbook` plugin tries the rendered item icon before the `[textures] missing = "*"`
+placeholder and merges the packaged `hexcasting` texture metadata back. `clientJar` is only needed
+on dedicated servers to render addon items whose models inherit from vanilla ones; when unset it is
+skipped silently (a warning is logged if the path does not exist).
 
 ### Commands (permission level ≥ 2)
 
