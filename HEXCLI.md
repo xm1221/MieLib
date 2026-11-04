@@ -212,6 +212,8 @@ Tab 补全：行首补全命令名和图案名（服务器 action registry 里�
 that the console commands and the TCP remote use — no casting logic is duplicated.
 在控制台命令 / TCP 远程共用的 `HexCliOps` 上包一层薄薄的 HTTP/JSON，施法逻辑不重写。
 
+Also: `patterns.list` dumps the live action registry for HexSimulator; `stack.ravenmind` is iota JSON. Private-Network CORS header supported.
+
 Full details / 完整说明: [`docs/hexcli-http.md`](docs/hexcli-http.md) · [`docs/hexcli-http.zh-CN.md`](docs/hexcli-http.zh-CN.md).
 Protocol spec / 协议权威文档: [HexSimulator `docs/PROTOCOL.md`](https://github.com/xm1221/HexSimulator/blob/main/docs/PROTOCOL.md).
 

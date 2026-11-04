@@ -135,3 +135,36 @@ Unchanged from the TCP remote, plus (for browser rendering):
 
 - [HexSimulator PROTOCOL.md](https://github.com/xm1221/HexSimulator/blob/main/docs/PROTOCOL.md) — wire format, step object, frontend rules
 - [../HEXCLI.md](../HEXCLI.md) — terminal client, TCP protocol, profiles
+
+
+## `patterns.list`
+
+`POST /v1/rpc` with `cmd: "patterns.list"` (alias `patterns`). Dumps every entry from the **live** action registry (vanilla Hex + loaded addons) so HexSimulator can fetch patterns on first connect instead of shipping a static `patterns.json`.
+
+`data` shape:
+
+```json
+{
+  "version": 1,
+  "patterns": [
+    {
+      "id": "hexcasting:add",
+      "startdir": "NORTH_EAST",
+      "signature": "waaw",
+      "aliases": ["add", "hexcasting:add"],
+      "perWorld": false,
+      "nameKey": "hexcasting.action.hexcasting:add",
+      "names": { "en_us": "…" }
+    }
+  ],
+  "numbers": {},
+  "count": 0,
+  "perWorldCount": 0
+}
+```
+
+`stack` responses now put `data.ravenmind` as an iota JSON object (or `null`), matching `cast.ravenmind`.
+
+## Private Network Access / mixed content
+
+On preflight with `Access-Control-Request-Private-Network: true`, the server answers with `Access-Control-Allow-Private-Network: true` so an **https** pages.dev UI may reach `http://127.0.0.1`. If the browser still blocks mixed content, use local `yarn dev` (http) or put TLS / a reverse proxy in front of HexCLI.

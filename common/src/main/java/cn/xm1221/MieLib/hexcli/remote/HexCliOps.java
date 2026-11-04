@@ -1,6 +1,14 @@
 package cn.xm1221.MieLib.hexcli.remote;
 
 import at.petrak.hexcasting.api.casting.eval.CastingEnvironment;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.locale.Language;
+import at.petrak.hexcasting.common.casting.PatternRegistryManifest;
+import at.petrak.hexcasting.api.utils.HexUtils;
+import at.petrak.hexcasting.api.mod.HexTags;
+import at.petrak.hexcasting.api.casting.math.HexPattern;
+import at.petrak.hexcasting.api.casting.ActionRegistryEntry;
+import at.petrak.hexcasting.api.HexAPI;
 import at.petrak.hexcasting.api.casting.eval.vm.CastingImage;
 import at.petrak.hexcasting.api.casting.iota.Iota;
 import at.petrak.hexcasting.xplat.IXplatAbstractions;
@@ -321,11 +329,14 @@ public final class HexCliOps {
             stackJson.add(HexCliIotas.toJson(i));
         }
         CastEvent.renderStack(out, stack);
-        String rm = CastEvent.ravenmindOf(img, HexCliSession.get(server).level());
+        ServerLevel level = HexCliSession.get(server).level();
+        String rm = CastEvent.ravenmindOf(img, level);
         out.add("  ravenmind: " + (rm == null ? "(none)" : rm));
         JsonObject data = new JsonObject();
         data.add("stack", stackJson);
-        data.addProperty("ravenmind", rm);
+        JsonObject rmJson = CastEvent.ravenmindJsonOf(img, level);
+        if (rmJson != null) data.add("ravenmind", rmJson);
+        else data.add("ravenmind", JsonNull.INSTANCE);
         if (img.getParenCount() > 0) {
             out.add("  open introspection depth: " + img.getParenCount());
             data.addProperty("parens", img.getParenCount());
@@ -576,6 +587,76 @@ public final class HexCliOps {
         for (String n : HexCliProfiles.list(server)) profiles.add(n);
         data.add("profiles", profiles);
         return HexCliReply.ok(List.of(), data);
+    }
+
+    /**
+     * Live action-registry dump for HexSimulator / any hexParse UI.
+     * Shape mirrors HexTools {@code patterns.json} records (plus optional names / perWorld).
+     */
+    public static HexCliReply patternsList(MinecraftServer server) {
+        JsonObject data = new JsonObject();
+        data.addProperty("version", 1);
+        JsonArray patterns = new JsonArray();
+        int perWorldCount = 0;
+        try {
+            var registry = IXplatAbstractions.INSTANCE.getActionRegistry();
+            ServerLevel overworld = server.overworld();
+            Language lang = Language.getInstance();
+            for (ResourceKey<ActionRegistryEntry> key : registry.registryKeySet()) {
+                ActionRegistryEntry entry = registry.get(key);
+                if (entry == null) continue;
+                boolean perWorld = false;
+                try {
+                    perWorld = HexUtils.isOfTag(registry, key, HexTags.Actions.PER_WORLD_PATTERN);
+                } catch (Throwable ignored) {
+                }
+                HexPattern pattern = entry.prototype();
+                if (perWorld && overworld != null) {
+                    try {
+                        HexPattern canonical = PatternRegistryManifest.getCanonicalStrokesPerWorld(key, overworld);
+                        if (canonical != null) pattern = canonical;
+                    } catch (Throwable ignored) {
+                    }
+                }
+                if (perWorld) perWorldCount++;
+                String id = key.location().toString();
+                String path = key.location().getPath();
+                JsonObject rec = new JsonObject();
+                rec.addProperty("id", id);
+                rec.addProperty("startdir", pattern.getStartDir().name());
+                rec.addProperty("signature", pattern.anglesSignature());
+                rec.addProperty("perWorld", perWorld);
+                JsonArray aliases = new JsonArray();
+                aliases.add(path);
+                aliases.add(id);
+                rec.add("aliases", aliases);
+                String nameKey;
+                try {
+                    nameKey = HexAPI.instance().getActionI18nKey(key);
+                } catch (Throwable t) {
+                    nameKey = "hexcasting.action." + id;
+                }
+                rec.addProperty("nameKey", nameKey);
+                JsonObject names = new JsonObject();
+                try {
+                    String en = lang.getOrDefault(nameKey);
+                    if (en != null && !en.equals(nameKey)) names.addProperty("en_us", en);
+                } catch (Throwable ignored) {
+                }
+                rec.add("names", names);
+                patterns.add(rec);
+            }
+        } catch (Throwable t) {
+            LOGGER.warn("HexCLI: patterns.list failed: {}", t.toString());
+            data.addProperty("error", "patterns.list failed: " + t);
+            return HexCliReply.fail(List.of("[HexCLI] patterns.list failed: " + t), data);
+        }
+        data.add("patterns", patterns);
+        data.add("numbers", new JsonObject());
+        data.addProperty("count", patterns.size());
+        data.addProperty("perWorldCount", perWorldCount);
+        return HexCliReply.ok(List.of(
+            "[HexCLI] patterns.list: " + patterns.size() + " actions (" + perWorldCount + " per-world)"), data);
     }
 
     // ---- 让时间流逝：tick / wait ----

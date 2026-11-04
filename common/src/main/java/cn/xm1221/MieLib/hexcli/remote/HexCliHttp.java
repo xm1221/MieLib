@@ -373,6 +373,9 @@ public final class HexCliHttp {
                 return () -> HexCliOps.stepAbort(s);
             case "complete":
                 return () -> HexCliOps.complete(s);
+            case "patterns":
+            case "patterns.list":
+                return () -> HexCliOps.patternsList(s);
             case "profile.list":
                 return () -> HexCliOps.profileList(s);
             case "profile.show":
@@ -462,8 +465,14 @@ public final class HexCliHttp {
         if (origin == null || !originAllowed(origin)) return;
         ex.getResponseHeaders().set("Access-Control-Allow-Origin", origin);
         ex.getResponseHeaders().set("Vary", "Origin");
-        ex.getResponseHeaders().set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+        ex.getResponseHeaders().set("Access-Control-Allow-Headers",
+            "Authorization, Content-Type, Access-Control-Request-Private-Network");
         ex.getResponseHeaders().set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+        // Chrome Private Network Access: https page → http://127.0.0.1 preflight
+        String pna = ex.getRequestHeaders().getFirst("Access-Control-Request-Private-Network");
+        if (pna != null && "true".equalsIgnoreCase(pna.trim())) {
+            ex.getResponseHeaders().set("Access-Control-Allow-Private-Network", "true");
+        }
     }
 
     // ---- JSON / IO 小工具 ----

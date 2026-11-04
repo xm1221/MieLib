@@ -131,3 +131,36 @@ curl -s -X POST http://127.0.0.1:8742/v1/rpc \
 
 - [HexSimulator PROTOCOL.md](https://github.com/xm1221/HexSimulator/blob/main/docs/PROTOCOL.md) — 线格式、step 对象、前端约定
 - [../HEXCLI.md](../HEXCLI.md) — 终端客户端、TCP 协议、profile
+
+
+## `patterns.list`
+
+`POST /v1/rpc`，`cmd` 为 `patterns.list`（或 `patterns`）。从**当前进程的动作注册表**导出全部图案（含已加载附属），供 HexSimulator 等前端在首次连接时拉取，而不是打包静态 `patterns.json`。
+
+响应 `data` 大致为：
+
+```json
+{
+  "version": 1,
+  "patterns": [
+    {
+      "id": "hexcasting:add",
+      "startdir": "NORTH_EAST",
+      "signature": "waaw",
+      "aliases": ["add", "hexcasting:add"],
+      "perWorld": false,
+      "nameKey": "hexcasting.action.hexcasting:add",
+      "names": { "en_us": "…" }
+    }
+  ],
+  "numbers": {},
+  "count": 0,
+  "perWorldCount": 0
+}
+```
+
+`stack` 的 `data.ravenmind` 与 `cast.ravenmind` 一样，是 iota JSON 对象（或 `null`），不再是纯字符串。
+
+## Private Network Access / 混合内容
+
+预检若带 `Access-Control-Request-Private-Network: true`，会回 `Access-Control-Allow-Private-Network: true`，便于 **https** 的 pages.dev 访问本机 `http://127.0.0.1`。若浏览器仍因混合内容拦截，请改用本地 `yarn dev`（http），或给 HexCLI 加 TLS / 反向代理。

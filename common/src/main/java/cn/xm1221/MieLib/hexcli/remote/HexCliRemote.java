@@ -378,6 +378,7 @@ public final class HexCliRemote {
                         submit(() -> HexCliOps.command(server, line), out, id);
                     }
                     case "complete" -> submit(() -> HexCliOps.complete(server), out, id);
+                    case "patterns", "patterns.list" -> submit(() -> HexCliOps.patternsList(server), out, id);
                     case "ping" -> {
                         JsonObject data = new JsonObject();
                         data.addProperty("pong", true);
