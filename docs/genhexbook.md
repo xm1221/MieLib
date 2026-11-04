@@ -211,7 +211,7 @@ Actions 只检出 git 里的文件，被忽略的 jar **不会进 CI**。要在 
 4. 推到你自己的 `main`。也可以在 Actions 里手动跑 **GenHexBook site**。
 5. 打开部署出来的 URL。写进站点的地址是 `GENHEXBOOK_SITE_URL`，默认 `https://mielib-hexbook.pages.dev`。只部署到 GitHub 项目页时，把它改成 `https://<用户>.github.io/<仓库>`，否则纹理链接仍指向默认域名。
 
-触发条件：推到 `main`，且改动了 `doc/genhexbook/**`、`docs/genhexbook.md`、工作流本身或 `common/.../genhexbook/**`；以及 `workflow_dispatch`。别的提交不会自动重建，需要时手动跑一次。
+触发条件：推到 `main`，且改动了 `doc/genhexbook/**`、`docs/genhexbook.md`、工作流本身、`common/.../genhexbook/**` 或 `fabric/build.gradle.kts`；以及 `workflow_dispatch`。别的提交不会自动重建，需要时手动跑一次。
 
 #### 密钥和变量
 
@@ -499,7 +499,7 @@ Actions checks out git, so an ignored jar **never reaches CI**. For an addon tha
 4. Push to your `main`. You can also run **GenHexBook site** by hand under Actions.
 5. Open the deployed URL. The URL written into the site is `GENHEXBOOK_SITE_URL`, default `https://mielib-hexbook.pages.dev`. If you only publish a GitHub project site, set it to `https://<user>.github.io/<repo>` or texture links keep pointing at the default host.
 
-Triggers: a push to `main` that touches `doc/genhexbook/**`, `docs/genhexbook.md`, the workflow file, or `common/.../genhexbook/**`, plus `workflow_dispatch`. Other commits do not rebuild the site; run the workflow by hand when you want that.
+Triggers: a push to `main` that touches `doc/genhexbook/**`, `docs/genhexbook.md`, the workflow file, `common/.../genhexbook/**`, or `fabric/build.gradle.kts`, plus `workflow_dispatch`. Other commits do not rebuild the site; run the workflow by hand when you want that.
 
 #### Secrets and variables
 

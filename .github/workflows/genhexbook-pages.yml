@@ -38,6 +38,7 @@ on:
       - "docs/genhexbook.md"
       - ".github/workflows/genhexbook-pages.yml"
       - "common/src/main/java/cn/xm1221/MieLib/genhexbook/**"
+      - "fabric/build.gradle.kts"
   workflow_dispatch:
     inputs:
       deploy:
