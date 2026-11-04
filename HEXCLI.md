@@ -206,6 +206,79 @@ Tab 补全：行首补全命令名和图案名（服务器 action registry 里�
 - 所有游戏操作都提交到服务器线程执行，socket 线程只做 JSON 读写。
 - 端口：`-Dmielib.hexcli.port=<n>` 或 MieLib 服务端配置 `hexCliPort`（默认 `0` = 每次启动自动挑空闲端口）。
 
+## HTTP endpoint for browsers / 浏览器 HTTP 端点
+
+**Optional, off by default / 可选，默认关闭。** A thin HTTP/JSON adapter over the same `HexCliOps`
+that the console commands and the TCP remote use — no casting logic is duplicated.
+在控制台命令 / TCP 远程共用的 `HexCliOps` 上包一层薄薄的 HTTP/JSON，施法逻辑不重写。
+
+Also: `patterns.list` dumps the live action registry for HexSimulator; `stack.ravenmind` is iota JSON. Private-Network CORS header supported.
+
+Full details / 完整说明: [`docs/hexcli-http.md`](docs/hexcli-http.md) · [`docs/hexcli-http.zh-CN.md`](docs/hexcli-http.zh-CN.md).
+Protocol spec / 协议权威文档: [HexSimulator `docs/PROTOCOL.md`](https://github.com/xm1221/HexSimulator/blob/main/docs/PROTOCOL.md).
+
+### Enable / 启用
+
+```bash
+java -Dmielib.hexcli=true -Dmielib.hexcli.http=true -Dmielib.hexcli.http.port=8742 -jar server.jar nogui
+```
+
+| Property / 属性 | Meaning / 含义 | Default / 默认 |
+|---|---|---|
+| `-Dmielib.hexcli.http=true` | Enable HTTP (HexCLI must be enabled too) / 启用 HTTP（还需 HexCLI 已启用） | `false` |
+| `-Dmielib.hexcli.http.port=<n>` | Port, `0` = auto / 端口，`0` = 自动 | `0` |
+| `-Dmielib.hexcli.http.bind=<addr>` | Bind address / 绑定地址 | `127.0.0.1` |
+| `-Dmielib.hexcli.http.cors=<list>` | CORS allowlist; `*` or comma-separated, `http://host:*` wildcards the port / CORS 白名单 | `http://127.0.0.1:*,http://localhost:*` |
+
+The same four live in the MieLib server config as `enableHexCliHttp`, `hexCliHttpPort`,
+`hexCliHttpBind`, `hexCliHttpCors` (server-side only; **not** in the encode/decode network sync,
+like `enableHexCli`). System properties take precedence.
+同样四项也在 MieLib 服务端配置里（仅服务端，**不**参与 encode/decode 网络同步，和 `enableHexCli` 一样）；系统属性优先。
+
+### Endpoints / 端点
+
+- `GET /v1/health` → `{"ok":true,"protocol":1,"server":"mielib-hexcli","version":"<mod version>"}` — no token / 免 token.
+- `POST /v1/rpc` → `{"id":<echo>,"ok":<bool>,"lines":[...],"data":{...}}`.
+  `cmd`: `ping`, `run` (`code`), `reset`, `stack`, `step.begin` (`code`, `label`), `step.next`,
+  `step.abort`, `complete`, `profile.list|show|use` (`name`), `env.list|use` (`env`). Unknown `cmd` → `ok:false` + `data.error`.
+
+Auth / 鉴权: `Authorization: Bearer <token>` or a JSON `"token"` field; compared in constant time.
+Health is unauthenticated; bad/missing token → HTTP 401. Every game operation runs on the server
+thread via `server.submit(...).get(...)`.
+
+### `hexcli/http.json`
+
+Written on start, deleted on stop, next to `client.json` / 启动时写入、停止时删除：
+
+```json
+{"host":"127.0.0.1","port":8742,"token":"…","protocol":1,"version":1}
+```
+
+The token is **shared** with the TCP remote (`client.json`) — the HTTP endpoint reuses
+`HexCliRemote`'s token. 与 TCP 远程**共用同一个** token。Startup log / 启动日志：
+`[HexCLI] HTTP endpoint http://127.0.0.1:8742/v1 (see hexcli/http.json)`.
+
+### CORS and mixed content / CORS 与混合内容
+
+An `Origin` on the allowlist is echoed in `Access-Control-Allow-Origin` (anything else → HTTP 403);
+`OPTIONS` preflight → 204 with `Allow-Headers: Authorization, Content-Type` and
+`Allow-Methods: GET,POST,OPTIONS`. `*` is for local debugging only. 白名单外的 Origin 直接 403；`*` 仅本地调试。
+
+An `https://` page generally cannot call `http://127.0.0.1` (mixed content). Run the page over plain
+`http` locally, add TLS in front of HexCLI, or use a same-origin reverse proxy — this endpoint has no TLS.
+`https://` 页面通常无法请求 `http://127.0.0.1`；本地请前后端都用 `http`，或自行加 TLS / 同源反代。
+
+### Relationship to the TCP remote / 与 TCP 远程的关系
+
+Same commands, same token, same `HexCliOps`, independent listeners; both may run at once and either
+can be disabled. The TCP endpoint (terminal client) is unchanged. 同一批命令、同一 token、同一 `HexCliOps`，
+两个监听互不影响，可同时运行；TCP 端点（终端客户端）不受影响。
+
+### Safety / 安全
+
+Bind `0.0.0.0` only if you mean it — any holder of the token can cast with the server's privileges.
+默认只绑回环地址；改成 `0.0.0.0` 等于把施法权限暴露给能拿到 token 的人。
+
 ## Profile（JSON）
 
 服务器启动时会在 `<run dir>/hexcli/profiles/` 写出示例（已存在则不覆盖），并自动应用 `default`：

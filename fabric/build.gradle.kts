@@ -44,12 +44,23 @@ loom {
         }
 
         // HexCLI (off by default, enabled with -Dmielib.hexcli=true)
+        // HexCLI HTTP: Gradle -Dmielib.hexcli.http=* is on the Gradle JVM only; forward into the MC run.
+        // Dedicated HexCLI runs default HTTP on (still off for normal clients / production jars).
+        val hexcliHttp = System.getProperty("mielib.hexcli.http") ?: "true"
+        val hexcliHttpPort = System.getProperty("mielib.hexcli.http.port") ?: "8742"
+        val hexcliHttpBind = System.getProperty("mielib.hexcli.http.bind") ?: "127.0.0.1"
+        val hexcliHttpCors = System.getProperty("mielib.hexcli.http.cors")
+            ?: "http://127.0.0.1:*,http://localhost:*,http://*.pages.dev,https://*.pages.dev,https://hextools.xm1221.cn,http://hextools.xm1221.cn"
         register("hexcliServer") {
             server()
             name("HexCLI Server")
             runDir = "run/hexcli"
             programArg("nogui")
             property("mielib.hexcli", "true")
+            property("mielib.hexcli.http", hexcliHttp)
+            property("mielib.hexcli.http.port", hexcliHttpPort)
+            property("mielib.hexcli.http.bind", hexcliHttpBind)
+            property("mielib.hexcli.http.cors", hexcliHttpCors)
             ideConfigGenerated(false)
         }
         register("hexcliExampleServer") {
@@ -58,6 +69,10 @@ loom {
             runDir = "run/hexcli"
             programArg("nogui")
             property("mielib.hexcli", "true")
+            property("mielib.hexcli.http", hexcliHttp)
+            property("mielib.hexcli.http.port", hexcliHttpPort)
+            property("mielib.hexcli.http.bind", hexcliHttpBind)
+            property("mielib.hexcli.http.cors", hexcliHttpCors)
             source(sourceSets["example"])
             ideConfigGenerated(false)
         }
@@ -151,4 +166,8 @@ dependencies {
         Regex("""META-INF/jars/yclib-.*\.jar"""),
         "yclib-fabric.jar",
     )))
+
+    // Optional HexCLI addon for local E2E: MieHex without JiJ MieLib (Loom provides MieLib from source).
+    // Jar under fabric/hexcli-extra-mods/; not shipped in published artifacts.
+    modLocalRuntime(files("hexcli-extra-mods/miehex-fabric-nojij.jar"))
 }

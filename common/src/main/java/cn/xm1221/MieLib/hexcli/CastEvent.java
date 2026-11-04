@@ -94,7 +94,7 @@ public final class CastEvent {
         stack = s;
         stackJson = sj;
         ravenmind = ravenmindOf(image, world);
-        ravenmindJson = ravenmindJsonOf(image);
+        ravenmindJson = ravenmindJsonOf(image, world);
         opsConsumed = image.getOpsConsumed();
     }
 
@@ -119,7 +119,12 @@ public final class CastEvent {
     }
 
     /** 渡鸦之思的结构化表示（实体 / 列表已修正）；没有时为 null。 */
-    private @Nullable JsonObject ravenmindJsonOf(CastingImage image) {
+    public static @Nullable JsonObject ravenmindJsonOf(CastingImage image) {
+        return ravenmindJsonOf(image, null);
+    }
+
+    /** 渡鸦之思的结构化表示；给了维度就反序列化成 iota 走 {@link HexCliIotas#toJson}。 */
+    public static @Nullable JsonObject ravenmindJsonOf(CastingImage image, @Nullable ServerLevel world) {
         CompoundTag ud = image.getUserData();
         if (!ud.contains(HexAPI.RAVENMIND_USERDATA, Tag.TAG_COMPOUND)) return null;
         CompoundTag tag = ud.getCompound(HexAPI.RAVENMIND_USERDATA);

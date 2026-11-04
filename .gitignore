@@ -210,3 +210,6 @@ cython_debug/
 .agent/
 cf.env
 *.env
+
+# Local HexCLI E2E addon jars (not published)
+fabric/hexcli-extra-mods/*.jar

@@ -133,8 +133,17 @@ public final class HexCliRemote {
         if (r != null) r.shutdown();
     }
 
-    /** 法术里的 print 推给所有客户端（客户端自己发起的 run 会收到重复，自行去重）。 */
-    public static void pushPrint(String text) {
+    /**
+     * 当前远程端点的 token（服务器启动后才有；HTTP 端点 {@link HexCliHttp} 复用它，
+     * 于是 {@code client.json} 与 {@code http.json} 里是同一个 token）。
+     */
+    public static @Nullable String token() {
+        synchronized (LOCK) {
+            return current == null ? null : current.token;
+        }
+    }
+
+    /** 法术里的 print 推给所有客户端（客户端自己发起的 run 会收到重复，自行去重）。 */    public static void pushPrint(String text) {
         HexCliRemote r;
         synchronized (LOCK) {
             r = current;
@@ -369,6 +378,7 @@ public final class HexCliRemote {
                         submit(() -> HexCliOps.command(server, line), out, id);
                     }
                     case "complete" -> submit(() -> HexCliOps.complete(server), out, id);
+                    case "patterns", "patterns.list" -> submit(() -> HexCliOps.patternsList(server), out, id);
                     case "ping" -> {
                         JsonObject data = new JsonObject();
                         data.addProperty("pong", true);
