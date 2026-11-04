@@ -111,7 +111,12 @@ def register_runtime_recipe_stubs(recipes: dict[str, dict]) -> list[str]:
                 name,
                 (base,),
                 {"type": type_id, "template_type": str(base.type)},
-                lambda ns: ns.update({"__module__": __name__}),
+                lambda ns: ns.update(
+                    {
+                        "__module__": __name__,
+                        "model_config": {**base.model_config, "extra": "ignore"},
+                    }
+                ),
             )
         except Exception:
             continue
