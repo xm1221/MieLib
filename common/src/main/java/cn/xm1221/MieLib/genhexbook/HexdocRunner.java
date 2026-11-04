@@ -165,7 +165,7 @@ public final class HexdocRunner {
                         if (!Files.isRegularFile(p)) continue;
                         String name = p.getFileName().toString();
                         if (!name.endsWith(".png") && !name.endsWith(".png.mcmeta")) continue;
-                        Path target = site.resolve("resources").resolve(assets.relativize(p).toString());
+                        Path target = site.resolve("resources").resolve("assets").resolve(assets.relativize(p).toString());
                         Files.createDirectories(target.getParent());
                         Files.copy(p, target, StandardCopyOption.REPLACE_EXISTING);
                         count[0]++;
