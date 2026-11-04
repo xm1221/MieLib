@@ -136,6 +136,79 @@ def _collect_page_types_from_resources() -> set[str]:
     return found
 
 
+
+def _ensure_pattern_stubs_from_resources() -> list[str]:
+    """Append dummy stubs for book op_ids missing from patterns-registry.json.
+
+    Addon books (e.g. hexmapping) reference optional-mod patterns that are not
+    registered when those mods are absent. hexdoc LookupPatternPage then fails
+    with Unknown pattern ID. A stub is enough for the docs build.
+    """
+    import json
+    import logging
+    from pathlib import Path
+
+    log = logging.getLogger("hexdoc_livehexbook")
+    registry = Path("patterns-registry.json")
+    if not registry.is_file():
+        return []
+
+    try:
+        stubs = json.loads(registry.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    if not isinstance(stubs, list):
+        return []
+
+    known: set[str] = set()
+    for s in stubs:
+        if isinstance(s, dict) and isinstance(s.get("id"), str):
+            known.add(s["id"])
+
+    needed: set[str] = set()
+    root = Path("resources")
+    if root.is_dir():
+        for path in root.rglob("*.json"):
+            if "patchouli_books" not in path.parts:
+                continue
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+
+            def walk(obj: object) -> None:
+                if isinstance(obj, dict):
+                    op = obj.get("op_id")
+                    if isinstance(op, str) and op and not op.startswith("hexcasting:"):
+                        needed.add(op.rstrip("/"))
+                    for v in obj.values():
+                        walk(v)
+                elif isinstance(obj, list):
+                    for v in obj:
+                        walk(v)
+
+            walk(data)
+
+    added: list[str] = []
+    for op_id in sorted(needed - known):
+        stubs.append(
+            {
+                "id": op_id,
+                "startdir": "EAST",
+                "signature": "w",
+                "is_per_world": False,
+            }
+        )
+        added.append(op_id)
+    if added:
+        registry.write_text(json.dumps(stubs, ensure_ascii=False, indent=2), encoding="utf-8")
+        log.warning(
+            "Added dummy pattern stubs for missing op_ids: %s",
+            ", ".join(added),
+        )
+    return added
+
+
 def _register_stubs_from_resources() -> None:
     import logging
 
@@ -150,6 +223,10 @@ def _register_stubs_from_resources() -> None:
     newly = pages.register_runtime_page_stubs(types)
     if newly:
         logger.warning("Registered fallback Patchouli page stubs for: %s", ", ".join(newly))
+    try:
+        _ensure_pattern_stubs_from_resources()
+    except Exception as e:
+        logger.warning("Pattern stub backfill failed: %s", e)
     try:
         rnew = pages.register_runtime_recipe_stubs(_collect_recipe_samples())
         if rnew:
