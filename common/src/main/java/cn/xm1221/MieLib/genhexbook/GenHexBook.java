@@ -125,8 +125,10 @@ public final class GenHexBook {
         } catch (Exception e) {
             LOGGER.error("[GenHexBook] failed", e);
             c.getSource().sendFailure(Component.literal("[GenHexBook] failed: " + e.getMessage()));
-            for (String line : HexdocRunner.installHint()) {
-                c.getSource().sendSuccess(() -> Component.literal(line), false);
+            if (HexdocRunner.isMissing(e)) {
+                for (String line : HexdocRunner.installHint()) {
+                    c.getSource().sendSuccess(() -> Component.literal(line), false);
+                }
             }
             return 0;
         }

@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 /**
@@ -57,6 +58,9 @@ public final class HexdocProjectWriter {
     public static Path write(MinecraftServer server, Path outDir, String siteUrl) throws IOException {
         Path project = outDir.resolve("hexdoc-project");
         Path resources = project.resolve("resources");
+        // Start clean: a previous dump would otherwise make every file "already present"
+        // and the run would report 0 dumped files.
+        deleteRecursively(resources);
         Files.createDirectories(resources);
 
         int files = dumpResources(server, resources);
@@ -75,7 +79,56 @@ public final class HexdocProjectWriter {
         env = env.replaceAll("(?m)^GITHUB_PAGES_URL=.*$", "GITHUB_PAGES_URL=" + siteUrl);
         Files.writeString(project.resolve(".env"), env, StandardCharsets.UTF_8);
 
+        initGitRepo(project);
         return project;
+    }
+
+    /**
+     * hexdoc runs {@code git rev-parse --show-toplevel} and refuses to build outside a
+     * repository. Best-effort: log and continue when git is unavailable.
+     */
+    private static void initGitRepo(Path project) {
+        if (!runGit(project, "init")) {
+            GenHexBook.LOGGER.warn("[GenHexBook] git init failed in {} (hexdoc may refuse to build)", project);
+            return;
+        }
+        // A fresh repository has no HEAD; hexdoc needs a commit to resolve the branch.
+        runGit(project, "add", "-A");
+        if (!runGit(project, "-c", "user.email=xm1221@qq.com", "-c", "user.name=xm1221",
+                "commit", "-m", "hexdoc-dump", "--allow-empty")) {
+            GenHexBook.LOGGER.warn("[GenHexBook] git commit failed in {}", project);
+        }
+    }
+
+    private static boolean runGit(Path cwd, String... args) {
+        List<String> argv = new ArrayList<>();
+        argv.add("git");
+        argv.addAll(List.of(args));
+        try {
+            Process p = new ProcessBuilder(argv)
+                .directory(cwd.toFile())
+                .redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .start();
+            if (!p.waitFor(60, TimeUnit.SECONDS)) {
+                p.destroyForcibly();
+                return false;
+            }
+            return p.exitValue() == 0;
+        } catch (Exception e) {
+            GenHexBook.LOGGER.debug("[GenHexBook] git {}: {}", String.join(" ", args), e.toString());
+            return false;
+        }
+    }
+
+    private static void deleteRecursively(Path dir) throws IOException {
+        if (!Files.exists(dir)) return;
+        try (Stream<Path> walk = Files.walk(dir)) {
+            List<Path> all = walk.sorted(Comparator.reverseOrder()).toList();
+            for (Path p : all) {
+                Files.deleteIfExists(p);
+            }
+        }
     }
 
     /** Merge {@code assets/} + {@code data/} of every {@code mods/*.jar} into {@code dest}. */
@@ -108,13 +161,19 @@ public final class HexdocProjectWriter {
                     try (Stream<Path> walk = Files.walk(dir)) {
                         walk.filter(Files::isRegularFile).forEach(p -> {
                             try {
+                                String rel = dir.relativize(p).toString().replace('\\', '/');
+                                if (!keepResource(rel)) return;
                                 // hexdoc expects resources/assets/... and resources/data/..., so keep the top-level segment.
-                                Path target = dest.resolve(top)
-                                    .resolve(dir.relativize(p).toString().replace('\\', '/'));
+                                Path target = dest.resolve(top).resolve(rel);
                                 if (Files.exists(target)) return; // first jar wins (mods sorted by name)
                                 Files.createDirectories(target.getParent());
                                 try (InputStream in = Files.newInputStream(p)) {
-                                    Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+                                    byte[] bytes = in.readAllBytes();
+                                    if (isLangFile(rel) && !isJsonObject(bytes)) {
+                                        GenHexBook.LOGGER.debug("[GenHexBook] skip invalid lang {}: {}", rel, p);
+                                        return;
+                                    }
+                                    Files.write(target, bytes);
                                 }
                                 count[0]++;
                             } catch (Exception ex) {
@@ -145,14 +204,73 @@ public final class HexdocProjectWriter {
         }
     }
 
-    /** Pattern stubs: id / startdir / signature / is_per_world, from the live registry. */
+    /** Languages hexdoc can handle; anything else (e.g. cloth-config's {@code en_ud}) breaks it. */
+    private static final List<String> KEPT_LANGS = List.of("en_us", "zh_cn");
+    private static final java.util.regex.Pattern LOCALE_SEGMENT =
+        java.util.regex.Pattern.compile("[a-z]{2,3}_[a-z]{2,4}");
+
+    /**
+     * Keeps only {@code en_us}/{@code zh_cn} language data. hexdoc parses every language it
+     * finds, so invalid BCP47 tags and malformed translations from unrelated mods would
+     * abort the whole build.
+     */
+    private static boolean keepResource(String rel) {
+        // <ns>/lang/<locale>.json
+        if (rel.endsWith(".json")) {
+            String[] parts = rel.split("/");
+            if (parts.length == 3 && parts[1].equals("lang")) {
+                return KEPT_LANGS.contains(parts[2].substring(0, parts[2].length() - ".json".length())
+                    .toLowerCase(Locale.ROOT));
+            }
+        }
+        // <ns>/patchouli_books/<book>/<locale>/...
+        int books = rel.indexOf("patchouli_books/");
+        if (books >= 0) {
+            String[] parts = rel.substring(books + "patchouli_books/".length()).split("/");
+            if (parts.length >= 2 && LOCALE_SEGMENT.matcher(parts[1]).matches()) {
+                return KEPT_LANGS.contains(parts[1].toLowerCase(Locale.ROOT));
+            }
+        }
+        return true;
+    }
+
+    private static boolean isLangFile(String rel) {
+        String[] parts = rel.split("/");
+        return parts.length == 3 && parts[1].equals("lang") && rel.endsWith(".json");
+    }
+
+    /** Cheap check that the file is a JSON object; hexdoc's JSON5 parser is strict enough to care. */
+    private static boolean isJsonObject(byte[] bytes) {
+        int start = 0;
+        int end = bytes.length;
+        // UTF-8 BOM
+        if (end >= 3 && (bytes[0] & 0xFF) == 0xEF && (bytes[1] & 0xFF) == 0xBB && (bytes[2] & 0xFF) == 0xBF) {
+            start = 3;
+        }
+        while (start < end && isSpace(bytes[start])) start++;
+        while (end > start && isSpace(bytes[end - 1])) end--;
+        return end - start >= 2 && bytes[start] == '{' && bytes[end - 1] == '}';
+    }
+
+    private static boolean isSpace(byte b) {
+        return b == ' ' || b == '\t' || b == '\r' || b == '\n';
+    }
+
+    /**
+     * Pattern stubs: id / startdir / signature / is_per_world, from the live registry.
+     *
+     * <p>Only addon patterns are exported: hexdoc-hexcasting already loads vanilla
+     * {@code hexcasting:} patterns from its packaged {@code hexcasting.patterns.hexdoc.json},
+     * and repeating them makes hexdoc fail with {@code Duplicate pattern id}.
+     */
     private static void writePatterns(Path target) throws IOException {
         List<Stub> stubs = new ArrayList<>();
         for (PatternInfo p : PatternLookup.list()) {
+            if (p.id().startsWith("hexcasting:")) continue;
             stubs.add(new Stub(p.id(), p.startDir().toUpperCase(Locale.ROOT), p.signature(), p.perWorld()));
         }
         Files.writeString(target, GSON.toJson(stubs), StandardCharsets.UTF_8);
-        GenHexBook.LOGGER.info("[GenHexBook] wrote {} pattern stubs → {}", stubs.size(), target);
+        GenHexBook.LOGGER.info("[GenHexBook] wrote {} addon pattern stubs → {}", stubs.size(), target);
     }
 
     private record Stub(String id, String startdir, String signature, boolean is_per_world) {}

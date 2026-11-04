@@ -40,8 +40,11 @@ public final class GenHexBookGenerator {
         try {
             site = HexdocRunner.build(project, outDir);
         } catch (Exception e) {
-            for (String line : HexdocRunner.installHint()) {
-                GenHexBook.LOGGER.error(line);
+            // A build error is not an install problem: only hint when hexdoc was not found.
+            if (HexdocRunner.isMissing(e)) {
+                for (String line : HexdocRunner.installHint()) {
+                    GenHexBook.LOGGER.error(line);
+                }
             }
             throw e;
         }

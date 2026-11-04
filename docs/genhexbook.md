@@ -13,7 +13,9 @@
         │
         ├─ 1. 导出 (HexdocProjectWriter)  → <dir>/hexdoc-project/
         │      resources/assets|data/   ← 从 mods/*.jar 合并（专用服 ResourceManager 不含客户端资源）
-        │      patterns-registry.json   ← 实时 Action 注册表（id / startdir / signature / is_per_world）
+        │      patterns-registry.json   ← 实时 Action 注册表中的**附属**图案（id / startdir / signature / is_per_world；hexcasting: 由 hexdoc-hexcasting 自带）
+        │      resources/              ← 每次重新导出前清空；语言文件只保留 en_us / zh_cn
+        │      .git/                   ← 自动 git init + 首次提交（hexdoc 要求位于 git 仓库内）
         │      hexdoc.toml, .env        ← 由 jar 内置的 doc/genhexbook 模板生成
         │      src/ + requirements.txt + build.sh  ← 伴生包（hexdoc_livehexbook 插件）
         │
@@ -88,6 +90,17 @@ npx wrangler pages deploy <dir>/site --project-name mielib-hexbook
 | `hexdoc build exited N` | 看 `<dir>/hexdoc-build.log` 末尾 |
 | 构建超时 | `-Dmielib.genhexbook.timeoutSeconds=1800`（默认 900） |
 
+### 导出细节
+
+- `hexdoc-project/resources/` 每次导出前**清空**，避免旧文件让本次统计成 0。
+- 语言文件只保留 `en_us.json` / `zh_cn.json`（`assets/*/lang/`；`assets/*/patchouli_books/*/` 下只保留
+  `en_us/`、`zh_cn/` 目录）。hexdoc 会解析它发现的所有语言，其他 mod 的非法 BCP47 标签（如
+  cloth-config 的 `en_ud`）或损坏的翻译文件（Patchouli 的 `zh_cn.json`）会让整个构建失败。
+- `patterns-registry.json` 只含**非 `hexcasting:`** 的图案（miehex、hexparse 等附属）；原版图案由
+  hexdoc-hexcasting 自带的 `hexcasting.patterns.hexdoc.json` 提供，重复会导致 `Duplicate pattern id`。
+- 导出后会在 `hexdoc-project/` 内 `git init` 并做一次空提交——hexdoc 需要 `git rev-parse --show-toplevel`
+  成功；未安装 git 时只记录警告并继续。
+
 ### HexCLI 示例
 
 ```bash
@@ -114,7 +127,9 @@ build the real static site with the **actual hexdoc CLI**.
         │
         ├─ 1. dump (HexdocProjectWriter)  → <dir>/hexdoc-project/
         │      resources/assets|data/   ← merged from mods/*.jar (dedicated servers have no client assets)
-        │      patterns-registry.json   ← live Action registry (id / startdir / signature / is_per_world)
+        │      patterns-registry.json   ← **addon** patterns from the live Action registry (id / startdir / signature / is_per_world; `hexcasting:` comes from hexdoc-hexcasting)
+        │      resources/              ← wiped on every run; only en_us / zh_cn language files are kept
+        │      .git/                   ← auto `git init` + first commit (hexdoc requires a git repo)
         │      hexdoc.toml, .env        ← rendered from the companion bundled in the jar
         │      src/ + requirements.txt + build.sh  ← companion (hexdoc_livehexbook plugin)
         │
@@ -189,6 +204,21 @@ Requires `CLOUDFLARE_API_TOKEN`. No custom domain required.
 | `hexdoc not found` | Set `-Dmielib.genhexbook.hexdoc=` or install it on `PATH` |
 | `hexdoc build exited N` | Read the tail of `<dir>/hexdoc-build.log` |
 | Build timeout | `-Dmielib.genhexbook.timeoutSeconds=1800` (default 900) |
+
+### Dump details
+
+- `hexdoc-project/resources/` is **wiped** before each dump, so stale files can no longer make a
+  re-run report `dumped 0`.
+- Language files are restricted to `en_us.json` / `zh_cn.json` under `assets/*/lang/` (and only
+  `en_us/`, `zh_cn/` directories under `assets/*/patchouli_books/*/`). hexdoc parses every
+  language it finds, so another mod's invalid BCP47 tag (cloth-config's `en_ud`) or a broken
+  translation file (Patchouli's `zh_cn.json`) aborts the whole build.
+- `patterns-registry.json` contains only **non-`hexcasting:`** patterns (miehex, hexparse, …).
+  Vanilla patterns come from hexdoc-hexcasting's packaged `hexcasting.patterns.hexdoc.json`;
+  duplicating them raises `Duplicate pattern id`.
+- After dumping, the project is `git init`-ed with one empty commit — hexdoc needs
+  `git rev-parse --show-toplevel` to succeed. When git is unavailable a warning is logged and
+  the build continues.
 
 ### Notes
 

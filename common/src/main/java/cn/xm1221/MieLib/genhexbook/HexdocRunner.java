@@ -206,6 +206,12 @@ public final class HexdocRunner {
         }
     }
 
+    /** True when the failure means hexdoc itself is missing (and not a build error). */
+    public static boolean isMissing(Throwable e) {
+        String msg = e == null ? null : e.getMessage();
+        return msg != null && msg.startsWith("hexdoc not found");
+    }
+
     /** Bilingual install hint for the failure path. */
     public static List<String> installHint() {
         return List.of(
