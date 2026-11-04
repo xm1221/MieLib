@@ -122,7 +122,7 @@ mods:
       - mielib
 
   # ---- from hexaddons (SamsTheNerd/hexaddons hexaddons.json, MC 1.20.1 Fabric) ----
-  # Not added: hexvidia (needs Hex Casting 0.11.3 exactly); hexdentity (needs `identity` mod (not on Modrinth for 1.20.1)); hexxyplanes (incompatible with Hexical <2.0 (no Hexical 2 for 1.20.1)); hexxyskies (needs Valkyrien Skies + incompatible with Hexical <2.0); hexoncommand (jar clashes: duplicate hexoncommand.mixins.json at launch); focalworks (mixin into OpWrite fails: critical injection failure with this set); hexic (CastingVM mixin target missing on hex 0.11.4); hexvr (incompatible with current Vivecraft, BodyPart missing).
+  # Not added: hexvidia (needs Hex Casting 0.11.3 exactly); hexdentity (needs `identity` mod (not on Modrinth for 1.20.1)); hexxyplanes (incompatible with Hexical <2.0 (no Hexical 2 for 1.20.1)); hexxyskies (needs Valkyrien Skies + incompatible with Hexical <2.0); hexoncommand (jar clashes: duplicate hexoncommand.mixins.json at launch); focalworks (mixin into OpWrite fails: critical injection failure with this set); hexic (CastingVM mixin target missing on hex 0.11.4); hexvr (incompatible with current Vivecraft, BodyPart missing); hextrogen + estrogen (estrogen models need Create assets, hexdoc cannot render).
   # Required dependencies of the addons below.
   - name: carpet
     role: library
@@ -155,14 +155,6 @@ mods:
     version: yG5vtP16
     filename: dynamickeybinds-fabric-1.20.1-0.1.2.1.jar
     sha512: 9b4f09712b5e5d430dd78be228594799df0b684aa8cd59a72c7b37748a5b685f9d5beb0549e2c0b58ab061005c092118ad747acbcb96eec72eea82e5f5a9d968
-
-  - name: estrogen
-    role: library
-    source: modrinth
-    project: estrogen
-    version: ZnqWS7up
-    filename: estrogen-5.0.8+1.20.1-fabric.jar
-    sha512: e82213b9b63158c550a33e2b8c45704cf239f61283f8050eb64e0a75df2e233fab074be317f5039bf35cc1babb699ad433f8075071b72731bd7a03bf63d2ada7
 
   - name: female-gender
     role: library
@@ -588,14 +580,6 @@ mods:
     version: H6GZVOoQ
     filename: hextrapats-1.10.0+1.20.1.jar
     sha512: f39dfdae72415fed2b0078cccff62febc2c0a40e0a96b77141ab940daf724cc986333cc76f098d70e5dc0d05e1a4a7c788c0f341556f456fba1b2048a784d59b
-
-  - name: hextrogen
-    role: addon
-    source: modrinth
-    project: hextrogen
-    version: juJQAmj2
-    filename: hextrogen-1.1.0.jar
-    sha512: f9c78912fa6cf9941ff1eccb8305e668086694c20f87d858dd66e735a90ce82be0c432ecebcd6f88b01404f2ef8296bfac709ac3a9da3a0068da9b81153deea6
 
   - name: hextweaks
     role: addon
