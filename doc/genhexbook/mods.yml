@@ -23,7 +23,7 @@
 schema_version: 1
 minecraft: "1.20.1"
 loader: fabric
-fabric_loader: "0.16.9"
+fabric_loader: "0.19.5"
 fabric_installer: "1.1.2"
 
 mods:
@@ -31,17 +31,17 @@ mods:
     role: library
     source: modrinth
     project: fabric-api
-    version: lcnQpW9C
-    filename: fabric-api-0.87.0+1.20.1.jar
-    sha512: 72e4c2abee838139ae3ba87615273deb8386791c43cf1e423f2a44d2b36ef845f6f967fd370a39d17498adb2fb7a9661b9352fc9f1070571b93db8579f383a24
+    version: rvI2dfzR
+    filename: fabric-api-0.92.12+1.20.1.jar
+    sha512: de9da2344043b3e9ef9fb7dbfff5f2577b06000c4f73f2a37959a80123141169084cece19133bd299b45feaaa4648bdaca2ea085684888cc8c55cc9134a477ca
 
   - name: fabric-language-kotlin
     role: library
     source: modrinth
     project: fabric-language-kotlin
-    version: LcgnDDmT
-    filename: fabric-language-kotlin-1.13.7+kotlin.2.2.21.jar
-    sha512: 0453a8a4eb8d791b5f0097a6628fae6f13b6dfba1e2bd1f91218769123808c4396a88bcdfc785f1d6bca348f267b32afc2aa9e0d5ec93a7b35bcfe295268c7bc
+    version: SKW1BTL3
+    filename: fabric-language-kotlin-1.14.2+kotlin.2.4.21.jar
+    sha512: 7fb475c4a7e7bdf8d0aca4b5798a58a354c51443d5b1fbde3e8cf34dfbf7191ef4238b5f07d08ec9490ec180b371624523326c3ad45d4ed2b2be541de9407e5d
 
   - name: architectury
     role: library
@@ -71,9 +71,9 @@ mods:
     role: library
     source: modrinth
     project: cardinal-components-api
-    version: HykM2Qyv
-    filename: cardinal-components-api-5.2.1.jar
-    sha512: 8457049dd5d232dd2e9220b5881e79ac5c31a6c051c55025f633276142a1954dd3bf8506511c887ca58fee398853434db39dcbee80b098ab4674109d36b5fe4a
+    version: Ielhod3p
+    filename: cardinal-components-api-5.2.3.jar
+    sha512: f20484d5bc780bee9b388ff6075e7c3bd130c7f8cae75a425bfd1fb68d03ca19288c09b0729992987fd32f3a2433b49c25162e086de82abd8d06ee45e4e3c917
 
   - name: inline
     role: library
@@ -121,8 +121,17 @@ mods:
     strip_nested:
       - mielib
 
-  # ---- from hexaddons (SamsTheNerd/hexaddons hexaddons.json, 1.20.1 Fabric) ----
-  # Libraries pulled in as required dependencies of the addons below.
+  # ---- from hexaddons (SamsTheNerd/hexaddons hexaddons.json, MC 1.20.1 Fabric) ----
+  # Not added: hexvidia (needs Hex Casting 0.11.3 exactly); hexdentity (needs `identity` mod (not on Modrinth for 1.20.1)); hexxyplanes (incompatible with Hexical <2.0 (no Hexical 2 for 1.20.1)); hexxyskies (needs Valkyrien Skies + incompatible with Hexical <2.0).
+  # Required dependencies of the addons below.
+  - name: carpet
+    role: library
+    source: modrinth
+    project: carpet
+    version: K0Wj117C
+    filename: fabric-carpet-1.20-1.4.112+v230608.jar
+    sha512: bf9060e6b1d30d676d9efd30369ccb5baef164fc2d87aad7c7a19d2d9265b5d1d328428a308bdd15960a26bfe46dcd823a236c39f4e26474847354337b043c51
+
   - name: cc-tweaked
     role: library
     source: modrinth
@@ -404,14 +413,6 @@ mods:
     filename: hexdebug-fabric-0.9.1+1.20.1.jar
     sha512: 998d2e7f831d9cb45d0831d976c259f29b3f1ae7bc6d2d2413f40a7591b10627f7b2b053621ac8e13d9feccea9ef2f7ddac7457699f14849bdf9e42f4a21d13e
 
-  - name: hexdentity
-    role: addon
-    source: modrinth
-    project: hexdentity
-    version: N55upQd3
-    filename: hexdentity-fabric-1.0.7.jar
-    sha512: b19f76f85db2ab999d4d382566f28b5133b34c498b6cee661c8167f255ea9bffe9e8cfb2730fff9fb8eac0d7a0a94ca2af7ef9f7942596f8831c5a5a7f850bee
-
   - name: hexdim
     role: addon
     source: modrinth
@@ -544,9 +545,9 @@ mods:
     role: addon
     source: modrinth
     project: hexpose
-    version: GQmltZO5
-    filename: hexpose-3.0.0.jar
-    sha512: b873b5a260b00145115f94973baa7390a35fde4ffa1ce1b24af7008a94f7bada83536b594df05372c0ed139cb5f003ef076578007defeba1396192784dc996fa
+    version: xdGntEal
+    filename: hexpose-2.0.0.jar
+    sha512: 7e1c544160cd886149da779dc35130e7db3df5ffb46ae79d2bff4221d59fe793cdf36efe1bcb18cf24574a8fe6fa86a748c8af9dd7cfc5ecaaa0fc2c76f5a1e7
 
   - name: hexsbm
     role: addon
@@ -628,14 +629,6 @@ mods:
     filename: hextweaks-5.3.3.jar
     sha512: 7fbc6ff1e7129d8f79bcaa4371a89d935f31614256540e2b0809a70f2fe18966665ade13985b7b3c57d322b0950e69998d186b74da48b70728e33fccd933e6ee
 
-  - name: hexvidia
-    role: addon
-    source: modrinth
-    project: hexvidia
-    version: 2JUWgKcK
-    filename: hexvidia-1.0.0.jar
-    sha512: b729130549e738c391cf8620f9948dbb6be454c19992d427f0b502d3f37d8df1e247c300b15ba54534643bf4650b8613f8e37b63efc009985d96dff209e1d3fb
-
   - name: hexvr
     role: addon
     source: modrinth
@@ -659,22 +652,6 @@ mods:
     version: LZPMnifU
     filename: hexxyattributes-1.0.jar
     sha512: 20dad9e18951873903a99e8c7a05c856419be3237dfdf6ad7964d3a5fa5b53ced0d8fe880f7503bcb78fbb01e325456853afc5b917841b6e104674b6df69fd1e
-
-  - name: hexxyplanes
-    role: addon
-    source: modrinth
-    project: hexxyplanes
-    version: 1t76sO3s
-    filename: hexxyplanes-fabric-0.2.3+1.20.1.jar
-    sha512: 3311d93f9e72301e69405eeec7102157b56b8ae0bc14ff579bb0dfdb80b19200b9e6831d20c88a4689e82cc3075da7d5017aa634a15be8311aaf6b1c8dd18f83
-
-  - name: hexxyskies
-    role: addon
-    source: modrinth
-    project: hexxyskies
-    version: WGkS6F1p
-    filename: hexxyskies-fabric-2.0.2.jar
-    sha512: 3646b413fe3aab07a47b65cf7dba987bf79fa25837e5c4f3b73735050d2c69163cbc485e75238dd6fed56e4e6f664712dadf627793f5ed47860e6e7f6395ba4e
 
   - name: hierophantics
     role: addon
