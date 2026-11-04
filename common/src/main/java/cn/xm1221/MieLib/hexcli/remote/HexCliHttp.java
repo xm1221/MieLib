@@ -10,6 +10,7 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import dev.architectury.platform.Platform;
@@ -21,6 +22,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -66,8 +68,9 @@ public final class HexCliHttp {
     /** CORS 白名单的系统属性（{@code *} 或逗号分隔的 origin，允许 {@code http://host:*} 通配端口）。 */
     public static final String PROP_CORS = "mielib.hexcli.http.cors";
 
-    /** 默认 CORS 白名单：本机任意端口的页面。 */
-    public static final String DEFAULT_CORS = "http://127.0.0.1:*,http://localhost:*";
+    /** 默认 CORS 白名单：本机任意端口的页面 + HexTools 线上站点。 */
+    public static final String DEFAULT_CORS =
+        "http://127.0.0.1:*,http://localhost:*,https://hextools.xm1221.cn,http://hextools.xm1221.cn";
 
     /** 请求体最大字节数（与 TCP remote 的单行上限一致）。 */
     private static final int MAX_BODY = 1024 * 1024;
@@ -126,6 +129,8 @@ public final class HexCliHttp {
                 HexCliHttp endpoint = new HexCliHttp(http, server, token, file, corsSetting());
                 http.createContext("/v1/health", endpoint::handleHealth);
                 http.createContext("/v1/rpc", endpoint::handleRpc);
+                // HexTools 的 Dynamic Pattern Resolution 直接 POST 到 host 根下的 /resolve
+                http.createContext("/resolve", endpoint::handleResolve);
                 http.setExecutor(endpoint.workers);
                 http.start();
                 current = endpoint;
@@ -348,6 +353,70 @@ public final class HexCliHttp {
         return server.submit(task);
     }
 
+    private <T> CompletableFuture<T> submitValue(Supplier<T> task) {
+        return server.submit(task);
+    }
+
+    // ---- HexTools Dynamic Pattern Resolution ----
+
+    /**
+     * HexTools 的 Dynamic Pattern Resolution：{@code POST /resolve?signature=waaw}，无 token。
+     * 响应体是 JSON 字符串（{@code "evaluated"}），不是 JSON 对象。
+     */
+    private void handleResolve(HttpExchange ex) {
+        try {
+            if (preflightOrReject(ex)) return;
+            if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+                corsHeaders(ex);
+                sendJsonString(ex, 405, "invalid");
+                return;
+            }
+            corsHeaders(ex);
+            String signature = queryParam(ex.getRequestURI().getRawQuery(), "signature");
+            String result;
+            try {
+                result = submitValue(() -> HexCliOps.resolvePatternSignature(server, signature))
+                    .get(RPC_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            } catch (RejectedExecutionException | IllegalStateException e) {
+                result = "errored";
+            } catch (TimeoutException e) {
+                result = "errored";
+            } catch (ExecutionException e) {
+                HexCli.LOGGER.warn("[HexCLI] resolve failed: {}", rootMessage(e));
+                result = "errored";
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                result = "errored";
+            }
+            sendJsonString(ex, 200, result == null ? "invalid" : result);
+        } catch (RuntimeException e) {
+            HexCli.LOGGER.warn("[HexCLI] HTTP resolve failed: {}", e.toString());
+            try {
+                sendJsonString(ex, 500, "errored");
+            } catch (RuntimeException ignored) {
+            }
+        } finally {
+            ex.close();
+        }
+    }
+
+    /** 从 raw query 里取一个参数（已 URL 解码）；缺失返回 null。 */
+    private static @Nullable String queryParam(@Nullable String rawQuery, String key) {
+        if (rawQuery == null || rawQuery.isEmpty()) return null;
+        for (String part : rawQuery.split("&")) {
+            int eq = part.indexOf('=');
+            String k = eq < 0 ? part : part.substring(0, eq);
+            if (!k.equals(key)) continue;
+            String v = eq < 0 ? "" : part.substring(eq + 1);
+            try {
+                return URLDecoder.decode(v, StandardCharsets.UTF_8);
+            } catch (IllegalArgumentException e) {
+                return v;
+            }
+        }
+        return null;
+    }
+
     /** 命令映射：与 {@link HexCliRemote} 的 TCP 请求类型一一对应。返回 null 表示未知 cmd。 */
     private @Nullable Supplier<HexCliReply> command(String cmd, String code, @Nullable String label,
                                                     String name, @Nullable String env) {
@@ -516,6 +585,15 @@ public final class HexCliHttp {
     }
 
     private static void sendJson(HttpExchange ex, int status, JsonObject body) {
+        sendJsonElement(ex, status, body);
+    }
+
+    /** 发送一个 JSON 字符串标量（HexTools {@code /resolve} 的响应体是 {@code "evaluated"}）。 */
+    private static void sendJsonString(HttpExchange ex, int status, String value) {
+        sendJsonElement(ex, status, new JsonPrimitive(value));
+    }
+
+    private static void sendJsonElement(HttpExchange ex, int status, JsonElement body) {
         byte[] bytes = GSON.toJson(body).getBytes(StandardCharsets.UTF_8);
         ex.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
         try {

@@ -26,7 +26,7 @@ java -Dmielib.hexcli=true -Dmielib.hexcli.http=true -Dmielib.hexcli.http.port=87
 | `-Dmielib.hexcli.http=true` | 启用 HTTP 端点（仍需 HexCLI 已启用） | `false` |
 | `-Dmielib.hexcli.http.port=<n>` | 端口；`0` = 自动挑空闲端口 | `0`（自动） |
 | `-Dmielib.hexcli.http.bind=<addr>` | 绑定地址 | `127.0.0.1` |
-| `-Dmielib.hexcli.http.cors=<list>` | CORS 白名单；`*`，或逗号分隔 origin，`http://host:*` 通配端口 | `http://127.0.0.1:*,http://localhost:*` |
+| `-Dmielib.hexcli.http.cors=<list>` | CORS 白名单；`*`，或逗号分隔 origin，`http://host:*` 通配端口 | `http://127.0.0.1:*,http://localhost:*,https://hextools.xm1221.cn,http://hextools.xm1221.cn` |
 
 同样四项也在 MieLib 服务端配置里：`enableHexCliHttp`、`hexCliHttpPort`、`hexCliHttpBind`、`hexCliHttpCors`
 （仅服务端，和 `enableHexCli` 一样不参与网络同步）。**系统属性优先**。
@@ -89,7 +89,7 @@ token 与 `client.json` 里的**是同一个**（HTTP 端点复用 TCP 远程的
 ## 鉴权
 
 `Authorization: Bearer <token>`，或 JSON body 里的 `"token"` 字段；常量时间比较。
-health 不需要鉴权。token 错误 / 缺失 → HTTP 401，`{"ok": false, "data": {"error": "bad token"}}`。
+health 和 `/resolve` 不需要鉴权。token 错误 / 缺失 → HTTP 401，`{"ok": false, "data": {"error": "bad token"}}`。
 
 ## CORS
 
@@ -98,7 +98,8 @@ health 不需要鉴权。token 错误 / 缺失 → HTTP 401，`{"ok": false, "da
 - `Allow-Headers: Authorization, Content-Type`、`Allow-Methods: GET,POST,OPTIONS`；`OPTIONS` 预检 → 204。
 - `*` 仅供本地调试。
 
-默认白名单接受 `127.0.0.1` / `localhost` 的任意端口，覆盖 `http://localhost:5173` 之类的开发服务器。
+默认白名单接受 `127.0.0.1` / `localhost` 的任意端口（覆盖 `http://localhost:5173` 之类的开发服务器），
+外加 HexTools 线上站点 `https://hextools.xm1221.cn` / `http://hextools.xm1221.cn`。
 
 ## 混合内容
 
@@ -164,3 +165,37 @@ curl -s -X POST http://127.0.0.1:8742/v1/rpc \
 ## Private Network Access / 混合内容
 
 预检若带 `Access-Control-Request-Private-Network: true`，会回 `Access-Control-Allow-Private-Network: true`，便于 **https** 的 pages.dev 访问本机 `http://127.0.0.1`。若浏览器仍因混合内容拦截，请改用本地 `yarn dev`（http），或给 HexCLI 加 TLS / 反向代理。
+
+## `POST /resolve` — HexTools 动态图案解析
+
+HexTools 法杖画板的 **Dynamic Pattern Resolution URL** 会把每个画出的图案 POST 到这里来决定颜色。
+路径在**主机根**下（`new URL("/resolve", base)`，**不在** `/v1` 之下），方法为 **POST**（body 不用），
+**不发送 token**：和 `/v1/health` 一样，`/resolve` 免鉴权。
+
+```http
+POST /resolve?signature=waaw HTTP/1.1
+```
+
+响应体是 **JSON 字符串**，不是对象：
+
+```json
+"evaluated"
+```
+
+| `signature` | 结果 |
+|-------------|------|
+| 缺失 / 空 | `"invalid"` |
+| 命中已注册动作（per-world 大法术用当前世界的 canonical 笔画） | `"evaluated"` |
+| 没有命中 | `"unresolved"` |
+
+查表用的是**当前进程的动作注册表**（与 `patterns.list` 同源），不会真的施法。
+`escaped` / `undone` / `errored` 是施法期状态，静态查表不会产生；内部异常时返回 `"errored"`。
+
+```bash
+curl -s -X POST 'http://127.0.0.1:8742/resolve?signature=waaw'            # "evaluated"
+curl -s -X POST 'http://127.0.0.1:8742/resolve?signature=notapatternzzz'  # "unresolved"
+curl -s -X POST 'http://127.0.0.1:8742/resolve'                           # "invalid"
+```
+
+在 HexTools 里填 `http://127.0.0.1:8742`（或 `http://127.0.0.1:8742/v1`；开头的 `/` 让路径无论如何都是绝对路径）。
+CORS 与 Private Network Access 行为与 `/v1/*` 完全一致——线上站点 `https://hextools.xm1221.cn` 已在默认白名单里。

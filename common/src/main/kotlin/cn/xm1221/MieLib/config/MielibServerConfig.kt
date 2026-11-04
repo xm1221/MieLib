@@ -101,11 +101,11 @@ object MielibServerConfig {
 
         /**
          * HTTP 端点的 CORS 白名单：`*` 或逗号分隔的 origin，允许 `http://localhost:*` 这样的端口通配。
-         * 默认 `http://127.0.0.1:*,http://localhost:*`。
+         * 默认 `http://127.0.0.1:*,http://localhost:*,https://hextools.xm1221.cn,http://hextools.xm1221.cn`。
          * 启动参数 `-Dmielib.hexcli.http.cors=<list>` 优先于本项。服务端专用，不参与网络同步。
          */
         @Tooltip
-        var hexCliHttpCors: String = "http://127.0.0.1:*,http://localhost:*"
+        var hexCliHttpCors: String = "http://127.0.0.1:*,http://localhost:*,https://hextools.xm1221.cn,http://hextools.xm1221.cn"
             private set
 
         fun encode(buf: FriendlyByteBuf) {

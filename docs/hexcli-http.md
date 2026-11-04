@@ -27,7 +27,7 @@ java -Dmielib.hexcli=true -Dmielib.hexcli.http=true -Dmielib.hexcli.http.port=87
 | `-Dmielib.hexcli.http=true` | Enable the HTTP endpoint (still needs HexCLI enabled) | `false` |
 | `-Dmielib.hexcli.http.port=<n>` | Port; `0` = pick a free one | `0` (auto) |
 | `-Dmielib.hexcli.http.bind=<addr>` | Bind address | `127.0.0.1` |
-| `-Dmielib.hexcli.http.cors=<list>` | CORS allowlist; `*`, or comma-separated origins, `http://host:*` wildcards the port | `http://127.0.0.1:*,http://localhost:*` |
+| `-Dmielib.hexcli.http.cors=<list>` | CORS allowlist; `*`, or comma-separated origins, `http://host:*` wildcards the port | `http://127.0.0.1:*,http://localhost:*,https://hextools.xm1221.cn,http://hextools.xm1221.cn` |
 
 The same four settings exist in the MieLib server config as `enableHexCliHttp`, `hexCliHttpPort`,
 `hexCliHttpBind`, `hexCliHttpCors` (server-side only; never synced to clients, like `enableHexCli`).
@@ -92,7 +92,7 @@ Startup log line:
 ## Auth
 
 `Authorization: Bearer <token>`, or a `"token"` field in the JSON body. Compared in constant time.
-Health is unauthenticated. Wrong / missing token → HTTP 401 with `{"ok": false, "data": {"error": "bad token"}}`.
+Health and `/resolve` are unauthenticated. Wrong / missing token → HTTP 401 with `{"ok": false, "data": {"error": "bad token"}}`.
 
 ## CORS
 
@@ -101,8 +101,9 @@ Health is unauthenticated. Wrong / missing token → HTTP 401 with `{"ok": false
 - `Allow-Headers: Authorization, Content-Type`, `Allow-Methods: GET,POST,OPTIONS`; `OPTIONS` preflight → 204.
 - `*` is meant for local debugging only.
 
-The default allowlist accepts any port on `127.0.0.1` / `localhost`, which covers a dev server on
-`http://localhost:5173` etc.
+The default allowlist accepts any port on `127.0.0.1` / `localhost` (covers a dev server on
+`http://localhost:5173` etc.) plus the HexTools live site `https://hextools.xm1221.cn` /
+`http://hextools.xm1221.cn`.
 
 ## Mixed content
 
@@ -168,3 +169,40 @@ Unchanged from the TCP remote, plus (for browser rendering):
 ## Private Network Access / mixed content
 
 On preflight with `Access-Control-Request-Private-Network: true`, the server answers with `Access-Control-Allow-Private-Network: true` so an **https** pages.dev UI may reach `http://127.0.0.1`. If the browser still blocks mixed content, use local `yarn dev` (http) or put TLS / a reverse proxy in front of HexCLI.
+
+## `POST /resolve` — HexTools Dynamic Pattern Resolution
+
+HexTools's staff-grid **Dynamic Pattern Resolution URL** posts every drawn pattern here to colour
+it. The path is at the **host root** (`new URL("/resolve", base)` — *not* under `/v1`), the method is
+**POST** with an unused body, and **no token is sent**: `/resolve` is unauthenticated like
+`/v1/health`.
+
+```http
+POST /resolve?signature=waaw HTTP/1.1
+```
+
+Response is a **JSON string**, not an object:
+
+```json
+"evaluated"
+```
+
+| `signature` | Result |
+|-------------|--------|
+| missing / empty | `"invalid"` |
+| matches a registered action (canonical strokes for per-world great spells) | `"evaluated"` |
+| no match | `"unresolved"` |
+
+The lookup uses the **live** action registry (the same source as `patterns.list`) and does not cast
+anything. `escaped` / `undone` / `errored` are cast-time states, so a static lookup never returns
+them; internal failures return `"errored"`.
+
+```bash
+curl -s -X POST 'http://127.0.0.1:8742/resolve?signature=waaw'            # "evaluated"
+curl -s -X POST 'http://127.0.0.1:8742/resolve?signature=notapatternzzz'  # "unresolved"
+curl -s -X POST 'http://127.0.0.1:8742/resolve'                           # "invalid"
+```
+
+Point HexTools at `http://127.0.0.1:8742` (or `http://127.0.0.1:8742/v1`; the leading `/` makes the
+path absolute either way). CORS and Private Network Access behave exactly as for `/v1/*` — the
+live site `https://hextools.xm1221.cn` is in the default allowlist.

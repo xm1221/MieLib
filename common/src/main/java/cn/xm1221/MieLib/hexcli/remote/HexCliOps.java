@@ -659,6 +659,45 @@ public final class HexCliOps {
             "[HexCLI] patterns.list: " + patterns.size() + " actions (" + perWorldCount + " per-world)"), data);
     }
 
+    // ---- HexTools Dynamic Pattern Resolution ----
+
+    /** {@code /resolve} 的返回：空签名 → invalid，命中 action registry → evaluated，否则 unresolved。 */
+    public static final String RESOLVE_INVALID = "invalid";
+    public static final String RESOLVE_EVALUATED = "evaluated";
+    public static final String RESOLVE_UNRESOLVED = "unresolved";
+
+    /**
+     * 按 angles signature（如 {@code waaw}）在 live action registry 里查找图案，不施法。
+     * <p>
+     * per-world great spell 用当前世界（主世界）的 canonical strokes 比较，与 {@link #patternsList} 一致。
+     * {@code escaped} / {@code undone} / {@code errored} 是施法期状态，静态查表不会产生。
+     */
+    public static String resolvePatternSignature(MinecraftServer server, @Nullable String signature) {
+        if (signature == null || signature.isBlank()) return RESOLVE_INVALID;
+        String wanted = signature.trim().toLowerCase(Locale.ROOT);
+        try {
+            var registry = IXplatAbstractions.INSTANCE.getActionRegistry();
+            ServerLevel overworld = server.overworld();
+            for (ResourceKey<ActionRegistryEntry> key : registry.registryKeySet()) {
+                ActionRegistryEntry entry = registry.get(key);
+                if (entry == null) continue;
+                HexPattern pattern = entry.prototype();
+                try {
+                    if (overworld != null && HexUtils.isOfTag(registry, key, HexTags.Actions.PER_WORLD_PATTERN)) {
+                        HexPattern canonical = PatternRegistryManifest.getCanonicalStrokesPerWorld(key, overworld);
+                        if (canonical != null) pattern = canonical;
+                    }
+                } catch (Throwable ignored) {
+                }
+                if (wanted.equals(pattern.anglesSignature())) return RESOLVE_EVALUATED;
+            }
+        } catch (Throwable t) {
+            LOGGER.warn("HexCLI: resolve failed: {}", t.toString());
+            return RESOLVE_UNRESOLVED;
+        }
+        return RESOLVE_UNRESOLVED;
+    }
+
     // ---- 让时间流逝：tick / wait ----
 
     /** 一个等待中的 tick / wait；结束时调用回调（在服务器线程上）。 */

@@ -50,7 +50,7 @@ loom {
         val hexcliHttpPort = System.getProperty("mielib.hexcli.http.port") ?: "8742"
         val hexcliHttpBind = System.getProperty("mielib.hexcli.http.bind") ?: "127.0.0.1"
         val hexcliHttpCors = System.getProperty("mielib.hexcli.http.cors")
-            ?: "http://127.0.0.1:*,http://localhost:*,http://*.pages.dev,https://*.pages.dev"
+            ?: "http://127.0.0.1:*,http://localhost:*,http://*.pages.dev,https://*.pages.dev,https://hextools.xm1221.cn,http://hextools.xm1221.cn"
         register("hexcliServer") {
             server()
             name("HexCLI Server")
