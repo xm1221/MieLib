@@ -122,6 +122,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# hexdoc renders item icons with ModernGL. A headless runner has no DISPLAY;
+# xvfb-run gives the server (and the hexdoc child it spawns) a software X server.
+java_prefix=()
+if [ -z "${DISPLAY:-}" ]; then
+  if ! command -v xvfb-run >/dev/null 2>&1; then
+    echo "hexdoc needs a display to render icons. Install xvfb, or set DISPLAY." >&2
+    exit 1
+  fi
+  export LIBGL_ALWAYS_SOFTWARE=1
+  java_prefix=(xvfb-run -a)
+fi
+
 # Hold stdin open. Closing it (or pointing it at /dev/null) stops the server.
 python3 -c 'import time; time.sleep(10**9)' >"$fifo" &
 holder_pid=$!
@@ -129,7 +141,7 @@ sleep 0.2
 
 (
   cd "$SERVER"
-  exec java -Xms512M -Xmx2G \
+  exec "${java_prefix[@]}" java -Xms512M -Xmx2G \
     -Dfile.encoding=UTF-8 \
     -Dmielib.genhexbook.hexdoc="$HEXDOC" \
     -Dmielib.genhexbook.siteUrl="$SITE_URL" \

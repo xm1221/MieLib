@@ -273,7 +273,7 @@ bash doc/genhexbook/tools/export_site.sh \
   --site-url https://mielib-hexbook.pages.dev --out build/genhexbook-site
 ```
 
-服务端 `max-tick-time=-1`：`/genHexBook` 在服务器线程里等 hexdoc，默认 60 秒看门狗会把进程杀掉。CI 不下载原版客户端 jar，因此以原版模型为父级的附属物品图标会走 hexdoc 的占位图；需要时自行加 `-Dmielib.genhexbook.clientJar`。这条工作流只起 Fabric 服务端。
+服务端 `max-tick-time=-1`：`/genHexBook` 在服务器线程里等 hexdoc，默认 60 秒看门狗会把进程杀掉。没有显示器时 `export_site.sh` 会用 `xvfb-run`（需要安装 `xvfb`），因为 hexdoc 画物品图标要 OpenGL。CI 不下载原版客户端 jar，因此以原版模型为父级的附属物品图标会走 hexdoc 的占位图；需要时自行加 `-Dmielib.genhexbook.clientJar`。这条工作流只起 Fabric 服务端。
 
 ---
 

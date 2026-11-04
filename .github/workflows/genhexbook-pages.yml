@@ -150,6 +150,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash doc/genhexbook/tools/decide_deploy.sh
 
+      - name: Virtual display for hexdoc item icons
+        run: sudo apt-get update && sudo apt-get install -y xvfb libgl1 libegl1 libglib2.0-0 libx11-6
+
       - name: Export the hexdoc site
         run: |
           bash doc/genhexbook/tools/export_site.sh \
