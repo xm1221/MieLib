@@ -122,7 +122,7 @@ mods:
       - mielib
 
   # ---- from hexaddons (SamsTheNerd/hexaddons hexaddons.json, MC 1.20.1 Fabric) ----
-  # Not added: hexvidia (needs Hex Casting 0.11.3 exactly); hexdentity (needs `identity` mod (not on Modrinth for 1.20.1)); hexxyplanes (incompatible with Hexical <2.0 (no Hexical 2 for 1.20.1)); hexxyskies (needs Valkyrien Skies + incompatible with Hexical <2.0); hexoncommand (jar clashes: duplicate hexoncommand.mixins.json at launch).
+  # Not added: hexvidia (needs Hex Casting 0.11.3 exactly); hexdentity (needs `identity` mod (not on Modrinth for 1.20.1)); hexxyplanes (incompatible with Hexical <2.0 (no Hexical 2 for 1.20.1)); hexxyskies (needs Valkyrien Skies + incompatible with Hexical <2.0); hexoncommand (jar clashes: duplicate hexoncommand.mixins.json at launch); focalworks (mixin into OpWrite fails: critical injection failure with this set).
   # Required dependencies of the addons below.
   - name: carpet
     role: library
@@ -292,14 +292,6 @@ mods:
     version: d4xVSBKN
     filename: ephemera-fabric-1.20.1-0.3.1.jar
     sha512: bfee42148cc23505db656776c18f1df4f500cfd86fdefbca405bec9ffb0b5893f2735571e087bf05809f1aec11e7f597f9f94e6f6ed67025ebeccf0e31e79fab
-
-  - name: focalworks
-    role: addon
-    source: modrinth
-    project: focalworks
-    version: UUx0yE5B
-    filename: focalworks-1.1.2.3.jar
-    sha512: 4cd6825309c721b688e4a54ad47357543f361b974f2fec27a131287b12de5030b7e94689d24acf05293b851b597239e161561b6df379bc639c8deec0a3911dd9
 
   - name: heartxxy
     role: addon
