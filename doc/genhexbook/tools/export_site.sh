@@ -224,8 +224,12 @@ if [ -n "$OUT" ]; then
   rm -rf "$OUT"
   mkdir -p "$OUT"
   cp -a "$SERVER/hexbook/site/." "$OUT/"
-  [ -f "$OUT/index.html" ]
-  echo "site: $OUT"
+  site_dir="$OUT"
 else
-  echo "site: $SERVER/hexbook/site"
+  site_dir="$SERVER/hexbook/site"
 fi
+# Resource ids such as hexcasting:interop become directories. GitHub artifact
+# upload and GitHub Pages reject ":"; rewrite those segments to "_".
+python3 "$HERE/sanitize_site_paths.py" "$site_dir"
+[ -f "$site_dir/index.html" ]
+echo "site: $site_dir"

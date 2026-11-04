@@ -273,7 +273,7 @@ bash doc/genhexbook/tools/export_site.sh \
   --site-url https://mielib-hexbook.pages.dev --out build/genhexbook-site
 ```
 
-服务端 `max-tick-time=-1`：`/genHexBook` 在服务器线程里等 hexdoc，默认 60 秒看门狗会把进程杀掉。没有显示器时 `export_site.sh` 会用 `xvfb-run`（需要安装 `xvfb`），因为 hexdoc 画物品图标要 OpenGL。CI 不下载原版客户端 jar，因此以原版模型为父级的附属物品图标会走 hexdoc 的占位图；需要时自行加 `-Dmielib.genhexbook.clientJar`。这条工作流只起 Fabric 服务端。
+服务端 `max-tick-time=-1`：`/genHexBook` 在服务器线程里等 hexdoc，默认 60 秒看门狗会把进程杀掉。没有显示器时 `export_site.sh` 会用 `xvfb-run`（需要安装 `xvfb`），因为 hexdoc 画物品图标要 OpenGL。hexdoc 会把资源 id（如 `hexcasting:interop/...`）当成目录名；上传前把路径里的 `:` 换成 `_`，否则 GitHub 的 artifact / Pages 会拒收。CI 不下载原版客户端 jar，因此以原版模型为父级的附属物品图标会走 hexdoc 的占位图；需要时自行加 `-Dmielib.genhexbook.clientJar`。这条工作流只起 Fabric 服务端。
 
 ---
 
@@ -561,4 +561,4 @@ bash doc/genhexbook/tools/export_site.sh \
   --site-url https://mielib-hexbook.pages.dev --out build/genhexbook-site
 ```
 
-The server sets `max-tick-time=-1` because `/genHexBook` waits for hexdoc on the server thread and the default 60-second watchdog would kill it. CI does not download a vanilla client jar, so addon items whose models use vanilla parents fall back to hexdoc's placeholder; pass `-Dmielib.genhexbook.clientJar` yourself when you need those icons. This workflow boots a Fabric server only.
+The server sets `max-tick-time=-1` because `/genHexBook` waits for hexdoc on the server thread and the default 60-second watchdog would kill it. With no display, `export_site.sh` uses `xvfb-run` (install `xvfb`); hexdoc needs OpenGL to draw item icons. hexdoc uses resource ids such as `hexcasting:interop/...` as directory names; before upload those `:` characters are rewritten to `_`, because GitHub artifact storage and GitHub Pages reject them. CI does not download a vanilla client jar, so addon items whose models use vanilla parents fall back to hexdoc's placeholder; pass `-Dmielib.genhexbook.clientJar` yourself when you need those icons. This workflow boots a Fabric server only.
