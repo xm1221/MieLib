@@ -122,7 +122,7 @@ mods:
       - mielib
 
   # ---- from hexaddons (SamsTheNerd/hexaddons hexaddons.json, MC 1.20.1 Fabric) ----
-  # Not added: hexvidia (needs Hex Casting 0.11.3 exactly); hexdentity (needs `identity` mod (not on Modrinth for 1.20.1)); hexxyplanes (incompatible with Hexical <2.0 (no Hexical 2 for 1.20.1)); hexxyskies (needs Valkyrien Skies + incompatible with Hexical <2.0).
+  # Not added: hexvidia (needs Hex Casting 0.11.3 exactly); hexdentity (needs `identity` mod (not on Modrinth for 1.20.1)); hexxyplanes (incompatible with Hexical <2.0 (no Hexical 2 for 1.20.1)); hexxyskies (needs Valkyrien Skies + incompatible with Hexical <2.0); hexoncommand (jar clashes: duplicate hexoncommand.mixins.json at launch).
   # Required dependencies of the addons below.
   - name: carpet
     role: library
@@ -500,14 +500,6 @@ mods:
     version: 1ApHzJr1
     filename: hexodus-1.0.0.jar
     sha512: 28ab168c1c5a787d97016ddd7e89f31f8ecb1d833d098b43faa6a985e9e5887c1019be3f6c0e3706e776e4ee3d3b84255d2014275a55526892b5ae6fbc45db66
-
-  - name: hexoncommand
-    role: addon
-    source: modrinth
-    project: hexoncommand
-    version: HNzfYPZ3
-    filename: hexoncommand-1.0.0.jar
-    sha512: e504e79888e4955816ed3017d7b2998bc6a8cd3f5b384d2e0af7b64be66af241f023c6fc62b42c99604237f60d563a5471ea8f0dd32c282d21bfe8e6307d0174
 
   - name: hexoverpowered
     role: addon
