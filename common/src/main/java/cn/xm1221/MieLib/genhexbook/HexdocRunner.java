@@ -168,21 +168,36 @@ public final class HexdocRunner {
     /**
      * hexdoc writes the book under {@code _site/src/docs/v/latest/main}; publish
      * {@code _site/src/docs} as the site root so the tree starts at {@code v/}.
+     * There is no {@code v/latest/main/index.html} — the indices live in the
+     * per-language directories ({@code en_us}, {@code zh_cn}), so look for those
+     * (or any language index) instead.
      */
     private static Path locateSite(Path root) throws IOException {
         if (!Files.isDirectory(root)) return null;
         Path docs = root.resolve("src/docs");
         Path book = docs.resolve("v/latest/main");
-        if (Files.isDirectory(book) && Files.exists(book.resolve("index.html"))) {
+        if (Files.isDirectory(book) && hasLangIndex(book)) {
             return docs;
         }
         if (Files.exists(root.resolve("index.html"))) return root;
-        // fall back to the deepest directory containing index.html
+        // fall back to the shallowest directory containing index.html
         try (Stream<Path> walk = Files.walk(root)) {
             return walk.filter(p -> p.getFileName().toString().equals("index.html"))
                 .map(Path::getParent)
                 .min(Comparator.comparingInt(Path::getNameCount))
                 .orElse(null);
+        }
+    }
+
+    /** True when the book dir holds a language index, preferring en_us/zh_cn. */
+    private static boolean hasLangIndex(Path book) {
+        if (Files.exists(book.resolve("en_us/index.html"))) return true;
+        if (Files.exists(book.resolve("zh_cn/index.html"))) return true;
+        try (Stream<Path> children = Files.list(book)) {
+            return children.anyMatch(p -> Files.isDirectory(p)
+                && Files.exists(p.resolve("index.html")));
+        } catch (IOException e) {
+            return false;
         }
     }
 
