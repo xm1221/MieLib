@@ -205,3 +205,8 @@ cython_debug/
 
 # HexCLI installer bootstrap scripts (tracked; the Python template rule above ignores dist/)
 !hexcli-installer/dist/
+
+# local agent / secrets (do not commit)
+.agent/
+cf.env
+*.env
