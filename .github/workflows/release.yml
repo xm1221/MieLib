@@ -10,11 +10,11 @@ on:
       publish_curseforge:
         description: Publish to CurseForge
         type: boolean
-        default: true
+        default: false
       publish_modrinth:
         description: Publish to Modrinth
         type: boolean
-        default: true
+        default: false
       dry_run:
         description: Perform a dry run
         type: boolean

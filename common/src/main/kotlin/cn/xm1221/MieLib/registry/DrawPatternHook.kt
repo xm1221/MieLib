@@ -19,6 +19,19 @@ object DrawPatternHook : HookWorkerRegistry<DrawPatternWorker>("DrawPatternHook"
     @JvmStatic
     fun register(id: ResourceLocation, worker: DrawPatternWorker) = put(id, worker)
 
+    /** 按 [ordered] 的顺序依次应用 worker（带完整上下文）；未命中的 worker 保持原值。 */
+    @JvmStatic
+    fun effect(
+        drawLast: Boolean,
+        tail: Int,
+        head: Int,
+        flowIrregular: Float,
+        ctx: DrawPatternWorker.DrawPatternContext,
+    ): DrawPatternWorker.DrawResult =
+        fold(DrawPatternWorker.DrawResult(drawLast, tail, head, flowIrregular)) { worker, result ->
+            if (worker.ifEffect(result, ctx)) worker.effect(result, ctx) else result
+        }
+
     /** 按 [ordered] 的顺序依次应用 worker；未命中的 worker 保持原值。 */
     @JvmStatic
     fun effect(
@@ -28,9 +41,13 @@ object DrawPatternHook : HookWorkerRegistry<DrawPatternWorker>("DrawPatternHook"
         flowIrregular: Float,
         seed: Double,
     ): DrawPatternWorker.DrawResult =
-        fold(DrawPatternWorker.DrawResult(drawLast, tail, head, flowIrregular)) { worker, result ->
-            if (worker.ifEffect(result, seed)) worker.effect(result, seed) else result
-        }
+        effect(
+            drawLast,
+            tail,
+            head,
+            flowIrregular,
+            DrawPatternWorker.DrawPatternContext(null, -1, null, !drawLast, seed),
+        )
 
     /** 兼容旧调用：seed 不可用时传入 [Double.NaN]。 */
     @JvmStatic

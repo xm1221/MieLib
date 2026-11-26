@@ -5,7 +5,8 @@
   "minVersion": "0.8",
   "client": [
     "GuiSpellcastingMixin",
-    "IotaTypeMixin"
+    "IotaTypeMixin",
+    "MsgNewSpellPatternS2CMixin"
   ],
   "mixins": [
     "CastingVMMixin"
